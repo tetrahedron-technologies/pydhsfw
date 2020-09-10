@@ -31,19 +31,15 @@ class ConnectionShutdownMessage(ConnectionMessage):
     def __init__(self, msg):
         super().__init__(msg)
 
-class MessageSocketReader(MessageReader):
-    _sock = None
+class MessageSocketReader():
 
-    def __init__(self, sock:socket):
-        self._sock = sock
-
-    def read(self, msglen)->bytes:
+    def read(self, sock:socket, msglen)->bytes:
         res = None
 
         chunks = []
         bytes_recd = 0
         while bytes_recd < msglen:
-            chunk = self._sock.recv(min(msglen - bytes_recd, 2048))
+            chunk = sock.recv(min(msglen - bytes_recd, 2048))
             if chunk == b'':
                 raise ConnectionAbortedError("socket connection broken")
             chunks.extend(chunk)
