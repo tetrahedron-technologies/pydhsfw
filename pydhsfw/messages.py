@@ -15,17 +15,9 @@ class MessageIn():
     def parse(buffer:bytes):
         pass
 
-class MessageReader():
-    def read(self, bufsize):
-        pass
-
 class MessageFactory():
 
     def __init__(self):
-        pass
-    
-    def readRawMessage(self, reader: MessageReader)->bytes:
-        """Read the raw bytes of an entire message based on known message length or delimeter and return it."""
         pass
 
     def createMessage(self, raw_message:bytes)->MessageIn:
