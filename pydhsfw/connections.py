@@ -1,12 +1,13 @@
 from enum import Enum
 import socket
+import errno
 from urllib.parse import urlparse
 from collections import deque
 import time
 import sys
 import threading
 import traceback
-from pydhsfw.messages import MessageIn, MessageOut, MessageReader, MessageFactory, MessageProcessor, MessageProcessorWorker
+from pydhsfw.messages import MessageIn, MessageOut, MessageFactory, MessageProcessor, MessageProcessorWorker
 from pydhsfw.threads import AbortableThread
 
 class ConnectionMessage(MessageIn):
@@ -31,28 +32,35 @@ class ConnectionShutdownMessage(ConnectionMessage):
     def __init__(self, msg):
         super().__init__(msg)
 
-class MessageSocketReader(MessageReader):
-    _sock = None
+class TcpipSocketReader():
 
-    def __init__(self, sock:socket):
-        self._sock = sock
+    def read(self, sock:socket):
+        pass
 
-    def read(self, msglen)->bytes:
+    def _read(self, sock:socket, msglen:int=None, delimeter:bytes=None)->bytes:
         res = None
 
-        chunks = []
-        bytes_recd = 0
-        while bytes_recd < msglen:
-            chunk = self._sock.recv(min(msglen - bytes_recd, 2048))
-            if chunk == b'':
-                raise ConnectionAbortedError("socket connection broken")
-            chunks.extend(chunk)
-            chunk_len = len(chunk)
-            bytes_recd = bytes_recd + chunk_len
+        if msglen:
+            chunks = []
+            bytes_recd = 0
+            while bytes_recd < msglen:
+                chunk = sock.recv(min(msglen - bytes_recd, 2048))
+                if chunk == b'':
+                    raise ConnectionAbortedError("socket connection broken")
+                chunks.extend(chunk)
+                chunk_len = len(chunk)
+                bytes_recd = bytes_recd + chunk_len
 
-        res = bytearray(chunks)
+            res = bytearray(chunks)
+
+        elif delimeter:
+            #TODO[Giles]: Implement this to pull bytes until the delimeter is found, then return the full message chunk.
+            pass
 
         return res
+
+    def read_to_delimiter(self, sock:socket, delimeter:bytes)->bytes:
+        pass
 
 class ClientState(Enum):
     DISCONNECTED = 1
@@ -321,13 +329,15 @@ class TcpipClientConnectionWorker(AbortableThread):
 class TcpipClientReaderWorker(AbortableThread):
     
     _connecton_worker = None
+    _msg_reader = None
     _msg_factory = None
     _msg_processor = None
 
-    def __init__(self, connection_worker:TcpipClientConnectionWorker, message_factory:MessageFactory, message_processor:MessageProcessor):
+    def __init__(self, connection_worker:TcpipClientConnectionWorker, message_reader:TcpipSocketReader, message_factory:MessageFactory, message_processor:MessageProcessor):
         super().__init__(name='tcpip client reader worker')
-        self._msg_factory = message_factory
         self._connecton_worker = connection_worker
+        self._msg_reader = message_reader
+        self._msg_factory = message_factory
         self._msg_processor = message_processor
 
     def _notify_status(self, msg:str):
@@ -340,8 +350,7 @@ class TcpipClientReaderWorker(AbortableThread):
                     #Can't wait forever in blocking call, need to enter loop to check for control messages, specifically SystemExit.
                     sock = self._connecton_worker._get_socket(5)
                     if sock:
-                        sock_reader = MessageSocketReader(sock)
-                        buffer = self._msg_factory.readRawMessage(sock_reader)
+                        buffer = self._msg_reader.read(sock)
                         print(f'Socket received message, len: {len(buffer)}, buffer: {buffer}')
 
                         msg = self._msg_factory.createMessage(buffer)
@@ -358,7 +367,13 @@ class TcpipClientReaderWorker(AbortableThread):
                 except socket.timeout:
                     #Socket read timed out. This is normal, it just means that no messages have been sent so we can ignore it.
                     pass
-                except Exception:
+                except OSError as e:
+                    if e.errno == errno.EBADF:
+                        #Socket has been closed, connection worker is probably working on reconnecting so we can ignore.
+                        pass
+                    else:
+                        raise
+                except Exception as e:
                     traceback.print_exc()
                     raise
 
@@ -370,20 +385,22 @@ class TcpipClientReaderWorker(AbortableThread):
 
 class TcpipClientConnection(TcpipConnection):
 
+    _msg_reader = None
     _msg_factory = None
     _msg_processor = None
     _connection_worker = None
     _connection_reader_worker = None
 
-    def __init__(self, msg_processor:MessageProcessorWorker, msg_factory:MessageFactory):
+    def __init__(self, msg_processor:MessageProcessorWorker, msg_reader:TcpipSocketReader, msg_factory:MessageFactory):
         super().__init__()
+        self._msg_reader = msg_reader
         self._msg_factory = msg_factory
         self._msg_processor = msg_processor
         self._msg_processor._set_connection(self)
 
     def start(self):
         self._connection_worker = TcpipClientConnectionWorker()
-        self._connection_reader_worker = TcpipClientReaderWorker(self._connection_worker, self._msg_factory, self._msg_processor)
+        self._connection_reader_worker = TcpipClientReaderWorker(self._connection_worker, self._msg_reader, self._msg_factory, self._msg_processor)
         self._connection_worker.start()
         self._connection_reader_worker.start()
         self._msg_processor.start()
