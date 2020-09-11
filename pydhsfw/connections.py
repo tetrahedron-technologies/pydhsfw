@@ -32,9 +32,13 @@ class ConnectionShutdownMessage(ConnectionMessage):
     def __init__(self, msg):
         super().__init__(msg)
 
-class TcpipSocketReader():
+class MessageReader():
+    def read(self):
+        pass
 
-    def read(self, sock:socket):
+class TcpipSocketReader(MessageReader):
+
+    def read_socket(self, sock:socket):
         pass
 
     def _read(self, sock:socket, msglen:int=None, delimeter:bytes=None)->bytes:
@@ -350,10 +354,10 @@ class TcpipClientReaderWorker(AbortableThread):
                     #Can't wait forever in blocking call, need to enter loop to check for control messages, specifically SystemExit.
                     sock = self._connecton_worker._get_socket(5)
                     if sock:
-                        buffer = self._msg_reader.read(sock)
+                        buffer = self._msg_reader.read_socket(sock)
                         print(f'Socket received message, len: {len(buffer)}, buffer: {buffer}')
 
-                        msg = self._msg_factory.createMessage(buffer)
+                        msg = self._msg_factory.create_message(buffer)
                         if msg:
                             print(f'Message factory created: {msg}')
                             self._msg_processor._queque_message(msg)
