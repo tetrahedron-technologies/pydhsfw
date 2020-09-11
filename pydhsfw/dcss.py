@@ -1,5 +1,5 @@
-from pydhsfw.messages import MessageIn, MessageOut, MessageFactory, MessageReader, MessageProcessor
-from pydhsfw.connections import TcpipClientConnection
+from pydhsfw.messages import MessageIn, MessageOut, MessageFactory, MessageProcessor
+from pydhsfw.connections import TcpipClientConnection, TcpipSocketReader
 
 class DcssMessageIn():
     _split_msg = None
@@ -105,13 +105,13 @@ class DcssCtoSClientIsHardware(DcssCtoSMessage):
     def get_command():
         return 'htos_client_is_hardware'
 
+class DcssXOS1SocketReader(TcpipSocketReader):
+    def read(self, sock):
+        return self._read(sock, msglen=200)
 
 class DcssMessageFactory(MessageFactory):
     def __init__(self):
         super().__init__()
-
-    def readRawMessage(self, reader: MessageReader):
-        return reader.read(200)
 
     def createMessage(self, raw_message:bytes):
         dcss_msg = DcssStoCSendClientType.parse(raw_message)
@@ -121,4 +121,4 @@ class DcssMessageFactory(MessageFactory):
         
 class DcssClientConnection(TcpipClientConnection):
     def __init__(self, msg_processor:MessageProcessor):
-        super().__init__(msg_processor, DcssMessageFactory())
+        super().__init__(msg_processor, DcssXOS1SocketReader(), DcssMessageFactory())
