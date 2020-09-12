@@ -1,5 +1,6 @@
 import threading 
 import traceback
+import functools
 from collections import deque
 from typing import Any
 from pydhsfw.threads import AbortableThread
@@ -31,7 +32,33 @@ class MessageOut():
     def write(self)->bytes:
         pass
        
-       
+class MessageRegistry():
+
+    _registry = {}
+
+    @classmethod
+    def _register_message(cls, factory_cls_name:str, msg_cls: MessageIn):
+        if cls._registry.get(factory_cls_name) == None:
+            cls._registry[factory_cls_name] = set()
+        
+        cls._registry[factory_cls_name].add(msg_cls)
+
+    @classmethod
+    def _get_factory_messages(cls, factory_cls_name:str):
+        return cls._registry.get(factory_cls_name, set())        
+
+
+def register_message(msg_type_id:str, factory_cls_name:str=None):
+    def decorator_register_message(cls):
+        cls._type_id = msg_type_id
+        if factory_cls_name and issubclass(cls, MessageIn):
+            MessageRegistry._register_message(factory_cls_name, cls)
+        
+        return cls
+
+    return decorator_register_message       
+
+
 class MessageFactory():
 
     def __init__(self):
@@ -41,11 +68,13 @@ class MessageFactory():
     def _get_msg_cls(self, type_id):
         return self._msg_map.get(type_id)
 
-    def _register_message(self, msg_cls):
+    def _register_message(self, msg_cls:MessageIn):
         self._msg_map[msg_cls.get_type_id()] = msg_cls
 
     def _register_messages(self):
-        pass
+        for msg_cls in MessageRegistry._get_factory_messages(self.__class__.__name__):
+            if issubclass(msg_cls, MessageIn):
+                self._register_message(msg_cls)
 
     def _create_message(self, type_id, raw_msg:bytes):
        
