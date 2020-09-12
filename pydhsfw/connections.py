@@ -11,7 +11,6 @@ from pydhsfw.messages import MessageIn, MessageOut, MessageFactory, MessageProce
 from pydhsfw.threads import AbortableThread
 
 class ConnectionMessage(MessageIn):
-    _msg = None
 
     def __init__(self, msg):
         super().__init__()
@@ -92,14 +91,12 @@ class TcpipConnection(Connection):
 class TcpipClientConnectionWorker(AbortableThread):
     
     class ConnectControlMessage(MessageOut):
-        _cfg = None
         def __init__(self, config:dict):
             self._cfg = config
         def get_config(self):
             return self._cfg
 
     class ReconnectControlMessage(MessageOut):
-        _cfg = None
         def __init__(self, config:dict=None):
             self._cfg = config
         def get_config(self):
@@ -108,20 +105,19 @@ class TcpipClientConnectionWorker(AbortableThread):
     class DisconnectControlMessage(MessageOut):
         pass
 
-
-    _control_message = None
-    _deque_message = deque()
-    _deque_event = threading.Event()
-
-    _state = ClientState.DISCONNECTED
-    _state_desired = ClientState.DISCONNECTED
-    _config = {}
-
-    _sock = None
-    _sock_event = threading.Event()
-
     def __init__(self):
         super().__init__(name='tcpip client connection worker')
+        self._config = {}
+
+        self._control_message = None
+        self._deque_message = deque()
+        self._deque_event = threading.Event()
+        
+        self._state = ClientState.DISCONNECTED
+        self._state_desired = ClientState.DISCONNECTED
+
+        self._sock = None
+        self._sock_event = threading.Event()
 
     def send_message(self, message:MessageOut):
         
@@ -332,11 +328,6 @@ class TcpipClientConnectionWorker(AbortableThread):
 
 class TcpipClientReaderWorker(AbortableThread):
     
-    _connecton_worker = None
-    _msg_reader = None
-    _msg_factory = None
-    _msg_processor = None
-
     def __init__(self, connection_worker:TcpipClientConnectionWorker, message_reader:TcpipSocketReader, message_factory:MessageFactory, message_processor:MessageProcessor):
         super().__init__(name='tcpip client reader worker')
         self._connecton_worker = connection_worker
@@ -389,22 +380,16 @@ class TcpipClientReaderWorker(AbortableThread):
 
 class TcpipClientConnection(TcpipConnection):
 
-    _msg_reader = None
-    _msg_factory = None
-    _msg_processor = None
-    _connection_worker = None
-    _connection_reader_worker = None
-
     def __init__(self, msg_processor:MessageProcessorWorker, msg_reader:TcpipSocketReader, msg_factory:MessageFactory):
         super().__init__()
         self._msg_reader = msg_reader
         self._msg_factory = msg_factory
         self._msg_processor = msg_processor
         self._msg_processor._set_connection(self)
-
-    def start(self):
         self._connection_worker = TcpipClientConnectionWorker()
         self._connection_reader_worker = TcpipClientReaderWorker(self._connection_worker, self._msg_reader, self._msg_factory, self._msg_processor)
+
+    def start(self):
         self._connection_worker.start()
         self._connection_reader_worker.start()
         self._msg_processor.start()
