@@ -21,6 +21,7 @@ class MessageIn():
         pass
 
 class MessageOut():
+    
     _type_id = None
 
     @classmethod
@@ -29,6 +30,7 @@ class MessageOut():
 
     def write(self)->bytes:
         pass
+       
        
 class MessageFactory():
 
@@ -87,12 +89,11 @@ class MessageProcessor():
 
 class MessageProcessorWorker(AbortableThread, MessageProcessor):
 
-    _deque_message = deque()
-    _deque_event = threading.Event()
-    _connection = None
-
     def __init__(self, name):
         AbortableThread.__init__(self, name=name)
+        self._deque_message = deque()
+        self._deque_event = threading.Event()
+        self._connection = None
 
     def start(self):
         AbortableThread.start(self)
