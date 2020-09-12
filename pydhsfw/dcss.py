@@ -1,4 +1,4 @@
-from pydhsfw.messages import MessageIn, MessageOut, MessageFactory, MessageProcessor
+from pydhsfw.messages import MessageIn, MessageOut, MessageFactory, MessageProcessor, register_message
 from pydhsfw.connections import TcpipClientConnection, TcpipSocketReader
 
 
@@ -65,13 +65,13 @@ class DcssCtoSMessage(DcssMessageOut):
 
 
 #Dcss Incoming Messages
+@register_message('stoc_send_client_type', 'DcssMessageFactory')
 class DcssStoCSendClientType(DcssStoCMessage):
-    _type_id = 'stoc_send_client_type'
     def __init__(self, split):
         super().__init__(split)
 
+@register_message('stoh_register_operation', 'DcssMessageFactory')
 class DcssStoHRegisterOperation(DcssStoCMessage):
-    _type_id = 'stoh_register_operation'
     def __init__(self, split):
         super().__init__(split)
 
@@ -81,18 +81,11 @@ class DcssStoHRegisterOperation(DcssStoCMessage):
 
 
 #Dcss Outgoing Messages
+@register_message('htos_client_is_hardware')
 class DcssCtoSClientIsHardware(DcssCtoSMessage): 
-    _type_id = 'htos_client_is_hardware'
     def __init__(self, dhs_name:str):
         super().__init__()
         self._split_msg = [self.get_type_id(), dhs_name]
-
-
-
-#Dcss xos v1 Reader
-class DcssXOS1SocketReader(TcpipSocketReader):
-    def read_socket(self, sock):
-        return self._read(sock, msglen=200)
 
 
 
@@ -104,11 +97,12 @@ class DcssMessageFactory(MessageFactory):
     def _parse_type_id(self, raw_msg:bytes):
         return DcssMessageIn.parse_type_id(raw_msg)
 
-    #TODO[Giles]: Investigate a way to register messages, possibly using decorators.
-    def _register_messages(self):
-        self._register_message(DcssStoCSendClientType)
-        self._register_message(DcssStoHRegisterOperation)
 
+
+#Dcss xos v1 Reader
+class DcssXOS1SocketReader(TcpipSocketReader):
+    def read_socket(self, sock):
+        return self._read(sock, msglen=200)
 
 
 #DcssClientConnection
