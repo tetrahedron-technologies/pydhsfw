@@ -242,7 +242,7 @@ class TcpipClientConnectionWorker(AbortableThread):
 
     def _get_socket(self, timeout=None):
         if not self._sock_event.wait(timeout):
-            return None
+            raise socket.timeout()
 
         return self._sock
 
@@ -274,7 +274,6 @@ class TcpipClientConnectionWorker(AbortableThread):
 
         while self._state_desired == ClientState.CONNECTED and (timeout == 0 or time.time() < end_time):
             try:
-                #TODO[Giles]: Create lock around connect, shutdown, close, send and recv
                 sock = socket.socket()
                 sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
                 sock.settimeout(7)
@@ -353,19 +352,21 @@ class TcpipClientReaderWorker(AbortableThread):
                             print(f'Message factory created: {msg}')
                             self._msg_processor._queque_message(msg)
 
-                except ConnectionAbortedError:
-                    #Connection is lost because the socket was closed, probably from the other side.
-                    #Block the socket event and queue a reconnect message.
-                    self._notify_status('Connection lost')
-                    self._connecton_worker._sock_event.clear()
-                    self._connecton_worker.reconnect()
                 except socket.timeout:
                     #Socket read timed out. This is normal, it just means that no messages have been sent so we can ignore it.
                     pass
+                except ConnectionAbortedError:
+                    #Connection is lost because the socket was closed, probably from the other side.
+                    #Block the socket event and queue a reconnect message.
+                    self._notify_status('Connection lost, attempting to reconnect')
+                    self._connecton_worker._sock_event.clear()
+                    self._connecton_worker.reconnect()
                 except OSError as e:
                     if e.errno == errno.EBADF:
-                        #Socket has been closed, connection worker is probably working on reconnecting so we can ignore.
-                        pass
+                        #Socket has been closed, probably from this side for some reason. Try to reconnect.
+                        self._notify_status('Connection lost, attempting to reconnect')
+                        self._connecton_worker._sock_event.clear()
+                        self._connecton_worker.reconnect()
                     else:
                         raise
                 except Exception as e:
