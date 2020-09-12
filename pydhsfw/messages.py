@@ -1,6 +1,7 @@
 import threading 
 import traceback
 from collections import deque
+from typing import Any
 from pydhsfw.threads import AbortableThread
 
 class MessageIn():
@@ -15,6 +16,10 @@ class MessageIn():
     def parse(cls, buffer:bytes):
         pass
 
+    @staticmethod
+    def parse_type_id(cls, buffer:bytes):
+        pass
+
 class MessageOut():
     _type_id = None
 
@@ -24,18 +29,18 @@ class MessageOut():
 
     def write(self)->bytes:
         pass
-
+       
 class MessageFactory():
 
     def __init__(self):
         self._msg_map = {}
         self._register_messages()
 
-    def _register_message(self, msg_cls):
-        self._msg_map[msg_cls.get_type_id()] = msg_cls
-
     def _get_msg_cls(self, type_id):
         return self._msg_map.get(type_id)
+
+    def _register_message(self, msg_cls):
+        self._msg_map[msg_cls.get_type_id()] = msg_cls
 
     def _register_messages(self):
         pass
@@ -46,9 +51,16 @@ class MessageFactory():
         if msg_cls:
             return msg_cls.parse(raw_msg)
 
+    def _parse_type_id(self, raw_msg:bytes)->Any:
+        return NotImplemented
+
     def create_message(self, raw_msg:bytes)->MessageIn:
         """Convert a raw message to a MessageIn subclass"""
-        pass
+
+        type_id = self._parse_type_id(raw_msg)
+        return self._create_message(type_id, raw_msg)
+    
+
 
 class MessageProcessor():
 

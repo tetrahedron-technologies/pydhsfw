@@ -16,7 +16,7 @@ class DcssMessageIn():
         return buffer.decode('ascii').rstrip('\n\r\x00').split(' ')
 
     @staticmethod
-    def extract_command(buffer:bytes):
+    def parse_type_id(buffer:bytes):
         return DcssMessageIn._split(buffer)[0]
 
     def get_command(self):
@@ -101,9 +101,8 @@ class DcssMessageFactory(MessageFactory):
     def __init__(self):
         super().__init__()
 
-    def create_message(self, raw_msg:bytes):
-        cmd = DcssMessageIn.extract_command(raw_msg)
-        return self._create_message(cmd, raw_msg)
+    def _parse_type_id(self, raw_msg:bytes):
+        return DcssMessageIn.parse_type_id(raw_msg)
 
     #TODO[Giles]: Investigate a way to register messages, possibly using decorators.
     def _register_messages(self):
