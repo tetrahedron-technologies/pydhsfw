@@ -65,12 +65,12 @@ class DcssCtoSMessage(DcssMessageOut):
 
 
 #Dcss Incoming Messages
-@register_message('stoc_send_client_type', 'DcssMessageFactory')
+@register_message('stoc_send_client_type', 'dcss')
 class DcssStoCSendClientType(DcssStoCMessage):
     def __init__(self, split):
         super().__init__(split)
 
-@register_message('stoh_register_operation', 'DcssMessageFactory')
+@register_message('stoh_register_operation', 'dcss')
 class DcssStoHRegisterOperation(DcssStoCMessage):
     def __init__(self, split):
         super().__init__(split)
@@ -92,7 +92,7 @@ class DcssCtoSClientIsHardware(DcssCtoSMessage):
 #Message Factory
 class DcssMessageFactory(MessageFactory):
     def __init__(self):
-        super().__init__()
+        super().__init__('dcss')
 
     def _parse_type_id(self, raw_msg:bytes):
         return DcssMessageIn.parse_type_id(raw_msg)
