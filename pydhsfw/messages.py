@@ -37,22 +37,22 @@ class MessageRegistry():
     _registry = {}
 
     @classmethod
-    def _register_message(cls, factory_cls_name:str, msg_cls: MessageIn):
-        if cls._registry.get(factory_cls_name) == None:
-            cls._registry[factory_cls_name] = set()
+    def _register_message(cls, factory_name:str, msg_cls: MessageIn):
+        if cls._registry.get(factory_name) == None:
+            cls._registry[factory_name] = set()
         
-        cls._registry[factory_cls_name].add(msg_cls)
+        cls._registry[factory_name].add(msg_cls)
 
     @classmethod
-    def _get_factory_messages(cls, factory_cls_name:str):
-        return cls._registry.get(factory_cls_name, set())        
+    def _get_factory_messages(cls, factory_name:str):
+        return cls._registry.get(factory_name, set())        
 
 
-def register_message(msg_type_id:str, factory_cls_name:str=None):
+def register_message(msg_type_id:str, factory_name:str=None):
     def decorator_register_message(cls):
         cls._type_id = msg_type_id
-        if factory_cls_name and issubclass(cls, MessageIn):
-            MessageRegistry._register_message(factory_cls_name, cls)
+        if factory_name and issubclass(cls, MessageIn):
+            MessageRegistry._register_message(factory_name, cls)
         
         return cls
 
@@ -61,7 +61,8 @@ def register_message(msg_type_id:str, factory_cls_name:str=None):
 
 class MessageFactory():
 
-    def __init__(self):
+    def __init__(self, name:str=None):
+        self._name = name
         self._msg_map = {}
         self._register_messages()
 
@@ -72,7 +73,7 @@ class MessageFactory():
         self._msg_map[msg_cls.get_type_id()] = msg_cls
 
     def _register_messages(self):
-        for msg_cls in MessageRegistry._get_factory_messages(self.__class__.__name__):
+        for msg_cls in MessageRegistry._get_factory_messages(self._get_name()):
             if issubclass(msg_cls, MessageIn):
                 self._register_message(msg_cls)
 
@@ -84,6 +85,9 @@ class MessageFactory():
 
     def _parse_type_id(self, raw_msg:bytes)->Any:
         return NotImplemented
+
+    def _get_name(self):
+        return self._name
 
     def create_message(self, raw_msg:bytes)->MessageIn:
         """Convert a raw message to a MessageIn subclass"""
