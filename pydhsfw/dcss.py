@@ -61,11 +61,6 @@ class DcssMessageOut(MessageOut):
 class DcssCtoSMessage(DcssMessageOut):
     def __init__(self):
         super().__init__()
-        # variosu params in here?
-        motor_name = ""
-        new_position = ""
-
-
 
 #Messages Incoming from DCSS
 @register_message('stoc_send_client_type', 'dcss')
@@ -246,116 +241,116 @@ class DcssCtoSClientIsHardware(DcssCtoSMessage):
 
 @register_message('htos_motor_move_started')
 class DcssCtoSClientIsHardware(DcssCtoSMessage): 
-    def __init__(self, dhs_name:str):
+    def __init__(self, motor_name:str, new_position:float):
         super().__init__()
         self._split_msg = [self.get_type_id(), motor_name, new_position]
 
 @register_message('htos_motor_move_completed')
 class DcssCtoSClientIsHardware(DcssCtoSMessage): 
-    def __init__(self, dhs_name:str):
+    def __init__(self, motor_name:str, new_position:float, state:str):
         super().__init__()
         self._split_msg = [self.get_type_id(), motor_name, new_position, state]
 
 @register_message('htos_operation_completed')
 class DcssCtoSClientIsHardware(DcssCtoSMessage): 
-    def __init__(self, dhs_name:str):
+    def __init__(self, operation_complete_message:str):
         super().__init__()
         self._split_msg = [self.get_type_id(), operation_complete_message]
 
 @register_message('htos_operation_update')
 class DcssCtoSClientIsHardware(DcssCtoSMessage): 
-    def __init__(self, dhs_name:str):
+    def __init__(self, operation_update_message:str):
         super().__init__()
         self._split_msg = [self.get_type_id(), operation_update_message]
 
 @register_message('htos_start_operation')
 class DcssCtoSClientIsHardware(DcssCtoSMessage): 
-    def __init__(self, dhs_name:str):
+    def __init__(self, operation_info:str):
         super().__init__()
         self._split_msg = [self.get_type_id(), operation_info]
 
 @register_message('htos_update_motor_position')
 class DcssCtoSClientIsHardware(DcssCtoSMessage): 
-    def __init__(self, dhs_name:str):
+    def __init__(self, motor_name:str, new_position:float, status:str):
         super().__init__()
         self._split_msg = [self.get_type_id(), motor_name, new_position, status]
 
 @register_message('htos_report_ion_chambers')
 class DcssCtoSClientIsHardware(DcssCtoSMessage): 
-    def __init__(self, dhs_name:str):
+    def __init__(self, ion_chamber_counts:int):
         super().__init__()
         self._split_msg = [self.get_type_id(), ion_chamber_counts]
 
 @register_message('htos_configure_device')
 class DcssCtoSClientIsHardware(DcssCtoSMessage): 
-    def __init__(self, dhs_name:str):
+    def __init__(self, device_name:str):
         super().__init__()
         self._split_msg = [self.get_type_id(), device_name]
 
 @register_message('htos_send_configuration')
 class DcssCtoSClientIsHardware(DcssCtoSMessage): 
-    def __init__(self, dhs_name:str):
+    def __init__(self, device_name:str):
         super().__init__()
         self._split_msg = [self.get_type_id(), device_name]
 
 @register_message('htos_report_shutter_state')
 class DcssCtoSClientIsHardware(DcssCtoSMessage): 
-    def __init__(self, dhs_name:str):
+    def __init__(self, shutter_name:str, state:str, result:str):
         super().__init__()
         self._split_msg = [self.get_type_id(), shutter_name, state, result]
 
 
 @register_message('htos_limit_hit')
 class DcssCtoSClientIsHardware(DcssCtoSMessage): 
-    def __init__(self, dhs_name:str):
+    def __init__(self, state:str):
         super().__init__()
         self._split_msg = [self.get_type_id(), state]
 
 @register_message('htos_simulating_device')
 class DcssCtoSClientIsHardware(DcssCtoSMessage): 
-    def __init__(self, dhs_name:str):
+    def __init__(self, state:str):
         super().__init__()
         self._split_msg = [self.get_type_id(), state]
 
 @register_message('htos_motor_correct_started')
 class DcssCtoSClientIsHardware(DcssCtoSMessage): 
-    def __init__(self, dhs_name:str):
+    def __init__(self, state:str):
         super().__init__()
         self._split_msg = [self.get_type_id(), state]
 
 @register_message('htos_get_encoder_completed')
 class DcssCtoSClientIsHardware(DcssCtoSMessage): 
-    def __init__(self, dhs_name:str):
+    def __init__(self, encoder_name:str, new_position:float, status:str):
         super().__init__()
         self._split_msg = [self.get_type_id(), encoder_name, new_position, status]
 
 @register_message('htos_set_encoder_completed')
 class DcssCtoSClientIsHardware(DcssCtoSMessage): 
-    def __init__(self, dhs_name:str):
+    def __init__(self, encoder_name:str, new_position:int, status:str):
         super().__init__()
         self._split_msg = [self.get_type_id(), encoder_name, new_position, status]
 
 @register_message('htos_set_string_completed')
 class DcssCtoSClientIsHardware(DcssCtoSMessage): 
-    def __init__(self, dhs_name:str):
+    def __init__(self, string_name:str, status:str):
         super().__init__()
         self._split_msg = [self.get_type_id(), string_name, status]
 
 @register_message('htos_note')
 class DcssCtoSClientIsHardware(DcssCtoSMessage): 
-    def __init__(self, dhs_name:str):
+    def __init__(self, nore_message:str):
         super().__init__()
         self._split_msg = [self.get_type_id(), note_message]
 
 @register_message('htos_log')
 class DcssCtoSClientIsHardware(DcssCtoSMessage): 
-    def __init__(self, dhs_name:str):
+    def __init__(self, log_message:str):
         super().__init__()
         self._split_msg = [self.get_type_id(), log_message]
 
 @register_message('htos_set_motor_message')
 class DcssCtoSClientIsHardware(DcssCtoSMessage): 
-    def __init__(self, dhs_name:str):
+    def __init__(self, motor_name:str):
         super().__init__()
         self._split_msg = [self.get_type_id(), motor_name,]
 
