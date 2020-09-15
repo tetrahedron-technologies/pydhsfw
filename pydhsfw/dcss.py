@@ -281,11 +281,17 @@ class DcssCtoSClientIsHardware(DcssCtoSMessage):
         super().__init__()
         self._split_msg = [self.get_type_id(), ion_chamber_counts]
 
+# device_settings will be an array of values. some being floats and others being ints
+# for example (float float float float int int int int int int int int)
+# should we break them out here?
+# Another complication is that this could be used to configure a STEPPER or a PSEUDO MOTOR
+# for STEPPER we need to configure with 12 values
+# for PSEUDO we need to configure with 6 values
 @register_message('htos_configure_device')
 class DcssCtoSClientIsHardware(DcssCtoSMessage): 
-    def __init__(self, device_name:str):
+    def __init__(self, device_name:str, device_settings:????):
         super().__init__()
-        self._split_msg = [self.get_type_id(), device_name]
+        self._split_msg = [self.get_type_id(), device_name, device_settings]
 
 @register_message('htos_send_configuration')
 class DcssCtoSClientIsHardware(DcssCtoSMessage): 
