@@ -63,9 +63,7 @@ class DcssCtoSMessage(DcssMessageOut):
     def __init__(self):
         super().__init__()
 
-
-
-#Dcss Incoming Messages
+#Messages Incoming from DCSS
 @register_message('stoc_send_client_type', 'dcss')
 class DcssStoCSendClientType(DcssStoCMessage):
     def __init__(self, split):
@@ -78,17 +76,392 @@ class DcssStoHRegisterOperation(DcssStoCMessage):
 
     def get_operation_name(self):
         return self.get_args()[0]
-    
 
+    def get_operation_hardwareName(self):
+        return self.get_args()[1]
 
-#Dcss Outgoing Messages
+@register_message('stoh_register_real_motor', 'dcss')
+class DcssStoHRegisterOperation(DcssStoCMessage):
+    def __init__(self, split):
+        super().__init__(split)
+
+    def get_motor_name(self):
+        return self.get_args()[0]
+
+    def get_motor_hardwareName(self):
+        return self.get_args()[1]
+
+@register_message('stoh_register_string', 'dcss')
+class DcssStoHRegisterOperation(DcssStoCMessage):
+    def __init__(self, split):
+        super().__init__(split)
+
+    def get_string_name(self):
+        return self.get_args()[0]
+
+    def get_string_hardwareName(self):
+        return self.get_args()[1]
+
+@register_message('stoh_register_shutter', 'dcss')
+class DcssStoHRegisterOperation(DcssStoCMessage):
+    def __init__(self, split):
+        super().__init__(split)
+
+    def get_shutter_name(self):
+        return self.get_args()[0]
+
+    def get_shutter_status(self):
+        return self.get_args()[1]
+
+    def get_shutter_hardwareName(self):
+        return self.get_args()[2]
+
+@register_message('stoh_register_ion_chamber', 'dcss')
+class DcssStoHRegisterOperation(DcssStoCMessage):
+    def __init__(self, split):
+        super().__init__(split)
+
+    def get_ion_chamber_name(self):
+        return self.get_args()[0]
+
+    def get_ion_chamber_hardwareName(self):
+        return self.get_args()[1]
+
+    def get_ion_chamber_counterChannel(self):
+        return self.get_args()[2]
+
+    def get_ion_chamber_timer(self):
+        return self.get_args()[3]
+
+    def get_ion_chamber_timerType(self):
+        return self.get_args()[4]
+
+@register_message('stoh_register_pseudo_motor', 'dcss')
+class DcssStoHRegisterOperation(DcssStoCMessage):
+    def __init__(self, split):
+        super().__init__(split)
+
+    def get_pseudo_motor_name(self):
+        return self.get_args()[0]
+
+    def get_pseudo_motor_hardwareName(self):
+        return self.get_args()[1]
+
+@register_message('stoh_register_encoder', 'dcss')
+class DcssStoHRegisterOperation(DcssStoCMessage):
+    def __init__(self, split):
+        super().__init__(split)
+
+    def get_encoder_name(self):
+        return self.get_args()[0]
+
+    def get_encoder_hardwareName(self):
+        return self.get_args()[1]
+
+@register_message('stoh_register_object', 'dcss')
+class DcssStoHRegisterOperation(DcssStoCMessage):
+    def __init__(self, split):
+        super().__init__(split)
+
+    def get_object_name(self):
+        return self.get_args()[0]
+
+    def get_object_hardwareName(self):
+        return self.get_args()[1]
+
+# stoh_configure_real_motor motoName position upperLimit lowerLimit scaleFactor speed acceleration backlash lowerLimitOn upperLimitOn motorLockOn backlashOn reverseOn
+@register_message('stoh_configure_real_motor', 'dcss')
+class DcssStoHRegisterOperation(DcssStoCMessage):
+    def __init__(self, split):
+        super().__init__(split)
+
+    def get_motor_name(self):
+        return self.get_args()[0]
+
+    def get_motor_position(self):
+        return self.get_args()[1]
+
+    def get_motor_upperLimit(self):
+        return self.get_args()[2]
+
+    def get_motor_lowerLimit(self):
+        return self.get_args()[3]
+
+    def get_motor_scaleFactor(self):
+        return self.get_args()[4]
+
+    def get_motor_speed(self):
+        return self.get_args()[5]
+
+    def get_motor_acceleration(self):
+        return self.get_args()[6]
+
+    def get_motor_backlash(self):
+        return self.get_args()[7]
+
+    def get_motor_lowerLimitOn(self):
+        return self.get_args()[8]
+
+    def get_motor_upperLimitOn(self):
+        return self.get_args()[9]
+
+    def get_motor_motorLockOn(self):
+        return self.get_args()[10]
+
+    def get_motor_backlashOn(self):
+        return self.get_args()[11]
+
+    def get_motor_reverseOn(self):
+        return self.get_args()[12]
+
+# stoh_configure_pseudo_motor motorName position upperLimit lowerLimit upperLimitOn lowerLimitOn motorLockOn
+@register_message('stoh_configure_pseudo_motor', 'dcss')
+class DcssStoHRegisterOperation(DcssStoCMessage):
+    def __init__(self, split):
+        super().__init__(split)
+
+    def get_motor_name(self):
+        return self.get_args()[0]
+
+    def get_motor_position(self):
+        return self.get_args()[1]
+
+    def get_motor_upperLimit(self):
+        return self.get_args()[2]
+
+    def get_motor_lowerLimit(self):
+        return self.get_args()[3]
+
+    def get_motor_lowerLimitOn(self):
+        return self.get_args()[4]
+
+    def get_motor_upperLimitOn(self):
+        return self.get_args()[5]
+
+    def get_motor_motorLockOn(self):
+        return self.get_args()[6]
+
+@register_message('stoh_set_motor_position', 'dcss')
+class DcssStoHRegisterOperation(DcssStoCMessage):
+    def __init__(self, split):
+        super().__init__(split)
+
+    def get_motor_name(self):
+        return self.get_args()[0]
+
+    def get_motor_position(self):
+        return self.get_args()[1]
+
+@register_message('stoh_start_motor_move', 'dcss')
+class DcssStoHRegisterOperation(DcssStoCMessage):
+    def __init__(self, split):
+        super().__init__(split)
+
+    def get_motor_name(self):
+        return self.get_args()[0]
+
+    def get_motor_position(self):
+        return self.get_args()[1]
+
+# This command requests that all operations either cease immediately or halt as soon as possible.
+#  All motors are stopped and data collection begins shutting down and stopping detector activity.
+#  A single argument specifies how motors should be aborted.
+#  A value of hard indicates that motors should stop without decelerating.
+#  A value of soft indicates that motors should decelerate properly before stopping.
+@register_message('stoh_abort_all', 'dcss')
+class DcssStoHRegisterOperation(DcssStoCMessage):
+    def __init__(self, split):
+        super().__init__(split)
+
+    def get_abort_arg(self):
+        return self.get_args()[0]
+
+@register_message('stoh_correct_motor_position', 'dcss')
+class DcssStoHRegisterOperation(DcssStoCMessage):
+    def __init__(self, split):
+        super().__init__(split)
+
+    def get_motor_name(self):
+        return self.get_args()[0]
+
+    def get_motor_correction(self):
+        return self.get_args()[1]
+
+@register_message('stoh_set_motor_dependency', 'dcss')
+class DcssStoHRegisterOperation(DcssStoCMessage):
+    def __init__(self, split):
+        super().__init__(split)
+
+    def get_motor_name(self):
+        return self.get_args()[0]
+
+    def get_motor_dependencies(self):
+        return self.get_args()[1:]
+
+@register_message('stoh_set_motor_children', 'dcss')
+class DcssStoHRegisterOperation(DcssStoCMessage):
+    def __init__(self, split):
+        super().__init__(split)
+
+    def get_motor_name(self):
+        return self.get_args()[0]
+
+    def get_motor_children(self):
+        return self.get_args()[1:]
+
+@register_message('stoh_set_shutter_state','dcss')
+class DcssStoHRegisterOperation(DcssStoCMessage):
+    def __init__(self, split):
+        super().__init__(split)
+
+    def get_shutter_name(self):
+        return self.get_args()[0]
+
+    def get_shutter_state(self):
+        return self.get_args()[1]
+
+@register_message('stoh_start_operation','dcss')
+class DcssStoHRegisterOperation(DcssStoCMessage):
+    def __init__(self, split):
+        super().__init__(split)
+
+    def get_operation_name(self):
+        return self.get_args()[0]
+
+    def get_operation_handle(self):
+        return self.get_args()[1]
+
+    def get_operation_args(self):
+        return self.get_args()[2:]
+
+#Messages Outgoing to DCSS (Hardware TO Server)
 @register_message('htos_client_is_hardware')
 class DcssCtoSClientIsHardware(DcssCtoSMessage): 
     def __init__(self, dhs_name:str):
         super().__init__()
         self._split_msg = [self.get_type_id(), dhs_name]
 
+@register_message('htos_motor_move_started')
+class DcssCtoSClientIsHardware(DcssCtoSMessage): 
+    def __init__(self, motor_name:str, new_position:float):
+        super().__init__()
+        self._split_msg = [self.get_type_id(), motor_name, new_position]
 
+@register_message('htos_motor_move_completed')
+class DcssCtoSClientIsHardware(DcssCtoSMessage): 
+    def __init__(self, motor_name:str, new_position:float, state:str):
+        super().__init__()
+        self._split_msg = [self.get_type_id(), motor_name, new_position, state]
+
+@register_message('htos_operation_completed')
+class DcssCtoSClientIsHardware(DcssCtoSMessage): 
+    def __init__(self, operation_name:str, operation_handle:float, operation_status:str, operation_args:str):
+        super().__init__()
+        self._split_msg = [self.get_type_id(), operation_name, operation_handle, operation_status, operation_args]
+
+@register_message('htos_operation_update')
+class DcssCtoSClientIsHardware(DcssCtoSMessage): 
+    def __init__(self, operation_name:str, operation_handle:float, operation_args:str):
+        super().__init__()
+        self._split_msg = [self.get_type_id(), operation_name, operation_handle, operation_args]
+
+# used?
+@register_message('htos_start_operation')
+class DcssCtoSClientIsHardware(DcssCtoSMessage): 
+    def __init__(self, operation_info:str):
+        super().__init__()
+        self._split_msg = [self.get_type_id(), operation_info]
+
+@register_message('htos_update_motor_position')
+class DcssCtoSClientIsHardware(DcssCtoSMessage): 
+    def __init__(self, motor_name:str, new_position:float, status:str):
+        super().__init__()
+        self._split_msg = [self.get_type_id(), motor_name, new_position, status]
+
+@register_message('htos_report_ion_chambers')
+class DcssCtoSClientIsHardware(DcssCtoSMessage): 
+    def __init__(self, ion_chamber_counts:int):
+        super().__init__()
+        self._split_msg = [self.get_type_id(), ion_chamber_counts]
+
+# device_settings will be an array of values. some being floats and others being ints
+# for example (float float float float int int int int int int int int)
+# should we break them out here?
+# Another complication is that this could be used to configure a STEPPER or a PSEUDO MOTOR
+# for STEPPER we need to configure with 12 values
+# for PSEUDO we need to configure with 6 values
+@register_message('htos_configure_device')
+class DcssCtoSClientIsHardware(DcssCtoSMessage): 
+    def __init__(self, device_name:str, device_settings:str):
+        super().__init__()
+        self._split_msg = [self.get_type_id(), device_name, device_settings]
+
+@register_message('htos_send_configuration')
+class DcssCtoSClientIsHardware(DcssCtoSMessage): 
+    def __init__(self, device_name:str):
+        super().__init__()
+        self._split_msg = [self.get_type_id(), device_name]
+
+@register_message('htos_report_shutter_state')
+class DcssCtoSClientIsHardware(DcssCtoSMessage): 
+    def __init__(self, shutter_name:str, state:str, result:str):
+        super().__init__()
+        self._split_msg = [self.get_type_id(), shutter_name, state, result]
+
+
+@register_message('htos_limit_hit')
+class DcssCtoSClientIsHardware(DcssCtoSMessage): 
+    def __init__(self, state:str):
+        super().__init__()
+        self._split_msg = [self.get_type_id(), state]
+
+@register_message('htos_simulating_device')
+class DcssCtoSClientIsHardware(DcssCtoSMessage): 
+    def __init__(self, state:str):
+        super().__init__()
+        self._split_msg = [self.get_type_id(), state]
+
+@register_message('htos_motor_correct_started')
+class DcssCtoSClientIsHardware(DcssCtoSMessage): 
+    def __init__(self, state:str):
+        super().__init__()
+        self._split_msg = [self.get_type_id(), state]
+
+@register_message('htos_get_encoder_completed')
+class DcssCtoSClientIsHardware(DcssCtoSMessage): 
+    def __init__(self, encoder_name:str, new_position:float, status:str):
+        super().__init__()
+        self._split_msg = [self.get_type_id(), encoder_name, new_position, status]
+
+@register_message('htos_set_encoder_completed')
+class DcssCtoSClientIsHardware(DcssCtoSMessage): 
+    def __init__(self, encoder_name:str, new_position:int, status:str):
+        super().__init__()
+        self._split_msg = [self.get_type_id(), encoder_name, new_position, status]
+
+@register_message('htos_set_string_completed')
+class DcssCtoSClientIsHardware(DcssCtoSMessage): 
+    def __init__(self, string_name:str, status:str):
+        super().__init__()
+        self._split_msg = [self.get_type_id(), string_name, status]
+
+@register_message('htos_note')
+class DcssCtoSClientIsHardware(DcssCtoSMessage): 
+    def __init__(self, nore_message:str):
+        super().__init__()
+        self._split_msg = [self.get_type_id(), note_message]
+
+@register_message('htos_log')
+class DcssCtoSClientIsHardware(DcssCtoSMessage): 
+    def __init__(self, log_message:str):
+        super().__init__()
+        self._split_msg = [self.get_type_id(), log_message]
+
+@register_message('htos_set_motor_message')
+class DcssCtoSClientIsHardware(DcssCtoSMessage): 
+    def __init__(self, motor_name:str):
+        super().__init__()
+        self._split_msg = [self.get_type_id(), motor_name,]
 
 #Message Factory
 class DcssMessageFactory(MessageFactory):
