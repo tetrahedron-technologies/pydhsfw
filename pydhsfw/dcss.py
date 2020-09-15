@@ -61,6 +61,9 @@ class DcssMessageOut(MessageOut):
 class DcssCtoSMessage(DcssMessageOut):
     def __init__(self):
         super().__init__()
+        # variosu params in here?
+        motor_name = ""
+        new_position = ""
 
 
 
@@ -199,7 +202,7 @@ class DcssStoHRegisterOperation(DcssStoCMessage):
         super().__init__(split)
 
     def get_abort_args(self):
-        return self.get_args()[0]
+        return self.get_args()
 
 @register_message('stoh_correct_motor_position', 'dcss')
 class DcssStoHRegisterOperation(DcssStoCMessage):
@@ -221,7 +224,7 @@ class DcssStoHRegisterOperation(DcssStoCMessage):
         return self.get_args()[0]
 
     def get_motor_dependencies(self):
-        return self.get_args()[0]
+        return self.get_args()[1:]
 
 @register_message('stoh_set_motor_children', 'dcss')
 class DcssStoHRegisterOperation(DcssStoCMessage):
@@ -232,7 +235,7 @@ class DcssStoHRegisterOperation(DcssStoCMessage):
         return self.get_args()[0]
 
     def get_motor_children(self):
-        return self.get_args()[1]
+        return self.get_args()[1:]
 
 #Messages Outgoing to DCSS (Hardware TO Server)
 @register_message('htos_client_is_hardware')
@@ -257,13 +260,13 @@ class DcssCtoSClientIsHardware(DcssCtoSMessage):
 class DcssCtoSClientIsHardware(DcssCtoSMessage): 
     def __init__(self, dhs_name:str):
         super().__init__()
-        self._split_msg = [self.get_type_id(), operation_info]
+        self._split_msg = [self.get_type_id(), operation_complete_message]
 
 @register_message('htos_operation_update')
 class DcssCtoSClientIsHardware(DcssCtoSMessage): 
     def __init__(self, dhs_name:str):
         super().__init__()
-        self._split_msg = [self.get_type_id(), operation_info]
+        self._split_msg = [self.get_type_id(), operation_update_message]
 
 @register_message('htos_start_operation')
 class DcssCtoSClientIsHardware(DcssCtoSMessage): 
