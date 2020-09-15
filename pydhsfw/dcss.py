@@ -1,5 +1,6 @@
 from pydhsfw.messages import MessageIn, MessageOut, MessageFactory, MessageProcessor, register_message
 from pydhsfw.connections import TcpipClientConnection, TcpipSocketReader
+from pydhsfw.connectionmanager import register_connection
 
 
 #Dcss Message Base Classes
@@ -106,6 +107,7 @@ class DcssXOS1SocketReader(TcpipSocketReader):
 
 
 #DcssClientConnection
+@register_connection('dcss')
 class DcssClientConnection(TcpipClientConnection):
-    def __init__(self, msg_processor:MessageProcessor):
-        super().__init__(msg_processor, DcssXOS1SocketReader(), DcssMessageFactory())
+    def __init__(self, url:str, config:dict, msg_processor:MessageProcessor):
+        super().__init__(url, config, msg_processor, DcssXOS1SocketReader(), DcssMessageFactory())
