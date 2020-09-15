@@ -73,6 +73,10 @@ class ClientState(Enum):
 
 class Connection:
 
+    def __init__(self, url:str, config:dict=None):
+        self._url = url
+        self._cfg = config
+
     def connect(self):
         pass
 
@@ -85,6 +89,7 @@ class Connection:
     def exit(self):
         pass
 
+ 
 class TcpipConnection(Connection):
     pass
 
@@ -381,28 +386,38 @@ class TcpipClientReaderWorker(AbortableThread):
 
 class TcpipClientConnection(TcpipConnection):
 
-    def __init__(self, msg_processor:MessageProcessorWorker, msg_reader:TcpipSocketReader, msg_factory:MessageFactory):
-        super().__init__()
+    def __init__(self, url:str, config:dict, msg_processor:MessageProcessor, msg_reader:TcpipSocketReader, msg_factory:MessageFactory):
+        cfg = {}
+ 
+        if config:
+            cfg.update(config)
+
+        if cfg.get('delay', None) == None:
+            cfg['delay'] = 7
+        if cfg.get('timeout', None) == None:
+            cfg['timeout'] = 300
+
+        super().__init__(url, cfg)
         self._msg_reader = msg_reader
         self._msg_factory = msg_factory
         self._msg_processor = msg_processor
-        self._msg_processor._set_connection(self)
         self._connection_worker = TcpipClientConnectionWorker()
         self._connection_reader_worker = TcpipClientReaderWorker(self._connection_worker, self._msg_reader, self._msg_factory, self._msg_processor)
 
     def start(self):
         self._connection_worker.start()
         self._connection_reader_worker.start()
-        self._msg_processor.start()
 
-    def connect(self, url:str, delay:int = 7, timeout:int=300):
+    def connect(self):
         """Set the desired connection state to ClientState.CONNECTED
 
         The connection will work in the background to establish a connection to the server.
         get_state() can be used to determine the current state of the connection.
 
         """
-        self._connection_worker.connect({'url':url, 'delay':delay,'timeout':timeout})
+        cfg = dict(self._cfg)
+        cfg['url'] = self._url
+        self._connection_worker.connect(cfg)
 
     def disconnect(self):
         """Set the desired connection state to ClientState.DISCONNECTED
@@ -429,11 +444,8 @@ class TcpipClientConnection(TcpipConnection):
 
     def exit(self):
         self._connection_reader_worker.abort()
-        self._msg_processor.stop()
         self._connection_reader_worker.join()
         self._connection_worker.abort()
         self._connection_worker.join()
         self._connection_worker = None
         self._connection_reader_worker = None
-        self._msg_processor = None
-

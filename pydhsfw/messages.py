@@ -100,69 +100,8 @@ class MessageFactory():
 class MessageProcessor():
 
     def __init__(self):
-        pass
-    
-    def start(self):
-        pass
-
-    def process_message(self, message:MessageIn):
-        pass
-
-    def get_connection(self):
-        pass 
-
-    def stop(self):
-        pass
-
-    def _queque_message(self, message:MessageIn):
-        pass
-
-    def _set_connection(self, connection):
-        pass
-
-class MessageProcessorWorker(AbortableThread, MessageProcessor):
-
-    def __init__(self, name):
-        AbortableThread.__init__(self, name=name)
         self._deque_message = deque()
         self._deque_event = threading.Event()
-        self._connection = None
-
-    def start(self):
-        AbortableThread.start(self)
-
-    def process_message(self, message:MessageIn):
-        pass
-
-    def get_connection(self):
-        return self._connection
-
-    def stop(self):
-        super().abort()
-        super().join()
-
-    def run(self):
-        try:
-            while True:
-                try:
-                    #Can't wait forever in blocking call, need to enter loop to check for control messages, specifically SystemExit.
-                    msg = self._get_message(5)
-                    if msg:
-                        print(f'Processing message: {msg}')
-                        self.process_message(msg)
-                except TimeoutError:
-                    #This is normal when there are no more mesages in the queue and wait time has ben statisfied. Just ignore it.
-                    pass
-                except Exception:
-                    traceback.print_exc()
-                    raise
-
-        except SystemExit:
-            self._notify_status('Connection message processor shutdown')
-            
-        finally:
-            pass
-
 
     def _queque_message(self, message:MessageIn):
         #Append message and unblock
@@ -185,8 +124,38 @@ class MessageProcessorWorker(AbortableThread, MessageProcessor):
             self._deque_event.clear()
         return msg
 
-    def _set_connection(self, connection):
-        self._connection = connection
+    def _clear_messages(self):
+            self._deque_event.clear()
+            self._deque_message.clear()
+        
+class MessageProcessorWorker(AbortableThread, MessageProcessor):
 
-    def _notify_status(self, msg:str):
-        print(msg)
+    def __init__(self, name):
+        AbortableThread.__init__(self, name=name)
+        MessageProcessor.__init__(self)
+
+    def process_message(self, message:MessageIn):
+        pass
+
+    def run(self):
+        try:
+            while True:
+                try:
+                    #Can't wait forever in blocking call, need to enter loop to check for control messages, specifically SystemExit.
+                    msg = self._get_message(5)
+                    if msg:
+                        print(f'Processing message: {msg}')
+                        self.process_message(msg)
+                except TimeoutError:
+                    #This is normal when there are no more mesages in the queue and wait time has ben statisfied. Just ignore it.
+                    pass
+                except Exception:
+                    traceback.print_exc()
+                    raise
+
+        except SystemExit:
+            print('Connection message processor shutdown')
+            
+        finally:
+            pass
+
