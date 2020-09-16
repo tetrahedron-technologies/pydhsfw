@@ -14,7 +14,7 @@ def dhs_init(message:DhsInit, context:Context):
 
 @register_message_handler('stoc_send_client_type')
 def dcss_send_client_type(message:DcssStoCSendClientType, context:Context):
-    context.get_connection('dcss').send(DcssCtoSClientIsHardware('loopDHS'))
+    context.get_connection('dcss').send(DcssHtoSClientIsHardware('loopDHS'))
 
 @register_message_handler('stoh_register_operation')
 def dcss_reg_operation(message:DcssStoHRegisterOperation, context:Context):
