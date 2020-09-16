@@ -1,30 +1,7 @@
 from urllib.parse import urlparse
-from pydhsfw.messages import MessageProcessor, MessageFactory
-from pydhsfw.connections import Connection
-
-
-class ConnectionRegistry():
-
-    _registry = {}
-
-    @classmethod
-    def _register_connection(cls, connection_scheme:str, connection_cls: Connection):
-        cls._registry[connection_scheme]=connection_cls
-
-    @classmethod
-    def _get_connection_class(cls, connection_scheme:str):
-        return cls._registry.get(connection_scheme, None)        
-
-
-def register_connection(connection_scheme:str):
-    def decorator_register_connection(cls):
-        cls._scheme = connection_scheme
-        if connection_scheme and issubclass(cls, Connection):
-            ConnectionRegistry._register_connection(connection_scheme, cls)
-        
-        return cls
-
-    return decorator_register_connection      
+from pydhsfw.messages import MessageFactory
+from pydhsfw.connection import Connection, ConnectionRegistry, MessageProcessor
+from pydhsfw.processors import Context
 
 class ConnectionManager:
     def __init__(self):
@@ -50,9 +27,13 @@ class ConnectionManager:
         for conn in self._connections.values():
             conn.start()
 
-    def stop_connections(self):
+    def shutdown_connections(self):
         for conn in self._connections.values():
-            conn.exit()
+            conn.shutdown()
+
+    def wait_connections(self):
+        for conn in self._connections.values():
+            conn.wait()
 
 class ConnectionFactory():
 
