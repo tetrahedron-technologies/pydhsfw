@@ -1,3 +1,4 @@
+import signal
 from pydhsfw.messages import MessageIn, register_message
 from pydhsfw.connection import Connection
 from pydhsfw.processors import Context, MessageDispatcher
@@ -41,17 +42,31 @@ class Dhs:
     def start(self):
         self._context._get_msg_disp().start()
         self._context._get_msg_disp()._queque_message(DhsInit())
-        return self
 
     def shutdown(self):
         self._context._get_msg_disp().abort()
         self._context._conn_mgr.shutdown_connections()
-        return self
 
-    def wait(self):
+    def wait(self, signal_set:set=None):
+        '''
+        Waits indefinitely for the dhs.shutdown() signal or for an interrupt signal from the OS.
+
+            Parameters:
+                    signal_set: List of signals as defined in the signals module that will trigger the shudown.
+    
+        '''
+        if signal_set:
+            _sig_map = dict(map(lambda s: (s.value, s.name), signal_set))
+            def handler(signal_received, frame):
+                # Handle any cleanup here
+                sig_e = _sig_map.get(signal_received)
+                print(f'{sig_e} detected. Exiting gracefully')
+                self.shutdown()
+            for sig in signal_set:
+                signal.signal(sig, handler)
+    
         self._context._get_msg_disp().join()
         self._context._conn_mgr.wait_connections()
-        return self
 
 
 

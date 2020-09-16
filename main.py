@@ -1,4 +1,4 @@
-from signal import signal, SIGINT, SIGTERM
+import signal
 from pydhsfw.processors import  Context, register_message_handler
 from pydhsfw.dcss import DcssStoCSendClientType, DcssCtoSClientIsHardware, DcssStoHRegisterOperation
 from pydhsfw.dhs import Dhs, DhsInit
@@ -21,16 +21,8 @@ def dcss_reg_operation(message:DcssStoHRegisterOperation, context:Context):
     print(f'Handling message {message}')
 
         
-dhs = Dhs().start()
-
-def handler(signal_received, frame):
-    # Handle any cleanup here
-    print('SIGINT or CTRL-C detected. Exiting gracefully')
-    dhs.shutdown()
-
+dhs = Dhs()
+dhs.start()
 if __name__ == '__main__':
-    # Tell Python to run the handler() function when SIGINT is recieved
-    signal(SIGINT, handler)
-    signal(SIGTERM, handler)
-
-dhs.wait()
+    sigs = {signal.SIGINT, signal.SIGTERM}
+dhs.wait(sigs)
