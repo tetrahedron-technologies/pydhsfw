@@ -1,5 +1,6 @@
 from pydhsfw.messages import MessageIn, MessageOut, MessageFactory, MessageProcessor, register_message
 from pydhsfw.connections import TcpipClientConnection, TcpipSocketReader
+from pydhsfw.connectionmanager import register_connection
 
 
 #Dcss Message Base Classes
@@ -80,7 +81,7 @@ class DcssStoHRegisterOperation(DcssStoCMessage):
         return self.get_args()[1]
 
 @register_message('stoh_register_real_motor', 'dcss')
-class DcssStoHRegisterOperation(DcssStoCMessage):
+class DcssStoHRegisterRealMotor(DcssStoCMessage):
     def __init__(self, split):
         super().__init__(split)
 
@@ -91,7 +92,7 @@ class DcssStoHRegisterOperation(DcssStoCMessage):
         return self.get_args()[1]
 
 @register_message('stoh_register_string', 'dcss')
-class DcssStoHRegisterOperation(DcssStoCMessage):
+class DcssStoHRegisterString(DcssStoCMessage):
     def __init__(self, split):
         super().__init__(split)
 
@@ -102,7 +103,7 @@ class DcssStoHRegisterOperation(DcssStoCMessage):
         return self.get_args()[1]
 
 @register_message('stoh_register_shutter', 'dcss')
-class DcssStoHRegisterOperation(DcssStoCMessage):
+class DcssStoHRegisterShutter(DcssStoCMessage):
     def __init__(self, split):
         super().__init__(split)
 
@@ -116,7 +117,7 @@ class DcssStoHRegisterOperation(DcssStoCMessage):
         return self.get_args()[2]
 
 @register_message('stoh_register_ion_chamber', 'dcss')
-class DcssStoHRegisterOperation(DcssStoCMessage):
+class DcssStoHRegisterIonChamber(DcssStoCMessage):
     def __init__(self, split):
         super().__init__(split)
 
@@ -136,7 +137,7 @@ class DcssStoHRegisterOperation(DcssStoCMessage):
         return self.get_args()[4]
 
 @register_message('stoh_register_pseudo_motor', 'dcss')
-class DcssStoHRegisterOperation(DcssStoCMessage):
+class DcssStoHRegisterPseudoMotor(DcssStoCMessage):
     def __init__(self, split):
         super().__init__(split)
 
@@ -147,7 +148,7 @@ class DcssStoHRegisterOperation(DcssStoCMessage):
         return self.get_args()[1]
 
 @register_message('stoh_register_encoder', 'dcss')
-class DcssStoHRegisterOperation(DcssStoCMessage):
+class DcssStoHRegisterEncoder(DcssStoCMessage):
     def __init__(self, split):
         super().__init__(split)
 
@@ -158,7 +159,7 @@ class DcssStoHRegisterOperation(DcssStoCMessage):
         return self.get_args()[1]
 
 @register_message('stoh_register_object', 'dcss')
-class DcssStoHRegisterOperation(DcssStoCMessage):
+class DcssStoHRegisterObject(DcssStoCMessage):
     def __init__(self, split):
         super().__init__(split)
 
@@ -170,7 +171,7 @@ class DcssStoHRegisterOperation(DcssStoCMessage):
 
 # stoh_configure_real_motor motoName position upperLimit lowerLimit scaleFactor speed acceleration backlash lowerLimitOn upperLimitOn motorLockOn backlashOn reverseOn
 @register_message('stoh_configure_real_motor', 'dcss')
-class DcssStoHRegisterOperation(DcssStoCMessage):
+class DcssStoHConfigureRealMotor(DcssStoCMessage):
     def __init__(self, split):
         super().__init__(split)
 
@@ -215,7 +216,7 @@ class DcssStoHRegisterOperation(DcssStoCMessage):
 
 # stoh_configure_pseudo_motor motorName position upperLimit lowerLimit upperLimitOn lowerLimitOn motorLockOn
 @register_message('stoh_configure_pseudo_motor', 'dcss')
-class DcssStoHRegisterOperation(DcssStoCMessage):
+class DcssStoHConfigurePseudoMotor(DcssStoCMessage):
     def __init__(self, split):
         super().__init__(split)
 
@@ -241,7 +242,7 @@ class DcssStoHRegisterOperation(DcssStoCMessage):
         return self.get_args()[6]
 
 @register_message('stoh_set_motor_position', 'dcss')
-class DcssStoHRegisterOperation(DcssStoCMessage):
+class DcssStoHSetMotorPosition(DcssStoCMessage):
     def __init__(self, split):
         super().__init__(split)
 
@@ -252,7 +253,7 @@ class DcssStoHRegisterOperation(DcssStoCMessage):
         return self.get_args()[1]
 
 @register_message('stoh_start_motor_move', 'dcss')
-class DcssStoHRegisterOperation(DcssStoCMessage):
+class DcssStoHStartMotorMove(DcssStoCMessage):
     def __init__(self, split):
         super().__init__(split)
 
@@ -268,7 +269,7 @@ class DcssStoHRegisterOperation(DcssStoCMessage):
 #  A value of hard indicates that motors should stop without decelerating.
 #  A value of soft indicates that motors should decelerate properly before stopping.
 @register_message('stoh_abort_all', 'dcss')
-class DcssStoHRegisterOperation(DcssStoCMessage):
+class DcssStoHAbortAll(DcssStoCMessage):
     def __init__(self, split):
         super().__init__(split)
 
@@ -276,7 +277,7 @@ class DcssStoHRegisterOperation(DcssStoCMessage):
         return self.get_args()[0]
 
 @register_message('stoh_correct_motor_position', 'dcss')
-class DcssStoHRegisterOperation(DcssStoCMessage):
+class DcssStoHCorrectMotorPosition(DcssStoCMessage):
     def __init__(self, split):
         super().__init__(split)
 
@@ -287,7 +288,7 @@ class DcssStoHRegisterOperation(DcssStoCMessage):
         return self.get_args()[1]
 
 @register_message('stoh_set_motor_dependency', 'dcss')
-class DcssStoHRegisterOperation(DcssStoCMessage):
+class DcssStoHSetMotorDependency(DcssStoCMessage):
     def __init__(self, split):
         super().__init__(split)
 
@@ -298,7 +299,7 @@ class DcssStoHRegisterOperation(DcssStoCMessage):
         return self.get_args()[1:]
 
 @register_message('stoh_set_motor_children', 'dcss')
-class DcssStoHRegisterOperation(DcssStoCMessage):
+class DcssStoHSetMotorChildren(DcssStoCMessage):
     def __init__(self, split):
         super().__init__(split)
 
@@ -309,7 +310,7 @@ class DcssStoHRegisterOperation(DcssStoCMessage):
         return self.get_args()[1:]
 
 @register_message('stoh_set_shutter_state','dcss')
-class DcssStoHRegisterOperation(DcssStoCMessage):
+class DcssStoHSetShutterState(DcssStoCMessage):
     def __init__(self, split):
         super().__init__(split)
 
@@ -320,7 +321,7 @@ class DcssStoHRegisterOperation(DcssStoCMessage):
         return self.get_args()[1]
 
 @register_message('stoh_start_operation','dcss')
-class DcssStoHRegisterOperation(DcssStoCMessage):
+class DcssStoHStartOperation(DcssStoCMessage):
     def __init__(self, split):
         super().__init__(split)
 
@@ -341,44 +342,44 @@ class DcssCtoSClientIsHardware(DcssCtoSMessage):
         self._split_msg = [self.get_type_id(), dhs_name]
 
 @register_message('htos_motor_move_started')
-class DcssCtoSClientIsHardware(DcssCtoSMessage): 
+class DcssCtoSMotorMoveStarted(DcssCtoSMessage): 
     def __init__(self, motor_name:str, new_position:float):
         super().__init__()
         self._split_msg = [self.get_type_id(), motor_name, new_position]
 
 @register_message('htos_motor_move_completed')
-class DcssCtoSClientIsHardware(DcssCtoSMessage): 
+class DcssCtoSMotorMoveCompleted(DcssCtoSMessage): 
     def __init__(self, motor_name:str, new_position:float, state:str):
         super().__init__()
         self._split_msg = [self.get_type_id(), motor_name, new_position, state]
 
 @register_message('htos_operation_completed')
-class DcssCtoSClientIsHardware(DcssCtoSMessage): 
+class DcssCtoSOperationCompleted(DcssCtoSMessage): 
     def __init__(self, operation_name:str, operation_handle:float, operation_status:str, operation_args:str):
         super().__init__()
         self._split_msg = [self.get_type_id(), operation_name, operation_handle, operation_status, operation_args]
 
 @register_message('htos_operation_update')
-class DcssCtoSClientIsHardware(DcssCtoSMessage): 
+class DcssCtoSOperationUpdate(DcssCtoSMessage): 
     def __init__(self, operation_name:str, operation_handle:float, operation_args:str):
         super().__init__()
         self._split_msg = [self.get_type_id(), operation_name, operation_handle, operation_args]
 
 # used?
 @register_message('htos_start_operation')
-class DcssCtoSClientIsHardware(DcssCtoSMessage): 
+class DcssCtoSStartOperation(DcssCtoSMessage): 
     def __init__(self, operation_info:str):
         super().__init__()
         self._split_msg = [self.get_type_id(), operation_info]
 
 @register_message('htos_update_motor_position')
-class DcssCtoSClientIsHardware(DcssCtoSMessage): 
+class DcssCtoSUpdateMotorPosition(DcssCtoSMessage): 
     def __init__(self, motor_name:str, new_position:float, status:str):
         super().__init__()
         self._split_msg = [self.get_type_id(), motor_name, new_position, status]
 
 @register_message('htos_report_ion_chambers')
-class DcssCtoSClientIsHardware(DcssCtoSMessage): 
+class DcssCtoSReportIonChamber(DcssCtoSMessage): 
     def __init__(self, ion_chamber_counts:int):
         super().__init__()
         self._split_msg = [self.get_type_id(), ion_chamber_counts]
@@ -390,74 +391,74 @@ class DcssCtoSClientIsHardware(DcssCtoSMessage):
 # for STEPPER we need to configure with 12 values
 # for PSEUDO we need to configure with 6 values
 @register_message('htos_configure_device')
-class DcssCtoSClientIsHardware(DcssCtoSMessage): 
+class DcssCtoSConfigureDevice(DcssCtoSMessage): 
     def __init__(self, device_name:str, device_settings:str):
         super().__init__()
         self._split_msg = [self.get_type_id(), device_name, device_settings]
 
 @register_message('htos_send_configuration')
-class DcssCtoSClientIsHardware(DcssCtoSMessage): 
+class DcssCtoSSendConfiguration(DcssCtoSMessage): 
     def __init__(self, device_name:str):
         super().__init__()
         self._split_msg = [self.get_type_id(), device_name]
 
 @register_message('htos_report_shutter_state')
-class DcssCtoSClientIsHardware(DcssCtoSMessage): 
+class DcssCtoSReportShutterState(DcssCtoSMessage): 
     def __init__(self, shutter_name:str, state:str, result:str):
         super().__init__()
         self._split_msg = [self.get_type_id(), shutter_name, state, result]
 
 
 @register_message('htos_limit_hit')
-class DcssCtoSClientIsHardware(DcssCtoSMessage): 
+class DcssCtoSLimitHit(DcssCtoSMessage): 
     def __init__(self, state:str):
         super().__init__()
         self._split_msg = [self.get_type_id(), state]
 
 @register_message('htos_simulating_device')
-class DcssCtoSClientIsHardware(DcssCtoSMessage): 
+class DcssCtoSSimulatingDevice(DcssCtoSMessage): 
     def __init__(self, state:str):
         super().__init__()
         self._split_msg = [self.get_type_id(), state]
 
 @register_message('htos_motor_correct_started')
-class DcssCtoSClientIsHardware(DcssCtoSMessage): 
+class DcssCtoSMotorCorrectStarted(DcssCtoSMessage): 
     def __init__(self, state:str):
         super().__init__()
         self._split_msg = [self.get_type_id(), state]
 
 @register_message('htos_get_encoder_completed')
-class DcssCtoSClientIsHardware(DcssCtoSMessage): 
+class DcssCtoSGetEncoderCompleted(DcssCtoSMessage): 
     def __init__(self, encoder_name:str, new_position:float, status:str):
         super().__init__()
         self._split_msg = [self.get_type_id(), encoder_name, new_position, status]
 
 @register_message('htos_set_encoder_completed')
-class DcssCtoSClientIsHardware(DcssCtoSMessage): 
+class DcssCtoSSetEncoderCompleted(DcssCtoSMessage): 
     def __init__(self, encoder_name:str, new_position:int, status:str):
         super().__init__()
         self._split_msg = [self.get_type_id(), encoder_name, new_position, status]
 
 @register_message('htos_set_string_completed')
-class DcssCtoSClientIsHardware(DcssCtoSMessage): 
+class DcssCtoSSetStringCompleted(DcssCtoSMessage): 
     def __init__(self, string_name:str, status:str):
         super().__init__()
         self._split_msg = [self.get_type_id(), string_name, status]
 
 @register_message('htos_note')
-class DcssCtoSClientIsHardware(DcssCtoSMessage): 
+class DcssCtoSNote(DcssCtoSMessage): 
     def __init__(self, nore_message:str):
         super().__init__()
         self._split_msg = [self.get_type_id(), note_message]
 
 @register_message('htos_log')
-class DcssCtoSClientIsHardware(DcssCtoSMessage): 
+class DcssCtoSLog(DcssCtoSMessage): 
     def __init__(self, log_message:str):
         super().__init__()
         self._split_msg = [self.get_type_id(), log_message]
 
 @register_message('htos_set_motor_message')
-class DcssCtoSClientIsHardware(DcssCtoSMessage): 
+class DcssCtoSSetMotorMessage(DcssCtoSMessage): 
     def __init__(self, motor_name:str):
         super().__init__()
         self._split_msg = [self.get_type_id(), motor_name,]
@@ -479,6 +480,7 @@ class DcssXOS1SocketReader(TcpipSocketReader):
 
 
 #DcssClientConnection
+@register_connection('dcss')
 class DcssClientConnection(TcpipClientConnection):
-    def __init__(self, msg_processor:MessageProcessor):
-        super().__init__(msg_processor, DcssXOS1SocketReader(), DcssMessageFactory())
+    def __init__(self, url:str, config:dict, msg_processor:MessageProcessor):
+        super().__init__(url, config, msg_processor, DcssXOS1SocketReader(), DcssMessageFactory())
