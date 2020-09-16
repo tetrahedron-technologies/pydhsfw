@@ -1,6 +1,6 @@
 import signal
 from pydhsfw.processors import  Context, register_message_handler
-from pydhsfw.dcss import DcssStoCSendClientType, DcssCtoSClientIsHardware, DcssStoHRegisterOperation
+from pydhsfw.dcss import DcssStoCSendClientType, DcssHtoSClientIsHardware, DcssStoHRegisterOperation
 from pydhsfw.dhs import Dhs, DhsInit
 
 
