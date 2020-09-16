@@ -1,33 +1,36 @@
-from pydhsfw.connectionmanager import ConnectionManager
-from pydhsfw.messages import MessageIn, MessageProcessorWorker
-from pydhsfw.connectionmanager import ConnectionManager
-from pydhsfw.dcss import DcssStoCSendClientType, DcssCtoSClientIsHardware
-import time
+from signal import signal, SIGINT, SIGTERM
+from pydhsfw.processors import  Context, register_message_handler
+from pydhsfw.dcss import DcssStoCSendClientType, DcssCtoSClientIsHardware, DcssStoHRegisterOperation
+from pydhsfw.dhs import Dhs, DhsInit
 
-conn_mgr = ConnectionManager()
-class LoopDcssMessageProcessor(MessageProcessorWorker):
 
-    def __init__(self):
-        super().__init__(name = 'loop dcss message processor')
+@register_message_handler('dhs_init')
+def dhs_init(message:DhsInit, context:Context):
+    print("Initializing DHS")
 
-    def process_message(self, message:MessageIn):
-        print(f'LoopDHS process message received {message}')
+    url = 'dcss://localhost:14242'
+    context.create_connection('dcss', url)
+    context.get_connection('dcss').connect()
+
+@register_message_handler('stoc_send_client_type')
+def dcss_send_client_type(message:DcssStoCSendClientType, context:Context):
+    context.get_connection('dcss').send(DcssCtoSClientIsHardware('loopDHS'))
+
+@register_message_handler('stoh_register_operation')
+def dcss_reg_operation(message:DcssStoHRegisterOperation, context:Context):
+    print(f'Handling message {message}')
+
         
-        conn = conn_mgr.get_connection('dcss')
-        if isinstance(message, DcssStoCSendClientType):
-            conn.send(DcssCtoSClientIsHardware('loop'))
+dhs = Dhs().start()
 
-url = 'dcss://localhost:14242'
-msg_processor = LoopDcssMessageProcessor()
-msg_processor.start()
+def handler(signal_received, frame):
+    # Handle any cleanup here
+    print('SIGINT or CTRL-C detected. Exiting gracefully')
+    dhs.shutdown()
 
-conn_mgr.create_connection('dcss', url, msg_processor)
-conn_mgr.start_connections()
+if __name__ == '__main__':
+    # Tell Python to run the handler() function when SIGINT is recieved
+    signal(SIGINT, handler)
+    signal(SIGTERM, handler)
 
-conn_mgr.get_connection('dcss').connect()
-
-time.sleep(30)
-
-msg_processor.abort()
-msg_processor.join()
-conn_mgr.stop_connections()
+dhs.wait()
