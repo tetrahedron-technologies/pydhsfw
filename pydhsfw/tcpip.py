@@ -1,39 +1,13 @@
-from enum import Enum
-import socket
-import errno
-from urllib.parse import urlparse
-from collections import deque
-import time
-import sys
 import threading
-import traceback
-from pydhsfw.messages import MessageIn, MessageOut, MessageFactory, MessageProcessor, MessageProcessorWorker
+import socket
+import time
+import errno
+from traceback import print_exc
+from collections import deque
+from urllib.parse import urlparse
 from pydhsfw.threads import AbortableThread
-
-class ConnectionMessage(MessageIn):
-
-    def __init__(self, msg):
-        super().__init__()
-        self._msg = msg
-
-    def get_msg(self):
-        return self._msg
-
-class ConnectionConnectedMessage(ConnectionMessage):
-    def __init__(self, msg):
-        super().__init__(msg)
-
-class ConnectionDisconnectedMessage(ConnectionMessage):
-    def __init__(self, msg):
-        super().__init__(msg)
-
-class ConnectionShutdownMessage(ConnectionMessage):
-    def __init__(self, msg):
-        super().__init__(msg)
-
-class MessageReader():
-    def read(self):
-        pass
+from pydhsfw.messages import MessageIn, MessageOut, MessageFactory
+from pydhsfw.connection import Connection, MessageReader, MessageProcessor, ClientState
 
 class TcpipSocketReader(MessageReader):
 
@@ -65,31 +39,6 @@ class TcpipSocketReader(MessageReader):
     def read_to_delimiter(self, sock:socket, delimeter:bytes)->bytes:
         pass
 
-class ClientState(Enum):
-    DISCONNECTED = 1
-    CONNECTING = 2
-    CONNECTED = 3
-    DISCONNECTING = 4
-
-class Connection:
-
-    def __init__(self, url:str, config:dict=None):
-        self._url = url
-        self._cfg = config
-
-    def connect(self):
-        pass
-
-    def disconnect(self):
-        pass
-
-    def send(self, msg:MessageOut):
-        pass
-
-    def exit(self):
-        pass
-
- 
 class TcpipConnection(Connection):
     pass
 
@@ -186,11 +135,11 @@ class TcpipClientConnectionWorker(AbortableThread):
                     #This is normal when there are no more mesages in the queue and wait time has ben statisfied. Just ignore it.
                     pass
                 except Exception:
-                    traceback.print_exc()
+                    print_exc()
                     raise
 
         except SystemExit:
-            self._notify_status('Connection shutdown')
+            self._notify_status(f'Shutdown signal received, exiting {self.name}')
         finally:
             try:
                 self._disconnect(_sock)
@@ -295,7 +244,7 @@ class TcpipClientConnectionWorker(AbortableThread):
                     self._notify_status(f'Connection refused: cannot connect to {url}, trying again in {delay} seconds')
                     time.sleep(delay)
             except Exception:
-                traceback.print_exc()
+                print_exc()
                 self._set_state(ClientState.DISCONNECTED)
                 raise
 
@@ -375,11 +324,11 @@ class TcpipClientReaderWorker(AbortableThread):
                     else:
                         raise
                 except Exception as e:
-                    traceback.print_exc()
+                    print_exc()
                     raise
 
         except SystemExit:
-            self._notify_status('Connection reader shutdown')
+            self._notify_status(f'Shutdown signal received, exiting {self.name}')
             
         finally:
             pass
@@ -442,10 +391,12 @@ class TcpipClientConnection(TcpipConnection):
         """
         self._connection_worker.send_message(message)
 
-    def exit(self):
+    def shutdown(self):
         self._connection_reader_worker.abort()
-        self._connection_reader_worker.join()
         self._connection_worker.abort()
+
+    def wait(self):
+        self._connection_reader_worker.join()
         self._connection_worker.join()
         self._connection_worker = None
         self._connection_reader_worker = None
