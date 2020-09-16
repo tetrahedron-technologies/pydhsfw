@@ -1,6 +1,6 @@
-from pydhsfw.messages import MessageIn, MessageOut, MessageFactory, MessageProcessor, register_message
-from pydhsfw.connections import TcpipClientConnection, TcpipSocketReader
-from pydhsfw.connectionmanager import register_connection
+from pydhsfw.messages import MessageIn, MessageOut, MessageFactory, register_message
+from pydhsfw.connection import MessageProcessor, register_connection
+from pydhsfw.tcpip import TcpipClientConnection, TcpipSocketReader
 
 
 #Dcss Message Base Classes
@@ -30,6 +30,9 @@ class DcssStoCMessage(MessageIn, DcssMessageIn):
  
     def __init__(self, split):
         DcssMessageIn.__init__(self, split)
+
+    def __str__(self):
+        return DcssMessageIn.__str__(self)
 
     @classmethod
     def parse(cls, buffer:bytes):

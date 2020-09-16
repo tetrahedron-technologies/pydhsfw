@@ -1,23 +1,28 @@
-from pydhsfw.connectionfactory import ConnectionFactory
-from pydhsfw.messages import MessageIn, MessageProcessorWorker
-from pydhsfw.dcss import DcssMessageFactory, DcssStoCSendClientType, DcssCtoSClientIsHardware
-import time
+import signal
+from pydhsfw.processors import  Context, register_message_handler
+from pydhsfw.dcss import DcssStoCSendClientType, DcssCtoSClientIsHardware, DcssStoHRegisterOperation
+from pydhsfw.dhs import Dhs, DhsInit
 
-class LoopDcssMessageProcessor(MessageProcessorWorker):
 
-    def __init__(self):
-        super().__init__(name = 'loop dcss message processor')
+@register_message_handler('dhs_init')
+def dhs_init(message:DhsInit, context:Context):
+    print("Initializing DHS")
 
-    def process_message(self, message:MessageIn):
-        conn = self.get_connection()
-        print(f'LoopDHS process message received {message}')
+    url = 'dcss://localhost:14242'
+    context.create_connection('dcss', url)
+    context.get_connection('dcss').connect()
+
+@register_message_handler('stoc_send_client_type')
+def dcss_send_client_type(message:DcssStoCSendClientType, context:Context):
+    context.get_connection('dcss').send(DcssCtoSClientIsHardware('loopDHS'))
+
+@register_message_handler('stoh_register_operation')
+def dcss_reg_operation(message:DcssStoHRegisterOperation, context:Context):
+    print(f'Handling message {message}')
+
         
-        if isinstance(message, DcssStoCSendClientType):
-            conn.send(DcssCtoSClientIsHardware('loop'))
-
-url = 'dcss://localhost:14242'
-connection = ConnectionFactory.getConnection(url, LoopDcssMessageProcessor())
-connection.start()
-connection.connect(url)
-time.sleep(45)
-connection.exit()
+dhs = Dhs()
+dhs.start()
+if __name__ == '__main__':
+    sigs = {signal.SIGINT, signal.SIGTERM}
+dhs.wait(sigs)
