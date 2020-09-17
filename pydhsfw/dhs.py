@@ -1,4 +1,5 @@
 import argparse
+import sys
 import signal
 from pydhsfw.messages import MessageIn, register_message
 from pydhsfw.connection import Connection
@@ -34,10 +35,13 @@ class DhsContext(Context):
 
 @register_message('dhs_init')
 class DhsInit(MessageIn):
-    def __init__(self, parser:ArgumentParser, args ):
+    def __init__(self, parser, args ):
         super().__init__()
         self.arg_parser = parser
         self.cmd_args = args
+
+    def get_parser(self):
+        return self.arg_parser
 
 class Dhs:
     '''Main DHS class
@@ -67,14 +71,18 @@ class Dhs:
             dest="loglevel",
             help="set loglevel to INFO",
             action="store_const",
-            const=logging.INFO)
+            const="TEST")
+            # comment out until logging is configured
+            #const=logging.INFO)
         parser.add_argument(
             "-vv",
             "--very-verbose",
             dest="loglevel",
             help="set loglevel to DEBUG",
             action="store_const",
-            const=logging.DEBUG)
+            const="TEST")
+            # comment out until logging is configured
+            #const=logging.DEBUG)
         # Add DCSS parsing parameters that all DHSs will need here and pass below, that will give the DHS
         # writers a head start.
         # DHS writer can then handle in Dhs_Init to add Dhs specific parse elements.

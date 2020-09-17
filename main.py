@@ -9,9 +9,9 @@ def dhs_init(message:DhsInit, context:Context):
     print("Initializing DHS")
 
     parser = message.get_parser()
-    print(f"parser: {parser}")
+    #print(f"parser: {parser}")
     # Configure parser here.
-    parsed_config_stuff = parser.parse(message.get_args())
+    #parsed_config_stuff = parser.parse(message.get_args())
 
     url = 'dcss://localhost:14242'
     context.create_connection('dcss', url)
