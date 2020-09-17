@@ -6,7 +6,7 @@ from pydhsfw.dhs import Dhs, DhsInit
 
 @register_message_handler('dhs_init')
 def dhs_init(message:DhsInit, context:Context):
-    print("Initializing DHS")
+    print("Initializing Loop DHS")
 
     parser = message.get_parser()
     #print(f"parser: {parser}")
