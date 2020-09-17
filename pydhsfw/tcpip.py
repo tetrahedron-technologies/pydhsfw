@@ -2,12 +2,15 @@ import threading
 import socket
 import time
 import errno
+import logging
 from traceback import print_exc
 from collections import deque
 from urllib.parse import urlparse
 from pydhsfw.threads import AbortableThread
 from pydhsfw.messages import MessageIn, MessageOut, MessageFactory
 from pydhsfw.connection import Connection, MessageReader, MessageProcessor, ClientState
+
+_logger = logging.getLogger(__name__)
 
 class TcpipSocketReader(MessageReader):
 
@@ -128,7 +131,8 @@ class TcpipClientConnectionWorker(AbortableThread):
                             self._sock = sock
                         
                         elif isinstance(msg, MessageOut):
-                            print(f'Connection sending message {msg}')
+                            #print(f'Connection sending message {msg}')
+                            _logger.info(f"CONNECTION SENDING MESSAGE: {msg}")
                             self._send(sock, msg.write())
 
                 except TimeoutError:
@@ -201,10 +205,12 @@ class TcpipClientConnectionWorker(AbortableThread):
         return self._sock
 
     def _notify_status(self, msg:str):
-        print(msg)
+        #print(msg)
+        _logger.info(msg)
 
     def _notify_error(self, msg:str):
-        print(msg)
+        #print(msg)
+        _logger.info(msg)
 
     def _connect(self, config:dict) -> socket:
 
@@ -275,7 +281,8 @@ class TcpipClientConnectionWorker(AbortableThread):
 
     def _send(self, sock:socket, buffer:bytes):
         if self.get_state() == ClientState.CONNECTED:
-            print(f'Socket sending message. len: {len(buffer)}, msg: {buffer}')
+            #print(f'Socket sending message. len: {len(buffer)}, msg: {buffer}')
+            _logger.debug(f'Socket sending message. len: {len(buffer)}, msg: {buffer}')
             sock.sendall(buffer)
 
 
@@ -299,11 +306,13 @@ class TcpipClientReaderWorker(AbortableThread):
                     sock = self._connecton_worker._get_socket(5)
                     if sock:
                         buffer = self._msg_reader.read_socket(sock)
-                        print(f'Socket received message, len: {len(buffer)}, buffer: {buffer}')
+                        #print(f'Socket received message, len: {len(buffer)}, buffer: {buffer}')
+                        _logger.debug(f'Socket received message, len: {len(buffer)}, buffer: {buffer}')
 
                         msg = self._msg_factory.create_message(buffer)
                         if msg:
-                            print(f'Message factory created: {msg}')
+                            #print(f'Message factory created: {msg}')
+                            _logger.debug(f'Message factory created: {msg}')
                             self._msg_processor._queque_message(msg)
 
                 except socket.timeout:
