@@ -43,6 +43,9 @@ class DhsInit(MessageIn):
     def get_parser(self):
         return self.arg_parser
 
+    def get_args(self):
+        return self.cmd_args
+
 class Dhs:
     '''Main DHS class
     '''

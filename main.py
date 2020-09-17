@@ -9,7 +9,7 @@ def dhs_init(message:DhsInit, context:Context):
     print("Initializing DHS")
 
     parser = message.get_parser()
-    print(f"parser: {parser}")
+    #print(f"parser: {parser}")
     #parser = argparse.ArgumentParser(description="DHS Distributed Hardware Server")
     parser.add_argument(
         "--version",
@@ -22,7 +22,7 @@ def dhs_init(message:DhsInit, context:Context):
         metavar="Beamline")
     parser.add_argument(
         dest="dhs_name",
-        help="DHS Name",
+        help="DHS Name (e.g. loop or chain or detector)",
         metavar="DHS Name")
     parser.add_argument(
         "-v",
@@ -43,7 +43,7 @@ def dhs_init(message:DhsInit, context:Context):
         # comment out until logging is configured
         #const=logging.DEBUG)
 
-    #parsed_config_stuff = parser.parse(message.get_args())
+    parsed_config_stuff = parser.parse_args(message.get_args())
 
     url = 'dcss://localhost:14242'
     context.create_connection('dcss', url)
