@@ -1,8 +1,12 @@
+import sys
+import logging
 import signal
 from pydhsfw.messages import MessageIn, register_message
 from pydhsfw.connection import Connection
 from pydhsfw.processors import Context, MessageDispatcher
 from pydhsfw.connectionmanager import ConnectionManager
+
+_logger = logging.getLogger(__name__)
 
 class DhsContext(Context):
 
@@ -34,6 +38,24 @@ class DhsContext(Context):
 class DhsInit(MessageIn):
     def __init__(self):
         super().__init__()
+        self.initialize_logger()
+
+    def setup_logging(self, loglevel):
+        """Setup basic logging
+
+        Args:
+        loglevel (int): minimum loglevel for emitting messages
+        """
+        logformat = "[%(asctime)s] %(levelname)s:%(name)s:%(message)s"
+        logging.basicConfig(level=loglevel, stream=sys.stdout, format=logformat, datefmt="%Y-%m-%d %H:%M:%S")
+
+    def initialize_logger(self):
+        # once this is merged with the argparse branch we can pass in loglevel on the command line.
+        # harcoded as INFO for now.
+        self.setup_logging(logging.INFO)
+    
+    
+
 
 class Dhs:
     def __init__(self):
