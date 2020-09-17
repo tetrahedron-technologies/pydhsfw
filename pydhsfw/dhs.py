@@ -52,37 +52,6 @@ class Dhs:
     def start(self):
         self._context._get_msg_disp().start()
         parser = argparse.ArgumentParser(description="DHS Distributed Hardware Server")
-        parser.add_argument(
-            "--version",
-            action="version",
-            version="0.1")
-            #version="pyDHS {ver}".format(ver=__version__))
-        parser.add_argument(
-            dest="beamline",
-            help="Beamline Name (e.g. BL-831)",
-            metavar="Beamline")
-        parser.add_argument(
-            dest="dhs_name",
-            help="DHS Name",
-            metavar="DHS Name")
-        parser.add_argument(
-            "-v",
-            "--verbose",
-            dest="loglevel",
-            help="set loglevel to INFO",
-            action="store_const",
-            const="TEST")
-            # comment out until logging is configured
-            #const=logging.INFO)
-        parser.add_argument(
-            "-vv",
-            "--very-verbose",
-            dest="loglevel",
-            help="set loglevel to DEBUG",
-            action="store_const",
-            const="TEST")
-            # comment out until logging is configured
-            #const=logging.DEBUG)
         # Add DCSS parsing parameters that all DHSs will need here and pass below, that will give the DHS
         # writers a head start.
         # DHS writer can then handle in Dhs_Init to add Dhs specific parse elements.
