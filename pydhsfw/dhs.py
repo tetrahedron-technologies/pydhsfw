@@ -1,3 +1,4 @@
+import argparse
 import signal
 from pydhsfw.messages import MessageIn, register_message
 from pydhsfw.connection import Connection
@@ -5,7 +6,8 @@ from pydhsfw.processors import Context, MessageDispatcher
 from pydhsfw.connectionmanager import ConnectionManager
 
 class DhsContext(Context):
-
+    '''DhsContext
+    '''
     def __init__(self, connection_mgr):
         self._conn_mgr = connection_mgr
         self._msg_processor = MessageDispatcher('default', self)
@@ -32,16 +34,51 @@ class DhsContext(Context):
 
 @register_message('dhs_init')
 class DhsInit(MessageIn):
-    def __init__(self):
+    def __init__(self, parser:ArgumentParser, args ):
         super().__init__()
+        self.arg_parser = parser
+        self.cmd_args = args
 
 class Dhs:
+    '''Main DHS class
+    '''
     def __init__(self):
         self._context = DhsContext(ConnectionManager())
 
     def start(self):
         self._context._get_msg_disp().start()
-        self._context._get_msg_disp()._queque_message(DhsInit())
+        parser = argparse.ArgumentParser(description="DHS Distributed Hardware Server")
+        parser.add_argument(
+            "--version",
+            action="version",
+            version="0.1")
+            #version="pyDHS {ver}".format(ver=__version__))
+        parser.add_argument(
+            dest="beamline",
+            help="Beamline Name (e.g. BL-831)",
+            metavar="Beamline")
+        parser.add_argument(
+            dest="dhs_name",
+            help="DHS Name",
+            metavar="DHS Name")
+        parser.add_argument(
+            "-v",
+            "--verbose",
+            dest="loglevel",
+            help="set loglevel to INFO",
+            action="store_const",
+            const=logging.INFO)
+        parser.add_argument(
+            "-vv",
+            "--very-verbose",
+            dest="loglevel",
+            help="set loglevel to DEBUG",
+            action="store_const",
+            const=logging.DEBUG)
+        # Add DCSS parsing parameters that all DHSs will need here and pass below, that will give the DHS
+        # writers a head start.
+        # DHS writer can then handle in Dhs_Init to add Dhs specific parse elements.
+        self._context._get_msg_disp()._queque_message(DhsInit(parser, sys.argv[1:]))
 
     def shutdown(self):
         self._context._get_msg_disp().abort()
