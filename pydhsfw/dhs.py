@@ -1,3 +1,4 @@
+import argparse
 import sys
 import logging
 import signal
@@ -9,7 +10,8 @@ from pydhsfw.connectionmanager import ConnectionManager
 _logger = logging.getLogger(__name__)
 
 class DhsContext(Context):
-
+    '''DhsContext
+    '''
     def __init__(self, connection_mgr):
         self._conn_mgr = connection_mgr
         self._msg_processor = MessageDispatcher('default', self)
@@ -36,9 +38,17 @@ class DhsContext(Context):
 
 @register_message('dhs_init')
 class DhsInit(MessageIn):
-    def __init__(self):
+    def __init__(self, parser, args ):
         super().__init__()
+        self.arg_parser = parser
+        self.cmd_args = args
         self.initialize_logger()
+
+    def get_parser(self):
+        return self.arg_parser
+
+    def get_args(self):
+        return self.cmd_args
 
     def setup_logging(self, loglevel):
         """Setup basic logging
@@ -53,17 +63,20 @@ class DhsInit(MessageIn):
         # once this is merged with the argparse branch we can pass in loglevel on the command line.
         # harcoded as INFO for now.
         self.setup_logging(logging.INFO)
-    
-    
-
 
 class Dhs:
+    '''Main DHS class
+    '''
     def __init__(self):
         self._context = DhsContext(ConnectionManager())
 
     def start(self):
         self._context._get_msg_disp().start()
-        self._context._get_msg_disp()._queque_message(DhsInit())
+        parser = argparse.ArgumentParser(description="DHS Distributed Hardware Server")
+        # Add DCSS parsing parameters that all DHSs will need here and pass below, that will give the DHS
+        # writers a head start.
+        # DHS writer can then handle in Dhs_Init to add Dhs specific parse elements.
+        self._context._get_msg_disp()._queque_message(DhsInit(parser, sys.argv[1:]))
 
     def shutdown(self):
         self._context._get_msg_disp().abort()
