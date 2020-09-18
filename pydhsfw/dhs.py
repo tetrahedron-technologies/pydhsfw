@@ -55,18 +55,6 @@ class Dhs:
     def __init__(self):
         self._context = DhsContext(ConnectionManager())
 
-    def _notify_debug(self, msg:str):
-        _logger.debug(msg)
-
-    def _notify_status(self, msg:str):
-        _logger.info(msg)
-
-    def _notify_error(self, msg:str):
-        _logger.error(msg)
-
-    def _notify_critical(self, msg:str):
-        _logger.critical(msg)
-
     def start(self):
         self._context._get_msg_disp().start()
         parser = argparse.ArgumentParser(description="DHS Distributed Hardware Server")
@@ -92,7 +80,7 @@ class Dhs:
             def handler(signal_received, frame):
                 # Handle any cleanup here
                 sig_e = _sig_map.get(signal_received)
-                self._notify_status(f'{sig_e} detected. Exiting gracefully')
+                _logger.info(f'{sig_e} detected. Exiting gracefully')
                 self.shutdown()
             for sig in signal_set:
                 signal.signal(sig, handler)
