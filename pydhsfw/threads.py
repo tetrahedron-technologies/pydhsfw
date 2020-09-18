@@ -19,7 +19,6 @@ class AbortableThread(threading.Thread):
     def abort(self): 
         thread_id = self._get_id()
         thread = threading._active.get(thread_id)
-        #print(f'Sending SystemExit exceptions to: {thread.name}')
         _logger.info(f'Sending SystemExit exceptions to: {thread.name}')
         res = ctypes.pythonapi.PyThreadState_SetAsyncExc(ctypes.c_ulong(thread_id), 
               ctypes.py_object(SystemExit)) 
