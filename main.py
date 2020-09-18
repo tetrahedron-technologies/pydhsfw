@@ -1,6 +1,7 @@
 import logging
 import signal
 import sys
+import yaml
 from pydhsfw.processors import  Context, register_message_handler
 from pydhsfw.dcss import DcssStoCSendClientType, DcssHtoSClientIsHardware, DcssStoHRegisterOperation
 from pydhsfw.dhs import Dhs, DhsInit
@@ -53,7 +54,15 @@ def dhs_init(message:DhsInit, context:Context):
     logging.basicConfig(level=loglevel, stream=sys.stdout, format=logformat, datefmt="%Y-%m-%d %H:%M:%S")
 
     _logger.info("Initializing DHS")
-    url = 'dcss://localhost:14242'
+    conf_file = message.get_conf_file()
+    _logger.info(f"log file: {conf_file}")
+    with open(conf_file, 'r') as f:
+        conf = yaml.safe_load(f)
+        dcss_host = conf['dcss']['host']
+        dcss_port = conf['dcss']['port']
+        _logger.info(f"DCSS HOST: {dcss_host} PORT: {dcss_port}")
+
+    url = 'dcss://' + dcss_host + ':' + str(dcss_port)
     context.create_connection('dcss', url)
     context.get_connection('dcss').connect()
 

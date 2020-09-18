@@ -38,16 +38,20 @@ class DhsContext(Context):
 
 @register_message('dhs_init')
 class DhsInit(MessageIn):
-    def __init__(self, parser, args ):
+    def __init__(self, parser, args, conf_file ):
         super().__init__()
         self.arg_parser = parser
         self.cmd_args = args
+        self.conf_file = conf_file
 
     def get_parser(self):
         return self.arg_parser
 
     def get_args(self):
         return self.cmd_args
+
+    def get_conf_file(self):
+        return self.conf_file
 
 class Dhs:
     '''Main DHS class
@@ -61,7 +65,12 @@ class Dhs:
         # Add DCSS parsing parameters that all DHSs will need here and pass below, that will give the DHS
         # writers a head start.
         # DHS writer can then handle in Dhs_Init to add Dhs specific parse elements.
-        self._context._get_msg_disp()._queque_message(DhsInit(parser, sys.argv[1:]))
+        #
+        # hard code a config file? seems non-optimal. Would be good if we could parse beamline name from
+        # the command line and then use that to decide which config file to use, but it seems we're too
+        # early to use argparse....
+        config = 'config/bl831.config'
+        self._context._get_msg_disp()._queque_message(DhsInit(parser, sys.argv[1:], config))
 
     def shutdown(self):
         self._context._get_msg_disp().abort()
