@@ -49,7 +49,7 @@ def dhs_init(message:DhsInit, context:Context):
     else:
         loglevel = args.loglevel
 
-    logformat = "[%(asctime)s] %(levelname)s:%(name)s:%(message)s"
+    logformat = "[%(asctime)s] %(levelname)s:%(name)s:%(lineno)d - %(message)s"
     logging.basicConfig(level=loglevel, stream=sys.stdout, format=logformat, datefmt="%Y-%m-%d %H:%M:%S")
 
     _logger.info("Initializing DHS")
