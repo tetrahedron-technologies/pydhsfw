@@ -1,12 +1,14 @@
+import logging
 import signal
+import sys
 from pydhsfw.processors import  Context, register_message_handler
 from pydhsfw.dcss import DcssStoCSendClientType, DcssHtoSClientIsHardware, DcssStoHRegisterOperation
 from pydhsfw.dhs import Dhs, DhsInit
 
+_logger = logging.getLogger(__name__)
 
 @register_message_handler('dhs_init')
 def dhs_init(message:DhsInit, context:Context):
-    print("Initializing DHS")
 
     parser = message.get_parser()
     #print(f"parser: {parser}")
@@ -30,21 +32,27 @@ def dhs_init(message:DhsInit, context:Context):
         dest="loglevel",
         help="set loglevel to INFO",
         action="store_const",
-        const="TEST")
-        # comment out until logging is configured
-        #const=logging.INFO)
+        const=logging.INFO)
     parser.add_argument(
         "-vv",
         "--very-verbose",
         dest="loglevel",
         help="set loglevel to DEBUG",
         action="store_const",
-        const="TEST")
-        # comment out until logging is configured
-        #const=logging.DEBUG)
+        const=logging.DEBUG)
 
-    parsed_config_stuff = parser.parse_args(message.get_args())
+    args = parser.parse_args(message.get_args())
+    #print(args)
+    # I'm not sure how to set a default logging level in argparse so will try this
+    if args.loglevel == None:
+        loglevel = logging.INFO
+    else:
+        loglevel = args.loglevel
 
+    logformat = "[%(asctime)s] %(levelname)s:%(name)s:%(lineno)d - %(message)s"
+    logging.basicConfig(level=loglevel, stream=sys.stdout, format=logformat, datefmt="%Y-%m-%d %H:%M:%S")
+
+    _logger.info("Initializing DHS")
     url = 'dcss://localhost:14242'
     context.create_connection('dcss', url)
     context.get_connection('dcss').connect()
@@ -55,9 +63,9 @@ def dcss_send_client_type(message:DcssStoCSendClientType, context:Context):
 
 @register_message_handler('stoh_register_operation')
 def dcss_reg_operation(message:DcssStoHRegisterOperation, context:Context):
-    print(f'Handling message {message}')
+    #print(f'Handling message {message}')
+    _logger.info(f"Handling message {message}")
 
-        
 dhs = Dhs()
 dhs.start()
 if __name__ == '__main__':

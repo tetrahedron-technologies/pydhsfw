@@ -1,10 +1,13 @@
 import argparse
 import sys
+import logging
 import signal
 from pydhsfw.messages import MessageIn, register_message
 from pydhsfw.connection import Connection
 from pydhsfw.processors import Context, MessageDispatcher
 from pydhsfw.connectionmanager import ConnectionManager
+
+_logger = logging.getLogger(__name__)
 
 class DhsContext(Context):
     '''DhsContext
@@ -77,7 +80,7 @@ class Dhs:
             def handler(signal_received, frame):
                 # Handle any cleanup here
                 sig_e = _sig_map.get(signal_received)
-                print(f'{sig_e} detected. Exiting gracefully')
+                _logger.info(f'{sig_e} detected. Exiting gracefully')
                 self.shutdown()
             for sig in signal_set:
                 signal.signal(sig, handler)
