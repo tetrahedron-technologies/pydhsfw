@@ -42,7 +42,6 @@ class DhsInit(MessageIn):
         super().__init__()
         self.arg_parser = parser
         self.cmd_args = args
-        self.initialize_logger()
 
     def get_parser(self):
         return self.arg_parser
@@ -50,25 +49,23 @@ class DhsInit(MessageIn):
     def get_args(self):
         return self.cmd_args
 
-    def setup_logging(self, loglevel):
-        """Setup basic logging
-
-        Args:
-        loglevel (int): minimum loglevel for emitting messages
-        """
-        logformat = "[%(asctime)s] %(levelname)s:%(name)s:%(message)s"
-        logging.basicConfig(level=loglevel, stream=sys.stdout, format=logformat, datefmt="%Y-%m-%d %H:%M:%S")
-
-    def initialize_logger(self):
-        # once this is merged with the argparse branch we can pass in loglevel on the command line.
-        # harcoded as INFO for now.
-        self.setup_logging(logging.INFO)
-
 class Dhs:
     '''Main DHS class
     '''
     def __init__(self):
         self._context = DhsContext(ConnectionManager())
+
+    def _notify_debug(self, msg:str):
+        _logger.debug(msg)
+
+    def _notify_status(self, msg:str):
+        _logger.info(msg)
+
+    def _notify_error(self, msg:str):
+        _logger.error(msg)
+
+    def _notify_critical(self, msg:str):
+        _logger.critical(msg)
 
     def start(self):
         self._context._get_msg_disp().start()
@@ -95,7 +92,7 @@ class Dhs:
             def handler(signal_received, frame):
                 # Handle any cleanup here
                 sig_e = _sig_map.get(signal_received)
-                print(f'{sig_e} detected. Exiting gracefully')
+                self._notify_status(f'{sig_e} detected. Exiting gracefully')
                 self.shutdown()
             for sig in signal_set:
                 signal.signal(sig, handler)

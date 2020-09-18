@@ -131,15 +131,14 @@ class TcpipClientConnectionWorker(AbortableThread):
                             self._sock = sock
                         
                         elif isinstance(msg, MessageOut):
-                            #print(f'Connection sending message {msg}')
-                            _logger.info(f"CONNECTION SENDING MESSAGE: {msg}")
+                            self._notify_status(f"CONNECTION SENDING MESSAGE: {msg}")
                             self._send(sock, msg.write())
 
                 except TimeoutError:
                     #This is normal when there are no more mesages in the queue and wait time has ben statisfied. Just ignore it.
                     pass
                 except Exception:
-                    print_exc()
+                    self._notify_critical(f"da fuq?")
                     raise
 
         except SystemExit:
@@ -204,13 +203,17 @@ class TcpipClientConnectionWorker(AbortableThread):
 
         return self._sock
 
+    def _notify_debug(self, msg:str):
+        _logger.debug(msg)
+
     def _notify_status(self, msg:str):
-        #print(msg)
         _logger.info(msg)
 
     def _notify_error(self, msg:str):
-        #print(msg)
-        _logger.info(msg)
+        _logger.error(msg)
+
+    def _notify_critical(self, msg:str):
+        _logger.critical(msg)
 
     def _connect(self, config:dict) -> socket:
 
@@ -250,7 +253,7 @@ class TcpipClientConnectionWorker(AbortableThread):
                     self._notify_status(f'Connection refused: cannot connect to {url}, trying again in {delay} seconds')
                     time.sleep(delay)
             except Exception:
-                print_exc()
+                self._notify_critical(f"da fuq?")
                 self._set_state(ClientState.DISCONNECTED)
                 raise
 
@@ -281,8 +284,7 @@ class TcpipClientConnectionWorker(AbortableThread):
 
     def _send(self, sock:socket, buffer:bytes):
         if self.get_state() == ClientState.CONNECTED:
-            #print(f'Socket sending message. len: {len(buffer)}, msg: {buffer}')
-            _logger.debug(f'Socket sending message. len: {len(buffer)}, msg: {buffer}')
+            self._notify_debug(f'Socket sending message. len: {len(buffer)}, msg: {buffer}')
             sock.sendall(buffer)
 
 
@@ -295,8 +297,17 @@ class TcpipClientReaderWorker(AbortableThread):
         self._msg_factory = message_factory
         self._msg_processor = message_processor
 
+    def _notify_debug(self, msg:str):
+        _logger.debug(msg)
+
     def _notify_status(self, msg:str):
-        print(msg)
+        _logger.info(msg)
+
+    def _notify_error(self, msg:str):
+        _logger.error(msg)
+
+    def _notify_critical(self, msg:str):
+        _logger.critical(msg)
 
     def run(self):
         try:
@@ -306,13 +317,11 @@ class TcpipClientReaderWorker(AbortableThread):
                     sock = self._connecton_worker._get_socket(5)
                     if sock:
                         buffer = self._msg_reader.read_socket(sock)
-                        #print(f'Socket received message, len: {len(buffer)}, buffer: {buffer}')
-                        _logger.debug(f'Socket received message, len: {len(buffer)}, buffer: {buffer}')
-
+                        self._notify_debug(f'Socket received message, len: {len(buffer)}, buffer: {buffer}')
                         msg = self._msg_factory.create_message(buffer)
                         if msg:
                             #print(f'Message factory created: {msg}')
-                            _logger.debug(f'Message factory created: {msg}')
+                            self._notify_debug(f'Message factory created: {msg}')
                             self._msg_processor._queque_message(msg)
 
                 except socket.timeout:
@@ -333,7 +342,7 @@ class TcpipClientReaderWorker(AbortableThread):
                     else:
                         raise
                 except Exception as e:
-                    print_exc()
+                    self._notify_critical(f"da fuq?")
                     raise
 
         except SystemExit:
