@@ -131,7 +131,6 @@ class TcpipClientConnectionWorker(AbortableThread):
                             self._sock = sock
                         
                         elif isinstance(msg, MessageOut):
-                            #print(f'Connection sending message {msg}')
                             _logger.info(f"CONNECTION SENDING MESSAGE: {msg}")
                             self._send(sock, msg.write())
 
@@ -139,11 +138,11 @@ class TcpipClientConnectionWorker(AbortableThread):
                     #This is normal when there are no more mesages in the queue and wait time has ben statisfied. Just ignore it.
                     pass
                 except Exception:
-                    print_exc()
+                    _logger.exception(f"da fuq?")
                     raise
 
         except SystemExit:
-            self._notify_status(f'Shutdown signal received, exiting {self.name}')
+            _logger.info(f'Shutdown signal received, exiting {self.name}')
         finally:
             try:
                 self._disconnect(_sock)
@@ -196,21 +195,13 @@ class TcpipClientConnectionWorker(AbortableThread):
     def _set_state(self, state:ClientState):
         self._state = state
         msg = f'Connection state: {state}, url: {self._get_url()}'
-        self._notify_status(msg)
+        _logger.info(msg)
 
     def _get_socket(self, timeout=None):
         if not self._sock_event.wait(timeout):
             raise socket.timeout()
 
         return self._sock
-
-    def _notify_status(self, msg:str):
-        #print(msg)
-        _logger.info(msg)
-
-    def _notify_error(self, msg:str):
-        #print(msg)
-        _logger.info(msg)
 
     def _connect(self, config:dict) -> socket:
 
@@ -222,7 +213,7 @@ class TcpipClientConnectionWorker(AbortableThread):
         self._state_desired = ClientState.CONNECTED
 
         if self.get_state() != ClientState.DISCONNECTED:
-            self._notify_status('Connection notice: already connected')
+            _logger.info('Connection notice: already connected')
             return
 
         uparts = urlparse(url)
@@ -243,14 +234,14 @@ class TcpipClientConnectionWorker(AbortableThread):
                 break
             except socket.timeout:
                 if self._state_desired == ClientState.CONNECTED:
-                    self._notify_status(f'Connection timeout: cannot connect to {url}, trying again in {delay} seconds')
+                    _logger.info(f'Connection timeout: cannot connect to {url}, trying again in {delay} seconds')
                     time.sleep(delay)
             except ConnectionRefusedError:
                 if self._state_desired == ClientState.CONNECTED:
-                    self._notify_status(f'Connection refused: cannot connect to {url}, trying again in {delay} seconds')
+                    _logger.info(f'Connection refused: cannot connect to {url}, trying again in {delay} seconds')
                     time.sleep(delay)
             except Exception:
-                print_exc()
+                _logger.exception(f"da fuq?")
                 self._set_state(ClientState.DISCONNECTED)
                 raise
 
@@ -261,7 +252,7 @@ class TcpipClientConnectionWorker(AbortableThread):
         self._state_desired = ClientState.CONNECTED
 
         if self._state != ClientState.CONNECTED:
-            self._notify_status('Connection notice: already disconnected')
+            _logger.info('Connection notice: already disconnected')
             return
 
         self._set_state(ClientState.DISCONNECTING)
@@ -281,7 +272,6 @@ class TcpipClientConnectionWorker(AbortableThread):
 
     def _send(self, sock:socket, buffer:bytes):
         if self.get_state() == ClientState.CONNECTED:
-            #print(f'Socket sending message. len: {len(buffer)}, msg: {buffer}')
             _logger.debug(f'Socket sending message. len: {len(buffer)}, msg: {buffer}')
             sock.sendall(buffer)
 
@@ -295,9 +285,6 @@ class TcpipClientReaderWorker(AbortableThread):
         self._msg_factory = message_factory
         self._msg_processor = message_processor
 
-    def _notify_status(self, msg:str):
-        print(msg)
-
     def run(self):
         try:
             while True:
@@ -306,9 +293,7 @@ class TcpipClientReaderWorker(AbortableThread):
                     sock = self._connecton_worker._get_socket(5)
                     if sock:
                         buffer = self._msg_reader.read_socket(sock)
-                        #print(f'Socket received message, len: {len(buffer)}, buffer: {buffer}')
                         _logger.debug(f'Socket received message, len: {len(buffer)}, buffer: {buffer}')
-
                         msg = self._msg_factory.create_message(buffer)
                         if msg:
                             #print(f'Message factory created: {msg}')
@@ -321,23 +306,23 @@ class TcpipClientReaderWorker(AbortableThread):
                 except ConnectionAbortedError:
                     #Connection is lost because the socket was closed, probably from the other side.
                     #Block the socket event and queue a reconnect message.
-                    self._notify_status('Connection lost, attempting to reconnect')
+                    _logger.warning('Connection lost, attempting to reconnect')
                     self._connecton_worker._sock_event.clear()
                     self._connecton_worker.reconnect()
                 except OSError as e:
                     if e.errno == errno.EBADF:
                         #Socket has been closed, probably from this side for some reason. Try to reconnect.
-                        self._notify_status('Connection lost, attempting to reconnect')
+                        _logger.warning('Connection lost, attempting to reconnect')
                         self._connecton_worker._sock_event.clear()
                         self._connecton_worker.reconnect()
                     else:
                         raise
                 except Exception as e:
-                    print_exc()
+                    _logger.exception(f"da fuq?")
                     raise
 
         except SystemExit:
-            self._notify_status(f'Shutdown signal received, exiting {self.name}')
+            _logger.info(f'Shutdown signal received, exiting {self.name}')
             
         finally:
             pass

@@ -111,23 +111,20 @@ class MessageProcessorWorker(AbortableThread, BlockingMessageProcessor):
                     #Can't wait forever in blocking call, need to enter loop to check for control messages, specifically SystemExit.
                     msg = self._get_message(5)
                     if msg:
-                        #print(f'Processing message: {msg}')
                         _logger.info(f"Processing message: {msg}")
                         self.process_message(msg)
                 except TimeoutError:
                     #This is normal when there are no more mesages in the queue and wait time has ben statisfied. Just ignore it.
                     pass
                 except Exception:
-                    print_exc()
+                    _logger.exception(f"da fuq?")
                     raise
 
         except SystemExit:
-            #print(f'Shutdown signal received, exiting {self.name}')
             _logger.info(f'Shutdown signal received, exiting {self.name}')
             
         finally:
             pass
-
 
 class MessageDispatcher(MessageProcessorWorker):
     def __init__(self, name:str, context:Context):
