@@ -85,10 +85,18 @@ class DcssStoHRegisterOperation(DcssStoCMessage):
     def __init__(self, split):
         super().__init__(split)
 
-    def get_operation_name(self):
+    @property
+    def operation_name(self):
+        """
+        The operation_name getter
+        """
         return self.args[0]
 
-    def get_operation_hardwareName(self):
+    @property
+    def operation_hardwareName(self):
+        """
+        The operation_hardwareName getter
+        """
         return self.args[1]
 
 @register_message('stoh_register_real_motor', 'dcss')
@@ -96,10 +104,12 @@ class DcssStoHRegisterRealMotor(DcssStoCMessage):
     def __init__(self, split):
         super().__init__(split)
 
-    def get_motor_name(self):
+    @property
+    def motor_name(self):
         return self.args[0]
 
-    def get_motor_hardwareName(self):
+    @property
+    def motor_hardwareName(self):
         return self.args[1]
 
 @register_message('stoh_register_string', 'dcss')
@@ -107,10 +117,12 @@ class DcssStoHRegisterString(DcssStoCMessage):
     def __init__(self, split):
         super().__init__(split)
 
-    def get_string_name(self):
+    @property
+    def string_name(self):
         return self.args[0]
 
-    def get_string_hardwareName(self):
+    @property
+    def string_hardwareName(self):
         return self.args[1]
 
 @register_message('stoh_register_shutter', 'dcss')
@@ -118,13 +130,16 @@ class DcssStoHRegisterShutter(DcssStoCMessage):
     def __init__(self, split):
         super().__init__(split)
 
-    def get_shutter_name(self):
+    @property
+    def shutter_name(self):
         return self.args[0]
 
-    def get_shutter_status(self):
+    @property
+    def shutter_status(self):
         return self.args[1]
 
-    def get_shutter_hardwareName(self):
+    @property
+    def shutter_hardwareName(self):
         return self.args[2]
 
 @register_message('stoh_register_ion_chamber', 'dcss')
@@ -132,19 +147,24 @@ class DcssStoHRegisterIonChamber(DcssStoCMessage):
     def __init__(self, split):
         super().__init__(split)
 
-    def get_ion_chamber_name(self):
+    @property
+    def ion_chamber_name(self):
         return self.args[0]
 
-    def get_ion_chamber_hardwareName(self):
+    @property
+    def ion_chamber_hardwareName(self):
         return self.args[1]
 
-    def get_ion_chamber_counterChannel(self):
+    @property
+    def ion_chamber_counterChannel(self):
         return self.args[2]
 
-    def get_ion_chamber_timer(self):
+    @property
+    def ion_chamber_timer(self):
         return self.args[3]
 
-    def get_ion_chamber_timerType(self):
+    @property
+    def ion_chamber_timerType(self):
         return self.args[4]
 
 @register_message('stoh_register_pseudo_motor', 'dcss')
@@ -152,10 +172,12 @@ class DcssStoHRegisterPseudoMotor(DcssStoCMessage):
     def __init__(self, split):
         super().__init__(split)
 
-    def get_pseudo_motor_name(self):
+    @property
+    def pseudo_motor_name(self):
         return self.args[0]
 
-    def get_pseudo_motor_hardwareName(self):
+    @property
+    def pseudo_motor_hardwareName(self):
         return self.args[1]
 
 @register_message('stoh_register_encoder', 'dcss')
@@ -163,10 +185,12 @@ class DcssStoHRegisterEncoder(DcssStoCMessage):
     def __init__(self, split):
         super().__init__(split)
 
-    def get_encoder_name(self):
+    @property
+    def encoder_name(self):
         return self.args[0]
 
-    def get_encoder_hardwareName(self):
+    @property
+    def encoder_hardwareName(self):
         return self.args[1]
 
 @register_message('stoh_register_object', 'dcss')
@@ -174,10 +198,12 @@ class DcssStoHRegisterObject(DcssStoCMessage):
     def __init__(self, split):
         super().__init__(split)
 
-    def get_object_name(self):
+    @property
+    def object_name(self):
         return self.args[0]
 
-    def get_object_hardwareName(self):
+    @property
+    def object_hardwareName(self):
         return self.args[1]
 
 # stoh_configure_real_motor motoName position upperLimit lowerLimit scaleFactor speed acceleration backlash lowerLimitOn upperLimitOn motorLockOn backlashOn reverseOn
@@ -186,43 +212,56 @@ class DcssStoHConfigureRealMotor(DcssStoCMessage):
     def __init__(self, split):
         super().__init__(split)
 
-    def get_motor_name(self):
+    @property
+    def motor_name(self):
         return self.args[0]
 
-    def get_motor_position(self):
+    @property
+    def motor_position(self):
         return self.args[1]
 
-    def get_motor_upperLimit(self):
+    @property
+    def motor_upperLimit(self):
         return self.args[2]
 
-    def get_motor_lowerLimit(self):
+    @property
+    def motor_lowerLimit(self):
         return self.args[3]
 
-    def get_motor_scaleFactor(self):
+    @property
+    def motor_scaleFactor(self):
         return self.args[4]
 
-    def get_motor_speed(self):
+    @property
+    def motor_speed(self):
         return self.args[5]
 
-    def get_motor_acceleration(self):
+    @property
+    def motor_acceleration(self):
         return self.args[6]
 
-    def get_motor_backlash(self):
+    @property
+    def motor_backlash(self):
         return self.args[7]
 
-    def get_motor_lowerLimitOn(self):
+    @property
+    def motor_lowerLimitOn(self):
         return self.args[8]
 
-    def get_motor_upperLimitOn(self):
+    @property
+    def motor_upperLimitOn(self):
         return self.args[9]
 
-    def get_motor_motorLockOn(self):
+    @property
+    def motor_motorLockOn(self):
         return self.args[10]
 
-    def get_motor_backlashOn(self):
+    @property
+    def motor_backlashOn(self):
         return self.args[11]
 
-    def get_motor_reverseOn(self):
+    @property
+    def motor_reverseOn(self):
         return self.args[12]
 
 # stoh_configure_pseudo_motor motorName position upperLimit lowerLimit upperLimitOn lowerLimitOn motorLockOn
@@ -231,25 +270,32 @@ class DcssStoHConfigurePseudoMotor(DcssStoCMessage):
     def __init__(self, split):
         super().__init__(split)
 
-    def get_motor_name(self):
+    @property
+    def motor_name(self):
         return self.args[0]
 
-    def get_motor_position(self):
+    @property
+    def motor_position(self):
         return self.args[1]
 
-    def get_motor_upperLimit(self):
+    @property
+    def motor_upperLimit(self):
         return self.args[2]
 
-    def get_motor_lowerLimit(self):
+    @property
+    def motor_lowerLimit(self):
         return self.args[3]
 
-    def get_motor_lowerLimitOn(self):
+    @property
+    def motor_lowerLimitOn(self):
         return self.args[4]
 
-    def get_motor_upperLimitOn(self):
+    @property
+    def motor_upperLimitOn(self):
         return self.args[5]
 
-    def get_motor_motorLockOn(self):
+    @property
+    def motor_motorLockOn(self):
         return self.args[6]
 
 @register_message('stoh_set_motor_position', 'dcss')
@@ -257,10 +303,12 @@ class DcssStoHSetMotorPosition(DcssStoCMessage):
     def __init__(self, split):
         super().__init__(split)
 
-    def get_motor_name(self):
+    @property
+    def motor_name(self):
         return self.args[0]
 
-    def get_motor_position(self):
+    @property
+    def motor_position(self):
         return self.args[1]
 
 @register_message('stoh_start_motor_move', 'dcss')
@@ -268,10 +316,12 @@ class DcssStoHStartMotorMove(DcssStoCMessage):
     def __init__(self, split):
         super().__init__(split)
 
-    def get_motor_name(self):
+    @property
+    def motor_name(self):
         return self.args[0]
 
-    def get_motor_position(self):
+    @property
+    def motor_position(self):
         return self.args[1]
 
 # This command requests that all operations either cease immediately or halt as soon as possible.
@@ -284,7 +334,8 @@ class DcssStoHAbortAll(DcssStoCMessage):
     def __init__(self, split):
         super().__init__(split)
 
-    def get_abort_arg(self):
+    @property
+    def abort_arg(self):
         return self.args[0]
 
 @register_message('stoh_correct_motor_position', 'dcss')
@@ -292,10 +343,12 @@ class DcssStoHCorrectMotorPosition(DcssStoCMessage):
     def __init__(self, split):
         super().__init__(split)
 
-    def get_motor_name(self):
+    @property
+    def motor_name(self):
         return self.args[0]
 
-    def get_motor_correction(self):
+    @property
+    def motor_correction(self):
         return self.args[1]
 
 @register_message('stoh_set_motor_dependency', 'dcss')
@@ -303,10 +356,12 @@ class DcssStoHSetMotorDependency(DcssStoCMessage):
     def __init__(self, split):
         super().__init__(split)
 
-    def get_motor_name(self):
+    @property
+    def motor_name(self):
         return self.args[0]
 
-    def get_motor_dependencies(self):
+    @property
+    def motor_dependencies(self):
         return self.args[1:]
 
 @register_message('stoh_set_motor_children', 'dcss')
@@ -314,10 +369,12 @@ class DcssStoHSetMotorChildren(DcssStoCMessage):
     def __init__(self, split):
         super().__init__(split)
 
-    def get_motor_name(self):
+    @property
+    def motor_name(self):
         return self.args[0]
 
-    def get_motor_children(self):
+    @property
+    def motor_children(self):
         return self.args[1:]
 
 @register_message('stoh_set_shutter_state','dcss')
@@ -325,10 +382,12 @@ class DcssStoHSetShutterState(DcssStoCMessage):
     def __init__(self, split):
         super().__init__(split)
 
-    def get_shutter_name(self):
+    @property
+    def shutter_name(self):
         return self.args[0]
 
-    def get_shutter_state(self):
+    @property
+    def shutter_state(self):
         return self.args[1]
 
 @register_message('stoh_start_operation','dcss')
@@ -336,13 +395,16 @@ class DcssStoHStartOperation(DcssStoCMessage):
     def __init__(self, split):
         super().__init__(split)
 
-    def get_operation_name(self):
+    @property
+    def operation_name(self):
         return self.args[0]
 
-    def get_operation_handle(self):
+    @property
+    def operation_handle(self):
         return self.args[1]
 
-    def get_operation_args(self):
+    @property
+    def operation_args(self):
         return self.args[2:]
 
 #Messages Outgoing to DCSS (Hardware TO Server)
