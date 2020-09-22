@@ -10,7 +10,7 @@ _logger = logging.getLogger(__name__)
 @register_message_handler('dhs_init')
 def dhs_init(message:DhsInit, context:Context):
 
-    parser = message.get_parser()
+    parser = message.parser
     #print(f"parser: {parser}")
     #parser = argparse.ArgumentParser(description="DHS Distributed Hardware Server")
     parser.add_argument(
@@ -41,7 +41,7 @@ def dhs_init(message:DhsInit, context:Context):
         action="store_const",
         const=logging.DEBUG)
 
-    args = parser.parse_args(message.get_args())
+    args = parser.parse_args(message.args)
     #print(args)
     # I'm not sure how to set a default logging level in argparse so will try this
     if args.loglevel == None:

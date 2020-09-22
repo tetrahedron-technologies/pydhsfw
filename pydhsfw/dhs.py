@@ -26,15 +26,22 @@ class DhsContext(Context):
     def get_connection(self, connection_name:str)->Connection:
         return self._conn_mgr.get_connection(connection_name)
 
-    def get_dhs_state(self)->object:
+    @property
+    def state(self)->object:
+        """
+        The state property getter
+        """
         return self._state
 
-    def set_dhs_state(self, state)->object:
+    @state.setter
+    def state(self, state)->object:
+        """
+        The setter property setter
+        """
         self._state = state
 
     def _get_msg_disp(self)->MessageDispatcher:
         return self._msg_processor
-
 
 @register_message('dhs_init')
 class DhsInit(MessageIn):
@@ -43,10 +50,18 @@ class DhsInit(MessageIn):
         self.arg_parser = parser
         self.cmd_args = args
 
-    def get_parser(self):
+    @property
+    def parser(self):
+        """
+        The parser property getter
+        """
         return self.arg_parser
 
-    def get_args(self):
+    @property
+    def args(self):
+        """
+        The args property getter
+        """
         return self.cmd_args
 
 class Dhs:
