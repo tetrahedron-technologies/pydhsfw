@@ -17,24 +17,29 @@ class loopDHSState():
         self._operation_handle = None
         self._operation_args = None
 
-    def get_operation_name(self)->str:
+    @property
+    def operation_name(self)->str:
         return self._operation_name
 
-    def set_operation_name(self, opname)->str:
+    @operation_name.setter
+    def operation_name(self, opname)->str:
         self._operation_name = opname
 
-    def get_operation_handle(self)->float:
+    @property
+    def operation_handle(self)->float:
         return self._operation_handle
 
-    def set_operation_handle(self, opid)->float:
+    @operation_handle.setter
+    def operation_handle(self, opid)->float:
         self._operation_handle = opid
 
-    def get_operation_args(self)->str:
+    @property
+    def operation_args(self)->str:
         return self._operation_args
 
-    def set_operation_args(self, opargs)->str:
+    @operation_args.setter
+    def operation_args(self, opargs)->str:
         self._operation_args = opargs
-
 
 @register_message_handler('dhs_init')
 def dhs_init(message:DhsInit, context:Context):
@@ -110,9 +115,17 @@ def dcss_start_operation(message:DcssStoHStartOperation, context:Context):
     _logger.info(f"RESULT: {res}")
     context.get_connection('dcss').send(DcssHtoSOperationCompleted(op, opid, "normal", res))
 
+
+@register_message_handler('htos_operation_update')
+def dhs_operation_update(message:DcssHtoSOperationUpdate, context:Context):
+    _logger.info(f"here--- {message}")
+    pass
+
+
 def hello_world_1():
     _logger.info("doing the stuff1")
     # how do I call DcssHtoSOperationUpdate?
+    #context.get_connection('dcss').send(DcssHtoSOperationUpdate(op, opid, "in hello_world_1 doing things."))
     result = "HELLO WORLD 1"
     return result
 
@@ -124,7 +137,9 @@ def hello_world_2():
 
 
 dhs = Dhs()
+
 dhs.start()
+
 if __name__ == '__main__':
     sigs = {signal.SIGINT, signal.SIGTERM}
 dhs.wait(sigs)
