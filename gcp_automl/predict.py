@@ -12,7 +12,7 @@ import json
 import requests
 
 from google.cloud import automl_v1beta1
-from google.cloud.automl_v1beta1.proto import service_pb2
+#from google.cloud.automl_v1beta1.proto import service_pb2
 
 # need these for GCP predictions if using the Googel cloud hardware
 project_id = "340753686888"
@@ -42,15 +42,17 @@ def container_predict(image_file_path, image_key, port_number=8501):
       The response of the prediction request.
     """
 
+   print(f"here ---------------- {port_number}")
    with io.open(image_file_path, 'rb') as image_file:
       encoded_image = base64.b64encode(image_file.read()).decode('utf-8')
 
+   #print(encoded_image)
    # The example here only shows prediction with one image. You can extend it
    # to predict with a batch of images indicated by different keys, which can
    # make sure that the responses corresponding to the given image.
    instances = {
       'instances': [
-         {'image_bytes': {'b64': str(encoded_image1)},
+         {'image_bytes': {'b64': str(encoded_image)},
           'key': image_key}
       ]
    }
