@@ -2,8 +2,8 @@ from pydhsfw.messages import MessageIn, MessageOut, MessageFactory, register_mes
 from pydhsfw.connection import MessageProcessor, register_connection
 from pydhsfw.tcpip import TcpipClientConnection, TcpipSocketReader
 
-
-#Dcss Message Base Classes
+# --------------------------------------------------------------------------
+# DCSS Message Base Classes
 class DcssMessageIn():
 
     def __init__(self, split):
@@ -431,7 +431,8 @@ class DcssStoHAbortAll(DcssStoCMessage):
 class DcssStoHCorrectMotorPosition(DcssStoCMessage):
     """Server To Hardware Correct Motor Position
 
-    Requests that the position of the specified motor be adjusted by the specified correction. This is used to support the circle parameter for motors (i.e., modulo 360 behavior for a phi axis).
+    Requests that the position of the specified motor be adjusted by the specified correction.
+    This is used to support the circle parameter for motors (i.e., modulo 360 behavior for a phi axis).
     
     This command takes two arguments:
     1. the name of the motor.
@@ -498,13 +499,18 @@ class DcssStoHStartOperation(DcssStoCMessage):
 
     This message is accompanied by three arguments:
     1. the name of the operation to be started.
-    2. is a unique handle currently constructed by calling the create_operation_handle procedure in BLU-ICE. This currently creates a handle in the following format:
+    2. is a unique handle currently constructed by calling the create_operation_handle procedure in BLU-ICE.
+       This currently creates a handle in the following format:
         
     clientNumber.operationCounter
 
-    where clientNumber is a unique number provided by DCSS for each connected GUI or Hardware client. DCSS will reject an operation message if the clientNumber does not match the client. The operationCounter is a number that the client should increment with each new operation that is started.
+    where clientNumber is a unique number provided by DCSS for each connected GUI or Hardware client.
+    DCSS will reject an operation message if the clientNumber does not match the client.
+    The operationCounter is a number that the client should increment with each new operation that is started.
 
-    3. is the list of arguments that should be passed to the operation. It is recommended that the list of arguments continue to follow the general format of the DCS message structure (space separated tokens). However, this requirement can only be enforced by the writer of the operation handlers.
+    3. is the list of arguments that should be passed to the operation.
+       It is recommended that the list of arguments continue to follow the general format of the DCS message structure (space separated tokens).
+    However, this requirement can only be enforced by the writer of the operation handlers.
 
     The message requests DCSS to forward the request to the appropriate hardware server.
     """
@@ -546,7 +552,8 @@ class DcssHtoSClientIsHardware(DcssHtoSMessage):
 class DcssHtoSMotorMoveStarted(DcssHtoSMessage):
     """Hardware To Server Motor Move Started
 
-    This message indicates that the requested move of a motor has begun. This message is forwarded by DCSS to all GUI clients as a stog_motor_move_started message.
+    This message indicates that the requested move of a motor has begun.
+    This message is forwarded by DCSS to all GUI clients as a stog_motor_move_started message.
 
     The format of the message is:
 
@@ -565,7 +572,8 @@ class DcssHtoSMotorMoveStarted(DcssHtoSMessage):
 class DcssHtoSMotorMoveCompleted(DcssHtoSMessage):
     """Hardware To Server Motor Move Completed
 
-    Indicates that the move on the specified motor is now complete. DCSS forwards this message to all GUI clients as a stog_motor_move_completed message.
+    Indicates that the move on the specified motor is now complete.
+    DCSS forwards this message to all GUI clients as a stog_motor_move_completed message.
 
     The format of the message is:
 
@@ -603,7 +611,8 @@ class DcssHtoSOperationCompleted(DcssHtoSMessage):
     operationName: is the name of the operation that completed.
     operationHandle: is the unique value that indicates which instance of the operation completed.
     status: Anything other than a normal in this field will indicate to DCSS and BLU-ICE that the operation failed, and this token will become the reason of failure.
-    arguments: This is a list of return values. It is recommended that list of return arguments adhere to the overall DCS protocol (space separated tokens), but this can only be enforced by the writer of the operation handle.
+    arguments: This is a list of return values.
+               It is recommended that list of return arguments adhere to the overall DCS protocol (space separated tokens), but this can only be enforced by the writer of the operation handle.
     """
     def __init__(self, operation_name:str, operation_handle:float, operation_status:str, operation_args:str):
         super().__init__()
@@ -613,7 +622,8 @@ class DcssHtoSOperationCompleted(DcssHtoSMessage):
 class DcssHtoSOperationUpdate(DcssHtoSMessage):
     """Hardware To Server Operation Update
 
-    This message can be used to send small pieces of data to the GUI clients as progress is made on the operation. It can also be used to indicate to a calling GUI client that the operation cannot continue until the caller performs another task.
+    This message can be used to send small pieces of data to the GUI clients as progress is made on the operation.
+    It can also be used to indicate to a calling GUI client that the operation cannot continue until the caller performs another task.
 
     The message format is as follows:
 
@@ -623,7 +633,8 @@ class DcssHtoSOperationUpdate(DcssHtoSMessage):
 
     operationName: is the name of the operation that completed.
     operationHandle: is the unique value that indicates which instance of the operation completed.
-    arguments: This is a list of return values. It is recommended that list of return arguments adhere to the overall DCS protocol (space separated tokens), but this can only be enforced by the writer of the operation handle.
+    arguments: This is a list of return values.
+               It is recommended that list of return arguments adhere to the overall DCS protocol (space separated tokens), but this can only be enforced by the writer of the operation handle.
     """
     def __init__(self, operation_name:str, operation_handle:float, operation_args:str):
         super().__init__()
@@ -649,7 +660,9 @@ class DcssHtoSUpdateMotorPosition(DcssHtoSMessage):
 class DcssHtoSReportIonChamber(DcssHtoSMessage):
     """Hardware To Server Report Ion Chamber
 
-    This message reports the results of counting on one or more ion chambers in response to the stog_read_ion_chamber message. The first three arguments are mandatory. Additional ion chambers are reported by adding additional arguments. DCSS forwards this message to all GUI clients as stog_report_ion_chambers message.
+    This message reports the results of counting on one or more ion chambers in response to the stog_read_ion_chamber message.
+    The first three arguments are mandatory. Additional ion chambers are reported by adding additional arguments.
+    DCSS forwards this message to all GUI clients as stog_report_ion_chambers message.
 
     The format of the message is:
 
@@ -714,7 +727,8 @@ class DcssHtoSConfigureDevice(DcssHtoSMessage):
 class DcssHtoSSendConfiguration(DcssHtoSMessage):
     """Hardware To Server Send Configuration
 
-    This message requests that the configuration of the specified device (as remembered by DCSS) be returned to this DHS. DCSS will respond with a stoh_configure_device message for the device. This message is not forwarded to the GUI clients.
+    This message requests that the configuration of the specified device (as remembered by DCSS) be returned to this DHS.
+    DCSS will respond with a stoh_configure_device message for the device. This message is not forwarded to the GUI clients.
 
     The format of the message is:
 
@@ -732,7 +746,9 @@ class DcssHtoSSendConfiguration(DcssHtoSMessage):
 class DcssHtoSReportShutterState(DcssHtoSMessage):
     """Hardware To Server Report Shutter State
 
-    This message reports a change in the state of a shutter. This may occur as a result of handling the stoh_set_shutter_state command or during a timed exposure with automated shutter handling. DCSS forwards this message to all GUI clients as a stog_report_shutter_state message.
+    This message reports a change in the state of a shutter.
+    This may occur as a result of handling the stoh_set_shutter_state command or during a timed exposure with automated shutter handling.
+    DCSS forwards this message to all GUI clients as a stog_report_shutter_state message.
 
     The format of the message is:
 
@@ -800,7 +816,7 @@ class DcssHtoSSetStringCompleted(DcssHtoSMessage):
 class DcssHtoSNote(DcssHtoSMessage):
     """Hardware To Server Note
     """
-    def __init__(self, nore_message:str):
+    def __init__(self, note_message:str):
         super().__init__()
         self._split_msg = [self.get_type_id(), note_message]
 
@@ -818,7 +834,7 @@ class DcssHtoSSetMotorMessage(DcssHtoSMessage):
     """
     def __init__(self, motor_name:str):
         super().__init__()
-        self._split_msg = [self.get_type_id(), motor_name,]
+        self._split_msg = [self.get_type_id(), motor_name]
 
 
 #Message Factory
