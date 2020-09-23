@@ -36,7 +36,7 @@ class DhsContext(Context):
     @state.setter
     def state(self, state)->object:
         """
-        The setter property setter
+        The state property setter
         """
         self._state = state
 
