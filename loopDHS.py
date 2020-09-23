@@ -1,10 +1,9 @@
 import logging
 import signal
 import sys
-from pydhsfw.processors import  Context, register_message_handler
-#from pydhsfw.dcss import DcssStoCSendClientType, DcssHtoSClientIsHardware, DcssStoHRegisterOperation
+from pydhsfw.processors import *
 from pydhsfw.dcss import *
-from pydhsfw.dhs import Dhs, DhsInit
+from pydhsfw.dhs import *
 
 _logger = logging.getLogger(__name__)
 
@@ -45,8 +44,7 @@ class loopDHSState():
 def dhs_init(message:DhsInit, context:Context):
 
     parser = message.get_parser()
-    #print(f"parser: {parser}")
-    #parser = argparse.ArgumentParser(description="DHS Distributed Hardware Server")
+
     parser.add_argument(
         "--version",
         action="version",
@@ -76,20 +74,30 @@ def dhs_init(message:DhsInit, context:Context):
         const=logging.DEBUG)
 
     args = parser.parse_args(message.get_args())
-    #print(args)
+
     # I'm not sure how to set a default logging level in argparse so will try this
     if args.loglevel == None:
         loglevel = logging.INFO
     else:
         loglevel = args.loglevel
 
+    # Format logging
     logformat = "[%(asctime)s] %(levelname)s:%(name)s:%(lineno)d - %(message)s"
     logging.basicConfig(level=loglevel, stream=sys.stdout, format=logformat, datefmt="%Y-%m-%d %H:%M:%S")
 
+    # Connect to DCSS
     _logger.info("Initializing DHS")
     url = 'dcss://localhost:14242'
     context.create_connection('dcss', url)
     context.get_connection('dcss').connect()
+
+    # Check if AXIS video server is online and available?
+    _logger.info("Check AXIS video server")
+
+
+    # Check if GCP docker is available for loop detection.
+    _logger.info("Check GCP docker")
+
 
 @register_message_handler('stoc_send_client_type')
 def dcss_send_client_type(message:DcssStoCSendClientType, context:Context):
@@ -115,13 +123,6 @@ def dcss_start_operation(message:DcssStoHStartOperation, context:Context):
     _logger.info(f"RESULT: {res}")
     context.get_connection('dcss').send(DcssHtoSOperationCompleted(op, opid, "normal", res))
 
-
-@register_message_handler('htos_operation_update')
-def dhs_operation_update(message:DcssHtoSOperationUpdate, context:Context):
-    _logger.info(f"here--- {message}")
-    pass
-
-
 def hello_world_1():
     _logger.info("doing the stuff1")
     # how do I call DcssHtoSOperationUpdate?
@@ -134,6 +135,19 @@ def hello_world_2():
     result = "HELLO WORLD 2"
     return result
 
+def collect_loop_images():
+    #open http port to start receiving jpeg images
+
+    pass
+
+def stop_collect_loop_images():
+    pass
+
+def get_loop_tip():
+    pass
+
+def get_loop_info():
+    pass
 
 
 dhs = Dhs()

@@ -10,8 +10,9 @@ from pydhsfw.connectionmanager import ConnectionManager
 _logger = logging.getLogger(__name__)
 
 class DhsContext(Context):
-    '''DhsContext
-    '''
+    """
+    DhsContext
+    """
     def __init__(self, connection_mgr):
         self._conn_mgr = connection_mgr
         self._msg_processor = MessageDispatcher('default', self)
@@ -50,12 +51,16 @@ class DhsInit(MessageIn):
         return self.cmd_args
 
 class Dhs:
-    '''Main DHS class
-    '''
+    """
+    Main DHS class
+    """
     def __init__(self):
         self._context = DhsContext(ConnectionManager())
 
     def start(self):
+        """
+        Starts the DHS context and reads in the arg parser
+        """
         self._context._get_msg_disp().start()
         parser = argparse.ArgumentParser(description="DHS Distributed Hardware Server")
         # Add DCSS parsing parameters that all DHSs will need here and pass below, that will give the DHS
@@ -64,17 +69,20 @@ class Dhs:
         self._context._get_msg_disp()._queque_message(DhsInit(parser, sys.argv[1:]))
 
     def shutdown(self):
+        """
+        Shuts down the DHS
+        """
         self._context._get_msg_disp().abort()
         self._context._conn_mgr.shutdown_connections()
 
     def wait(self, signal_set:set=None):
-        '''
+        """
         Waits indefinitely for the dhs.shutdown() signal or for an interrupt signal from the OS.
 
             Parameters:
-                    signal_set: List of signals as defined in the signals module that will trigger the shudown.
-    
-        '''
+                signal_set: List of signals as defined in the signals module that will trigger the shudown.
+
+        """
         if signal_set:
             _sig_map = dict(map(lambda s: (s.value, s.name), signal_set))
             def handler(signal_received, frame):

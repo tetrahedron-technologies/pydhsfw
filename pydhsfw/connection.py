@@ -46,6 +46,9 @@ class Connection:
         pass
 
     def send(self, msg:MessageOut):
+        """
+        DO docstrings show stuff in MS VSCODE When I hover over the command?
+        """
         pass
 
     def shutdown(self):
