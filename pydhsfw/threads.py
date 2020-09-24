@@ -7,8 +7,13 @@ _logger = logging.getLogger(__name__)
 class AbortableThread(threading.Thread):
 
     def __init__(self, group=None, target=None, name=None,
-                 args=(), kwargs=None, *, daemon=None):
+                 args=(), config:dict={}, kwargs=None, *, daemon=None):
         super().__init__(group, target, name, args, kwargs, daemon=daemon)
+        self._thread_blocking_timeout = config.get('thread_blocking_timeout', 5.0)
+
+    def _get_blocking_timeout(self):
+        return self._thread_blocking_timeout
+
     def _get_id(self): 
 
         # returns id of the respective thread 
