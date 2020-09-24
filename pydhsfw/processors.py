@@ -138,3 +138,47 @@ class MessageDispatcher(MessageProcessorWorker):
         if isfunction(handler):
             handler(message, self._context)
 
+class MessageQueueWorker(AbortableThread):
+
+    def __init__(self, name, incoming_message_queue:MessageQueue, config:dict={}):
+        AbortableThread.__init__(self, name=name, config=config)
+        self._msg_queue = incoming_message_queue
+
+    def process_message(self, message:MessageIn):
+        pass
+
+    def run(self):
+        try:
+            while True:
+                try:
+                    #Can't wait forever in blocking call, need to enter loop to check for control messages, specifically SystemExit.
+                    msg = self._incoming_message_queue._get_message(self._get_blocking_timeout())
+                    if msg:
+                        _logger.info(f"Processing message: {msg}")
+                        self.process_message(msg)
+                except TimeoutError:
+                    #This is normal when there are no more mesages in the queue and wait time has ben satisfied. Just ignore it.
+                    pass
+                except Exception:
+                    # Log here for monitoring
+                    _logger.exception()
+                    raise
+
+        except SystemExit:
+            _logger.info(f'Shutdown signal received, exiting {self.name}')
+            
+        finally:
+            pass
+
+class MessageQueueDispatcher(MessageQueueWorker):
+    def __init__(self, name:str, incoming_message_queue:MessageQueue, context:Context, config:dict={}):
+        super().__init__(f'dhs {name} message processor', incoming_message_queue, config)
+        self._handler_map = MessageHandlerRegistry._get_message_handlers()
+        self._context = context
+
+    def process_message(self, message:MessageIn):
+        type_id = message.get_type_id()
+        handler = self._handler_map.get(type_id)
+        if isfunction(handler):
+            handler(message, self._context)
+
