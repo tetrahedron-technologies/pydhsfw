@@ -114,10 +114,10 @@ class MessageProcessorWorker(AbortableThread, BlockingMessageProcessor):
                         _logger.info(f"Processing message: {msg}")
                         self.process_message(msg)
                 except TimeoutError:
-                    #This is normal when there are no more mesages in the queue and wait time has ben statisfied. Just ignore it.
+                    #This is normal when there are no more mesages in the queue and wait time has ben satisfied. Just ignore it.
                     pass
                 except Exception:
-                    _logger.exception(f"da fuq?")
+                    _logger.exception(None)
                     raise
 
         except SystemExit:
