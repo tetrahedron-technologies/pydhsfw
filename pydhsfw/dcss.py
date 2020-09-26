@@ -1,7 +1,6 @@
 import logging
 from pydhsfw.messages import MessageIn, MessageOut, MessageFactory, MessageQueue, BlockingMessageQueue, register_message
-from pydhsfw.connection import MessageProcessor, register_connection
-from pydhsfw.tcpip import TcpipClientConnection, TcpipSocketReader
+from pydhsfw.connection import register_connection
 from pydhsfw.transport import MessageStreamReader, MessageStreamWriter, StreamReader, StreamWriter
 from pydhsfw.tcpiptrans import ConnectionBase, TcpipClientTransport
 
@@ -851,18 +850,6 @@ class DcssMessageFactory(MessageFactory):
         return DcssMessageIn.parse_type_id(raw_msg)
 
 
-#Dcss xos v1 Reader
-class DcssXOS1SocketReader(TcpipSocketReader):
-    def read_socket(self, sock):
-        return self._read(sock, msglen=200)
-
-
-#DcssClientConnection
-#@register_connection('dcss')
-#class DcssClientConnection(TcpipClientConnection):
-#    def __init__(self, url:str, config:dict, msg_processor:MessageProcessor):
-#        super().__init__(url, config, msg_processor, DcssXOS1SocketReader(), DcssMessageFactory())
-
 class DcssDhsV1MessageReader(MessageStreamReader):
     def __init__(self):
         pass
@@ -884,11 +871,6 @@ class DcssDhsV1MessageWriter(MessageStreamWriter):
 class DcssClientTransport(TcpipClientTransport):
     def __init__(self, url:str, config:dict={}):
         super().__init__(url, DcssDhsV1MessageReader(), DcssDhsV1MessageWriter(), config)
-
-#@register_connection('dcss')
-#class DcssClientConnection2(ConnectionBase):
-#    def __init__(self, incoming_message_queue:MessageQueue, outgoing_message_queue:MessageQueue, config:dict={}):
-#        super().__init__(DcssClientTransport(), incoming_message_queue, outgoing_message_queue, DcssMessageFactory(), config)
 
 @register_connection('dcss')
 class DcssClientConnection(ConnectionBase):
