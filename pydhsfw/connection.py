@@ -35,9 +35,9 @@ class ClientState(Enum):
 
 class Connection:
 
-    def __init__(self, url:str, config:dict=None):
+    def __init__(self, url:str, config:dict={}):
         self._url = url
-        self._cfg = config
+        self._config = config
 
     def connect(self):
         pass
