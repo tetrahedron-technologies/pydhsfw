@@ -1,6 +1,6 @@
 from urllib.parse import urlparse
 from pydhsfw.messages import MessageFactory, MessageQueue
-from pydhsfw.connection import Connection, ConnectionRegistry, MessageProcessor
+from pydhsfw.connection import Connection, ConnectionRegistry
 from pydhsfw.processors import Context
 
 class ConnectionManager:

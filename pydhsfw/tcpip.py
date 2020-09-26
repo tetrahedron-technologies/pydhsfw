@@ -1,143 +1,169 @@
 import threading
-import socket
 import time
-import errno
 import logging
-from traceback import print_exc
-from collections import deque
+import socket
+import errno
 from urllib.parse import urlparse
 from pydhsfw.threads import AbortableThread
-from pydhsfw.messages import MessageIn, MessageOut, MessageFactory
-from pydhsfw.connection import Connection, MessageReader, MessageProcessor, ClientState
+from pydhsfw.messages import MessageIn, MessageOut, MessageFactory, MessageQueue
+from pydhsfw.connection import Connection
+from pydhsfw.transport import Transport, TransportStream, TransportState, StreamReader, StreamWriter, MessageStreamReader, MessageStreamWriter
 
 _logger = logging.getLogger(__name__)
 
-class TcpipSocketReader(MessageReader):
-
-    def read_socket(self, sock:socket):
-        pass
-
-    def _read(self, sock:socket, msglen:int=None, delimeter:bytes=None)->bytes:
-        res = None
-
-        if msglen:
-            chunks = []
-            bytes_recd = 0
-            while bytes_recd < msglen:
-                chunk = sock.recv(min(msglen - bytes_recd, 2048))
-                if chunk == b'':
-                    raise ConnectionAbortedError("socket connection broken")
-                chunks.extend(chunk)
-                chunk_len = len(chunk)
-                bytes_recd = bytes_recd + chunk_len
-
-            res = bytearray(chunks)
-
-        elif delimeter:
-            #TODO[Giles]: Implement this to pull bytes until the delimeter is found, then return the full message chunk.
-            pass
-
-        return res
-
-    def read_to_delimiter(self, sock:socket, delimeter:bytes)->bytes:
-        pass
-
-class TcpipConnection(Connection):
-    pass
-
-class TcpipClientConnectionWorker(AbortableThread):
-    
-    class ConnectControlMessage(MessageOut):
-        def __init__(self, config:dict):
-            self._cfg = config
-        def get_config(self):
-            return self._cfg
-
-    class ReconnectControlMessage(MessageOut):
-        def __init__(self, config:dict=None):
-            self._cfg = config
-        def get_config(self):
-            return self._cfg
-
-    class DisconnectControlMessage(MessageOut):
-        pass
-
-    def __init__(self):
-        super().__init__(name='tcpip client connection worker')
-        self._config = {}
-
-        self._control_message = None
-        self._deque_message = deque()
-        self._deque_event = threading.Event()
-        
-        self._state = ClientState.DISCONNECTED
-        self._state_desired = ClientState.DISCONNECTED
-
+class SocketStreamReader(StreamReader):
+    def __init__(self, config:dict={}):
         self._sock = None
-        self._sock_event = threading.Event()
+        self._read_timeout = config.get(AbortableThread.THREAD_BLOCKING_TIMEOUT, AbortableThread.THREAD_BLOCKING_TIMEOUT_DEFAULT)
+        self._connected_event = threading.Event()
 
-    def send_message(self, message:MessageOut):
-        
-        #Append message and unblock
-        self._deque_message.append(message)
-        self._deque_event.set()
+    @property
+    def socket(self):
+        return self._sock
 
-    def connect(self, config:dict):
-        self._state_desired = ClientState.CONNECTED
+    @socket.setter
+    def socket(self, sock:socket):
+        self._sock = sock
+        self._connected = bool(sock != None)
 
-        #If connected or connecting and the url is different then reconnect.
-        if self.get_state() in (ClientState.CONNECTED, ClientState.CONNECTING):
-            if config.get('url') != self._get_url():
-                self._state_desired = ClientState.DISCONNECTED
-                self._send_control_message(TcpipClientConnectionWorker.ReconnectControlMessage(config))
+    def read(self, msglen:int)->bytes:
+
+        try:
+            # Wait for the connection to be established.
+            if not self._connected_event.wait(self._read_timeout):
+                raise TimeoutError()
+
+            res = None
+
+            if msglen:
+                chunks = []
+                bytes_recd = 0
+                while bytes_recd < msglen:
+                    chunk = self._sock.recv(min(msglen - bytes_recd, 2048))
+                    if chunk == b'':
+                        raise ConnectionAbortedError("socket connection broken")
+                    chunks.extend(chunk)
+                    chunk_len = len(chunk)
+                    bytes_recd = bytes_recd + chunk_len
+
+                res = bytearray(chunks)
+            
+            return res
+
+        except socket.timeout:
+            raise TimeoutError()
+
+        except OSError as e:
+            if e.errno == errno.EBADF:
+                #Socket has been closed, probably from this side for some reason. Convert to ConnectionAbortedError.
+                raise ConnectionAbortedError("socket connection broken")
+            else:
+                raise e
+        except Exception:
+            # Log an exception here this way we can track other potential socket errors and 
+            # handle them specifcally like above.
+            _logger.exception(None)
+            raise
+
+    @property
+    def _connected(self):
+        raise NotImplementedError
+    
+    @_connected.setter
+    def _connected(self, is_connected:bool):
+        if is_connected:
+            self._connected_event.set()
         else:
-            self._send_control_message(TcpipClientConnectionWorker.ConnectControlMessage(config))
+            self._connected_event.clear()
 
-    def reconnect(self, config:dict=None):
-        self._state_desired = ClientState.CONNECTED
-        self._send_control_message(TcpipClientConnectionWorker.ReconnectControlMessage(config))
+class SocketStreamWriter(StreamWriter):
+    def __init__(self, config:dict={}):
+        self._sock = None
+
+    @property
+    def socket(self):
+        return self._sock
+
+    @socket.setter
+    def socket(self, sock:socket):
+        self._sock = sock
+
+    def write(self, buffer:bytes):
+        try:
+            self._sock.sendall(buffer)
+        except Exception:
+            _logger.exception(None)
+            raise
+
+
+class TcpipTransport(TransportStream):
+    ''' Tcpip transport base'''
+
+    def __init__(self, url:str,  message_reader:MessageStreamReader, message_writer:MessageStreamWriter, config:dict={}):
+        super().__init__(url, message_reader, message_writer, config)
+        self._stream_reader = SocketStreamReader(config)
+        self._stream_writer = SocketStreamWriter(config)
+
+class TcpipClientTransportConnectionWorker(AbortableThread):
+
+    def __init__(self, url:str, socket_stream_reader:SocketStreamReader, socket_stream_writer:SocketStreamWriter, config:dict={}):
+        super().__init__(name='tcpip client transport connection worker', config=config)
+        self._url = url
+        self._config = config
+        self._stream_reader = socket_stream_reader
+        self._stream_reader._read_timeout = self._get_blocking_timeout()
+        self._stream_writer = socket_stream_writer
+        self._state = TransportState.DISCONNECTED
+        self._desired_state = TransportState.DISCONNECTED
+        self._state_change_event = threading.Event()
+
+    def connect(self):
+        self._set_desired_state(TransportState.CONNECTED)
+
+    def reconnect(self):
+        self._stream_reader._connected = False
+        self._set_desired_state(TransportState.RECONNECTED)
 
     def disconnect(self):
-        self._state_desired = ClientState.DISCONNECTED
+        self._stream_reader._connected = False
+        self._set_desired_state(TransportState.DISCONNECTED)
 
-        if self.get_state() in (ClientState.CONNECTED, ClientState.CONNECTING):
-            self._send_control_message(TcpipClientConnectionWorker.DisconnectControlMessage())
-
+    def _set_desired_state(self, state:TransportState):
+        if self._desired_state != state:
+            self._desired_state = state
+            self._state_change_event.set()
 
     def run(self):
-        sock = None
+
+        # This loop does three things.
+        # 1. Monitor the desired state and compare it to the actual state. If it's different call the 
+        # appropriate method to modify the state.
+        # 2. Pop out of any blocking calls to test for a SystemExit exception so the thread can be
+        # shutdown cleanly.
+        # 3. Possibly send a heartbeat or keepalive to the server.
 
         try:
             while True:
                 try:
-                    #Can't wait forever in blocking call, need to enter loop to check for control messages, specifically SystemExit.
-                    msg = self._get_message(5)
-                    if msg:
-                        if isinstance(msg, TcpipClientConnectionWorker.ConnectControlMessage):
-                            sock = self._connect(msg.get_config())
-                            self._sock = sock
-                            self._sock_event.set()    
+                    if not self._state_change_event.wait(self._get_blocking_timeout()):
+                        # Can't wait forever in blocking call, need to enter loop to check for control messages, specifically SystemExit.
+                        raise TimeoutError
 
-                        elif isinstance(msg, TcpipClientConnectionWorker.ReconnectControlMessage):
-                            self._sock_event.clear()    
-                            sock = self._reconnect(sock, msg.get_config())
-                            _sock = sock
-                            self._sock_event.set()    
-                        
-                        elif isinstance(msg, TcpipClientConnectionWorker.DisconnectControlMessage):
-                            self._sock_event.clear()    
-                            self._disconnect(sock)
-                            sock = None
-                            self._sock = sock
-                        
-                        elif isinstance(msg, MessageOut):
-                            _logger.info(f"CONNECTION SENDING MESSAGE: {msg}")
-                            self._send(sock, msg.write())
+                    if self._desired_state == TransportState.CONNECTED:
+                        self._connect()
+                    elif self._desired_state == TransportState.DISCONNECTED:
+                        self._disconnect()
+                    elif self._desired_state == TransportState.RECONNECTED:
+                        self._reconnect()
+
+                    self._state_change_event.clear()
 
                 except TimeoutError:
-                    #This is normal when there are no more mesages in the queue and wait time has ben statisfied. Just ignore it.
+                    # This is normal and allows for handling the SystemExit exception.
                     pass
                 except Exception:
+                    # Send all other exceptions to the log so we can analyse them to determine if
+                    # they need special handling or possibly ignoring them.
                     _logger.exception(None)
                     raise
 
@@ -145,252 +171,117 @@ class TcpipClientConnectionWorker(AbortableThread):
             _logger.info(f'Shutdown signal received, exiting {self.name}')
         finally:
             try:
-                self._disconnect(_sock)
-                _sock = None
+                self._disconnect()
             except:
                 pass
 
-    def get_state(self):
+    @property
+    def state(self):
         return self._state
       
-    def _send_control_message(self, message:MessageOut):
-        self._control_message = message
-        self._deque_event.set()
-
-    def _get_message(self, timeout=None):
-        
-        msg = None
-
-        #Block until items are available
-        if not self._deque_event.wait(timeout):
-            raise TimeoutError()
-        
-        if self._control_message:
-            msg = self._control_message
-            self._control_message = None
-
-        elif self._deque_message: 
-            msg = self._deque_message.popleft()
-
-        #If there are no more items, start blocking again
-        if not self._deque_message:
-            self._deque_event.clear()
-        return msg
-
-    def _set_config(self, config):
-        self._config = config
-
-    def _get_config(self):
-        return self._config
-
     def _get_url(self):
-        return self._config.get('url')
+        return self._url
 
-    def _get_delay(self):
-        return self._config.get('delay')
-
-    def _get_timeout(self):
-        return self._config.get('timeout')
-
-    def _set_state(self, state:ClientState):
+    def _set_state(self, state:TransportState):
         self._state = state
-        msg = f'Connection state: {state}, url: {self._get_url()}'
-        _logger.info(msg)
+        _logger.info(f'Connection state: {state}, url: {self._get_url()}')
 
-    def _get_socket(self, timeout=None):
-        if not self._sock_event.wait(timeout):
-            raise socket.timeout()
+    def _connect(self):
 
-        return self._sock
+        if self._desired_state == TransportState.CONNECTED:
 
-    def _connect(self, config:dict) -> socket:
+            if self.state == TransportState.DISCONNECTED:
 
-        self._set_config(config)
-        url = self._get_url()
-        delay = self._get_delay()
-        timeout = self._get_timeout()
+                socket_timeout = self._get_blocking_timeout()
+                connect_timeout = self._config.get('connect_timeout', None)
+                connect_retry_delay = self._config.get('connect_retry_delay', 10)
+                url = self._get_url()
+                uparts = urlparse(url)
 
-        self._state_desired = ClientState.CONNECTED
+                sock = None
 
-        if self.get_state() != ClientState.DISCONNECTED:
-            _logger.info('Connection notice: already connected')
-            return
+                self._set_state(TransportState.CONNECTING)
 
-        uparts = urlparse(url)
+                end_time = time.time() + float(connect_timeout or 0.0)
+                end_delay_time = time.time()
 
-        sock = None
+                while self._desired_state == TransportState.CONNECTED and (connect_timeout == None or time.time() < end_time):
+                    try:
+                        if time.time() >= end_delay_time:
+                            sock = socket.socket()
+                            sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+                            sock.settimeout(socket_timeout)
+                            sock.connect((uparts.hostname, uparts.port))
+                            self._stream_reader.socket = sock
+                            self._stream_writer.socket = sock
+                            self._set_state(TransportState.CONNECTED)
+                            break
+                        else:
+                            time.sleep(socket_timeout)
 
-        self._set_state(ClientState.CONNECTING)
-        end_time = time.time() + timeout
-
-        while self._state_desired == ClientState.CONNECTED and (timeout == 0 or time.time() < end_time):
-            try:
-                sock = socket.socket()
-                sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
-                sock.settimeout(7)
-                sock.connect((uparts.hostname, uparts.port))
-                sock.settimeout(5)
-                self._set_state(ClientState.CONNECTED)
-                break
-            except socket.timeout:
-                if self._state_desired == ClientState.CONNECTED:
-                    _logger.info(f'Connection timeout: cannot connect to {url}, trying again in {delay} seconds')
-                    time.sleep(delay)
-            except ConnectionRefusedError:
-                if self._state_desired == ClientState.CONNECTED:
-                    _logger.info(f'Connection refused: cannot connect to {url}, trying again in {delay} seconds')
-                    time.sleep(delay)
-            except Exception:
-                _logger.exception(None)
-                self._set_state(ClientState.DISCONNECTED)
-                raise
-
-        return sock
-
-    def _disconnect(self, sock:socket):
-
-        self._state_desired = ClientState.CONNECTED
-
-        if self._state != ClientState.CONNECTED:
-            _logger.info('Connection notice: already disconnected')
-            return
-
-        self._set_state(ClientState.DISCONNECTING)
-        #TODO[Giles]: Create lock around connect, shutdown, close, send and recv
-        if sock:
-            sock.shutdown(socket.SHUT_RDWR)
-            sock.close()
-
-        self._set_state(ClientState.DISCONNECTED)
-
-    def _reconnect(self, sock: socket, config:dict) -> socket:
-        self._disconnect(sock)
-        if not config:
-            config = self._get_config()
-        time.sleep(3)
-        return self._connect(config)
-
-    def _send(self, sock:socket, buffer:bytes):
-        if self.get_state() == ClientState.CONNECTED:
-            _logger.debug(f'Socket sending message. len: {len(buffer)}, msg: {buffer}')
-            sock.sendall(buffer)
-
-
-class TcpipClientReaderWorker(AbortableThread):
-    
-    def __init__(self, connection_worker:TcpipClientConnectionWorker, message_reader:TcpipSocketReader, message_factory:MessageFactory, message_processor:MessageProcessor):
-        super().__init__(name='tcpip client reader worker')
-        self._connecton_worker = connection_worker
-        self._msg_reader = message_reader
-        self._msg_factory = message_factory
-        self._msg_processor = message_processor
-
-    def run(self):
-        try:
-            while True:
-                try:
-                    #Can't wait forever in blocking call, need to enter loop to check for control messages, specifically SystemExit.
-                    sock = self._connecton_worker._get_socket(5)
-                    if sock:
-                        buffer = self._msg_reader.read_socket(sock)
-                        _logger.debug(f'Socket received message, len: {len(buffer)}, buffer: {buffer}')
-                        msg = self._msg_factory.create_message(buffer)
-                        if msg:
-                            #print(f'Message factory created: {msg}')
-                            _logger.debug(f'Message factory created: {msg}')
-                            self._msg_processor._queque_message(msg)
-
-                except socket.timeout:
-                    #Socket read timed out. This is normal, it just means that no messages have been sent so we can ignore it.
-                    pass
-                except ConnectionAbortedError:
-                    #Connection is lost because the socket was closed, probably from the other side.
-                    #Block the socket event and queue a reconnect message.
-                    _logger.warning('Connection lost, attempting to reconnect')
-                    self._connecton_worker._sock_event.clear()
-                    self._connecton_worker.reconnect()
-                except OSError as e:
-                    if e.errno == errno.EBADF:
-                        #Socket has been closed, probably from this side for some reason. Try to reconnect.
-                        _logger.warning('Connection lost, attempting to reconnect')
-                        self._connecton_worker._sock_event.clear()
-                        self._connecton_worker.reconnect()
-                    else:
+                    except socket.timeout:
+                        if self._desired_state == TransportState.CONNECTED:
+                            _logger.info(f'Connection timeout: cannot connect to {url}, trying again in {connect_retry_delay} seconds')
+                            end_delay_time = time.time() + connect_retry_delay
+                    except ConnectionRefusedError:
+                        if self._desired_state == TransportState.CONNECTED:
+                            _logger.info(f'Connection refused: cannot connect to {url}, trying again in {connect_retry_delay} seconds')
+                            end_delay_time = time.time() + connect_retry_delay
+                    except Exception:
+                        _logger.exception(None)
+                        self._set_state(TransportState.DISCONNECTED)
                         raise
-                except Exception as e:
-                    _logger.exception(None)
-                    raise
+            else:
+                _logger.debug('Already connected, ignoring connection request')
 
-        except SystemExit:
-            _logger.info(f'Shutdown signal received, exiting {self.name}')
-            
-        finally:
-            pass
+    def _disconnect(self):
 
-class TcpipClientConnection(TcpipConnection):
+        if self._desired_state == TransportState.DISCONNECTED:
+            # Only disconnect if we are connected
+            if self.state == TransportState.CONNECTED:
+                self._set_state(TransportState.DISCONNECTING)
+                sock = self._stream_reader.socket
+                self._stream_reader.socket = None
+                self._stream_writer.socket = None
+                if sock:
+                    sock.shutdown(socket.SHUT_RDWR)
+                    sock.close()
+                self._set_state(TransportState.DISCONNECTED)
+            else:
+                _logger.debug("Not connected, ignoring disconnect request")
 
-    def __init__(self, url:str, config:dict, msg_processor:MessageProcessor, msg_reader:TcpipSocketReader, msg_factory:MessageFactory):
-        cfg = {}
- 
-        if config:
-            cfg.update(config)
+    def _reconnect(self):
+        
+        if self._desired_state == TransportState.RECONNECTED:
+            self._desired_state = TransportState.DISCONNECTED
+            self._state = TransportState.CONNECTED
+            self._disconnect()
+            time.sleep(3)
+            self._desired_state = TransportState.CONNECTED
+            self._connect()
 
-        if cfg.get('delay', None) == None:
-            cfg['delay'] = 7
-        if cfg.get('timeout', None) == None:
-            cfg['timeout'] = 300
+class TcpipClientTransport(TcpipTransport):
+    ''' Tcpip client transport '''
 
-        super().__init__(url, cfg)
-        self._msg_reader = msg_reader
-        self._msg_factory = msg_factory
-        self._msg_processor = msg_processor
-        self._connection_worker = TcpipClientConnectionWorker()
-        self._connection_reader_worker = TcpipClientReaderWorker(self._connection_worker, self._msg_reader, self._msg_factory, self._msg_processor)
+    def __init__(self, url:str, message_reader:MessageStreamReader, message_writer:MessageStreamWriter, config:dict={}):
+        super().__init__(url, message_reader, message_writer, config)
+        self._connection_worker = TcpipClientTransportConnectionWorker(url, self._stream_reader, self._stream_writer, config)
+
+    def connect(self):
+        self._connection_worker.connect()
+
+    def disconnect(self):
+        self._connection_worker.disconnect()
+
+    def reconnect(self):
+        self._connection_worker.reconnect()
 
     def start(self):
         self._connection_worker.start()
-        self._connection_reader_worker.start()
-
-    def connect(self):
-        """Set the desired connection state to ClientState.CONNECTED
-
-        The connection will work in the background to establish a connection to the server.
-        get_state() can be used to determine the current state of the connection.
-
-        """
-        cfg = dict(self._cfg)
-        cfg['url'] = self._url
-        self._connection_worker.connect(cfg)
-
-    def disconnect(self):
-        """Set the desired connection state to ClientState.DISCONNECTED
-
-        The connection will work in the background to disconnect from the server.
-        get_state() can be used to determine the current state of the connection.
-
-        """
-        self._connection_worker.disconnect()
-
-    def get_state(self):
-        """Return the current state of the connecion."""
-
-        return self._connection_worker.get_state()
-
-    def send(self, message: MessageOut):
-        """Adds a message to the message queue. 
-        
-        The outgoing message processor will pull from the queue and send the message over the socket.
-        If the socket is disconnected, the message will be thrown away.
-
-        """
-        self._connection_worker.send_message(message)
 
     def shutdown(self):
-        self._connection_reader_worker.abort()
         self._connection_worker.abort()
 
     def wait(self):
-        self._connection_reader_worker.join()
         self._connection_worker.join()
-        self._connection_worker = None
-        self._connection_reader_worker = None
+

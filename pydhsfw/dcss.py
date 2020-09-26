@@ -1,8 +1,8 @@
 import logging
 from pydhsfw.messages import MessageIn, MessageOut, MessageFactory, MessageQueue, BlockingMessageQueue, register_message
-from pydhsfw.connection import register_connection
 from pydhsfw.transport import MessageStreamReader, MessageStreamWriter, StreamReader, StreamWriter
-from pydhsfw.tcpiptrans import ConnectionBase, TcpipClientTransport
+from pydhsfw.connection import ConnectionBase, register_connection
+from pydhsfw.tcpip import TcpipClientTransport
 
 _logger = logging.getLogger(__name__)
 
