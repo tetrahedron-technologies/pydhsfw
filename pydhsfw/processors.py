@@ -4,7 +4,7 @@ from inspect import isfunction, signature
 from traceback import print_exc
 from collections import deque
 from pydhsfw.threads import AbortableThread
-from pydhsfw.messages import MessageIn
+from pydhsfw.messages import MessageIn, MessageQueue
 from pydhsfw.connection import Connection
 
 _logger = logging.getLogger(__name__)
@@ -152,7 +152,7 @@ class MessageQueueWorker(AbortableThread):
             while True:
                 try:
                     #Can't wait forever in blocking call, need to enter loop to check for control messages, specifically SystemExit.
-                    msg = self._incoming_message_queue._get_message(self._get_blocking_timeout())
+                    msg = self._msg_queue._get_message(self._get_blocking_timeout())
                     if msg:
                         _logger.info(f"Processing message: {msg}")
                         self.process_message(msg)
@@ -161,7 +161,7 @@ class MessageQueueWorker(AbortableThread):
                     pass
                 except Exception:
                     # Log here for monitoring
-                    _logger.exception()
+                    _logger.exception(None)
                     raise
 
         except SystemExit:
