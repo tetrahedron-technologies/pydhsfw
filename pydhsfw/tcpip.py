@@ -138,7 +138,7 @@ class TcpipClientConnectionWorker(AbortableThread):
                     #This is normal when there are no more mesages in the queue and wait time has ben statisfied. Just ignore it.
                     pass
                 except Exception:
-                    _logger.exception(f"da fuq?")
+                    _logger.exception(None)
                     raise
 
         except SystemExit:
@@ -241,7 +241,7 @@ class TcpipClientConnectionWorker(AbortableThread):
                     _logger.info(f'Connection refused: cannot connect to {url}, trying again in {delay} seconds')
                     time.sleep(delay)
             except Exception:
-                _logger.exception(f"da fuq?")
+                _logger.exception(None)
                 self._set_state(ClientState.DISCONNECTED)
                 raise
 
@@ -318,7 +318,7 @@ class TcpipClientReaderWorker(AbortableThread):
                     else:
                         raise
                 except Exception as e:
-                    _logger.exception(f"da fuq?")
+                    _logger.exception(None)
                     raise
 
         except SystemExit:
