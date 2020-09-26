@@ -1,6 +1,4 @@
 import threading 
-import traceback
-import functools
 from collections import deque
 from typing import Any
 from pydhsfw.threads import AbortableThread
@@ -101,3 +99,45 @@ class MessageFactory():
         type_id = self._parse_type_id(raw_msg)
         return self._create_message(type_id, raw_msg)
     
+class MessageQueue():
+
+    def __init__(self):
+        pass
+    def _queque_message(self, message:MessageIn):
+        pass
+    def _get_message(self, timeout=None):
+        pass
+    def _clear_messages(self):
+        pass
+
+class BlockingMessageQueue(MessageQueue):
+
+    def __init__(self):
+        super().__init__()
+        self._deque_message = deque()
+        self._deque_event = threading.Event()
+
+    def _queque_message(self, message:MessageIn):
+        #Append message and unblock
+        self._deque_message.append(message)
+        self._deque_event.set()
+
+    def _get_message(self, timeout=None):
+        
+        msg = None
+
+        #Block until items are available
+        if not self._deque_event.wait(timeout):
+            raise TimeoutError
+        
+        elif self._deque_message: 
+            msg = self._deque_message.popleft()
+
+        #If there are no more items, start blocking again
+        if not self._deque_message:
+            self._deque_event.clear()
+        return msg
+
+    def _clear_messages(self):
+            self._deque_event.clear()
+            self._deque_message.clear()

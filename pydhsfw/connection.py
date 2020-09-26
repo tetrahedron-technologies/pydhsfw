@@ -1,6 +1,10 @@
+import logging
 from enum import Enum
 from pydhsfw.threads import AbortableThread
-from pydhsfw.messages import MessageIn, MessageOut, MessageFactory
+from pydhsfw.messages import MessageIn, MessageOut, MessageQueue, MessageFactory
+from pydhsfw.transport import Transport
+
+_logger = logging.getLogger(__name__)
 
 class ConnectionMessage(MessageIn):
 
@@ -27,17 +31,11 @@ class MessageReader():
     def read(self):
         pass
 
-class ClientState(Enum):
-    DISCONNECTED = 1
-    CONNECTING = 2
-    CONNECTED = 3
-    DISCONNECTING = 4
-
 class Connection:
 
-    def __init__(self, url:str, config:dict=None):
+    def __init__(self, url:str, config:dict={}):
         self._url = url
-        self._cfg = config
+        self._config = config
 
     def connect(self):
         pass
@@ -80,17 +78,108 @@ def register_connection(connection_scheme:str):
 
     return decorator_register_connection
 
-class MessageProcessor():
 
-    def __init__(self):
-        pass
+class ConnectionReadWorker(AbortableThread):
+    
+    def __init__(self, transport:Transport, incoming_message_queue:MessageQueue, message_factory:MessageFactory, config:dict={}):
+        super().__init__(name='connection read worker', config=config)
+        self._transport = transport
+        self._msg_queue = incoming_message_queue
+        self._msg_factory = message_factory
 
-    def _queque_message(self, message:MessageIn):
-        pass
+    def run(self):
 
-    def _get_message(self, timeout=None):
-        pass
+        # Only one thing to do here, read raw messages from the transport and translate them 
+        # into messages using the message factory, then stick them on the incoming queue.
 
-    def _clear_messages(self):
-        pass
+        try:
+            while True:
+                try:
+                    # Blocking call with timeout configured elsewhere. This will timeout to check for control messages, specifically SystemExit.
+                    raw_msg = self._transport.receive()
+                    if raw_msg:
+                        _logger.debug(f'Received unpacked raw message, len: {len(raw_msg)}, buffer: {raw_msg}')
+                        msg = self._msg_factory.create_message(raw_msg)
+                        if msg:
+                            _logger.debug(f'Received factory created message: {msg}')
+                            self._msg_queue._queque_message(msg)
 
+                except TimeoutError:
+                    #Socket read timed out. This is normal, it just means that no messages have been sent so we can ignore it.
+                    pass
+                except Exception:
+                    # Log other exceptions so we can monitor and create special handlng if needed.
+                    _logger.exception(None)
+                    raise
+
+        except SystemExit:
+            _logger.info(f'Shutdown signal received, exiting {self.name}')
+            
+        finally:
+            pass
+
+class ConnectionWriteWorker(AbortableThread):
+    
+    def __init__(self, transport:Transport, outgoing_message_queue:MessageQueue, config:dict={}):
+        super().__init__(name='connection write worker', config=config)
+        self._transport = transport
+        self._msg_queue = outgoing_message_queue
+
+    def run(self):
+
+        # Only one thing to do here, read messages from the queue and write raw message to the transport
+
+        try:
+            while True:
+                try:
+                    # Blocking call with timeout configured elsewhere. This will timeout to check for control messages, specifically SystemExit.
+                    msg = self._msg_queue._get_message(self._get_blocking_timeout())
+                    if msg:
+                        _logger.debug(f"Sending message: {msg}")
+                        buffer = msg.write()
+                        _logger.debug(f"Sending unpacked raw message: {buffer}")
+                        self._transport.send(buffer)
+
+                except TimeoutError:
+                    #Socket read timed out. This is normal, it just means that no messages have been sent so we can ignore it.
+                    pass
+                except Exception:
+                    # Log other exceptions so we can monitor and create special handlng if needed.
+                    _logger.exception(None)
+                    raise
+
+        except SystemExit:
+            _logger.info(f'Shutdown signal received, exiting {self.name}')
+            
+        finally:
+            pass
+
+class ConnectionBase(Connection):
+    def __init__(self, url:str, transport:Transport, incoming_message_queue:MessageQueue, outgoing_message_queue:MessageQueue, message_factory:MessageFactory, config:dict={}):
+        super().__init__(url, config)
+        self._transport = transport
+        self._read_worker = ConnectionReadWorker(transport, incoming_message_queue, message_factory, config)
+        self._write_worker = ConnectionWriteWorker(transport, outgoing_message_queue, config)
+        self._outgoing_message_queue = outgoing_message_queue
+        self._transport.start()
+        self._read_worker.start()
+        self._write_worker.start()
+
+    def connect(self):
+        self._transport.connect()
+
+    def disconnect(self):
+        self._transport.disconnect()
+
+    def send(self, msg:MessageOut):
+        self._outgoing_message_queue._queque_message(msg)
+
+    def shutdown(self):
+        self._read_worker.abort()
+        self._write_worker.abort()
+        self._transport.shutdown()
+
+    def wait(self):
+        self._read_worker.join()
+        self._write_worker.join()
+        self._transport.wait()

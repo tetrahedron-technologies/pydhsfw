@@ -2,9 +2,9 @@ import argparse
 import sys
 import logging
 import signal
-from pydhsfw.messages import MessageIn, register_message
+from pydhsfw.messages import MessageIn, MessageQueue, BlockingMessageQueue, register_message
 from pydhsfw.connection import Connection
-from pydhsfw.processors import Context, MessageDispatcher
+from pydhsfw.processors import Context, MessageQueueDispatcher
 from pydhsfw.connectionmanager import ConnectionManager
 
 _logger = logging.getLogger(__name__)
@@ -13,15 +13,17 @@ class DhsContext(Context):
     """
     DhsContext
     """
-    def __init__(self, connection_mgr):
+    def __init__(self, connection_mgr:ConnectionManager, incoming_message_queue:MessageQueue):
         self._conn_mgr = connection_mgr
-        self._msg_processor = MessageDispatcher('default', self)
+        self._incoming_msg_queue = incoming_message_queue
         self._state = None
 
     def create_connection(self, connection_name:str, url:str)->Connection:
 
-        conn = self._conn_mgr.create_connection(connection_name, url, self._msg_processor)
-        conn.start()
+        conn = self._conn_mgr.create_connection(connection_name, url, self._incoming_msg_queue, BlockingMessageQueue())
+        if not conn:
+            _logger.error(f'Could not create a connection for {url}')
+
         return conn
 
     def get_connection(self, connection_name:str)->Connection:
@@ -32,9 +34,6 @@ class DhsContext(Context):
 
     def set_dhs_state(self, state)->object:
         self._state = state
-
-    def _get_msg_disp(self)->MessageDispatcher:
-        return self._msg_processor
 
 
 @register_message('dhs_init')
@@ -54,33 +53,36 @@ class Dhs:
     """
     Main DHS class
     """
-    def __init__(self):
-        self._context = DhsContext(ConnectionManager())
+    def __init__(self, config:dict={}):
+        self._conn_mgr = ConnectionManager()
+        self._incoming_msg_queue = BlockingMessageQueue()
+        self._context = DhsContext(self._conn_mgr, self._incoming_msg_queue)
+        self._msg_disp = MessageQueueDispatcher('default', self._incoming_msg_queue, self._context, config)
 
     def start(self):
         """
         Starts the DHS context and reads in the arg parser
         """
-        self._context._get_msg_disp().start()
+        self._msg_disp.start()
         parser = argparse.ArgumentParser(description="DHS Distributed Hardware Server")
         # Add DCSS parsing parameters that all DHSs will need here and pass below, that will give the DHS
         # writers a head start.
         # DHS writer can then handle in Dhs_Init to add Dhs specific parse elements.
-        self._context._get_msg_disp()._queque_message(DhsInit(parser, sys.argv[1:]))
+        self._incoming_msg_queue._queque_message(DhsInit(parser, sys.argv[1:]))
 
     def shutdown(self):
         """
         Shuts down the DHS
         """
-        self._context._get_msg_disp().abort()
-        self._context._conn_mgr.shutdown_connections()
+        self._msg_disp.abort()
+        self._conn_mgr.shutdown_connections()
 
     def wait(self, signal_set:set=None):
         """
         Waits indefinitely for the dhs.shutdown() signal or for an interrupt signal from the OS.
 
             Parameters:
-                signal_set: List of signals as defined in the signals module that will trigger the shudown.
+                signal_set: List of signals as defined in the signals module that will trigger the shutdown.
 
         """
         if signal_set:
@@ -93,8 +95,8 @@ class Dhs:
             for sig in signal_set:
                 signal.signal(sig, handler)
     
-        self._context._get_msg_disp().join()
-        self._context._conn_mgr.wait_connections()
+        self._msg_disp.join()
+        self._conn_mgr.wait_connections()
 
 
 

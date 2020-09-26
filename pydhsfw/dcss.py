@@ -1,6 +1,10 @@
-from pydhsfw.messages import MessageIn, MessageOut, MessageFactory, register_message
-from pydhsfw.connection import MessageProcessor, register_connection
-from pydhsfw.tcpip import TcpipClientConnection, TcpipSocketReader
+import logging
+from pydhsfw.messages import MessageIn, MessageOut, MessageFactory, MessageQueue, BlockingMessageQueue, register_message
+from pydhsfw.transport import MessageStreamReader, MessageStreamWriter, StreamReader, StreamWriter
+from pydhsfw.connection import ConnectionBase, register_connection
+from pydhsfw.tcpip import TcpipClientTransport
+
+_logger = logging.getLogger(__name__)
 
 # --------------------------------------------------------------------------
 # DCSS Message Base Classes
@@ -58,7 +62,7 @@ class DcssMessageOut(MessageOut):
         buffer = None
         
         if self._split_msg:
-            buffer = " ".join(self._split_msg).ljust(200, '\x00').encode('ascii')
+            buffer = " ".join(self._split_msg).encode('ascii')
 
         return buffer
 
@@ -846,14 +850,29 @@ class DcssMessageFactory(MessageFactory):
         return DcssMessageIn.parse_type_id(raw_msg)
 
 
-#Dcss xos v1 Reader
-class DcssXOS1SocketReader(TcpipSocketReader):
-    def read_socket(self, sock):
-        return self._read(sock, msglen=200)
+class DcssDhsV1MessageReader(MessageStreamReader):
+    def __init__(self):
+        pass
 
+    def read_msg(self, stream_reader:StreamReader)->bytes:
+        packed = stream_reader.read(200)
+        _logger.debug(f"Received packed raw message: {packed}")
+        return packed.decode('ascii').rstrip('\n\r\x00').encode('ascii')
 
-#DcssClientConnection
+class DcssDhsV1MessageWriter(MessageStreamWriter):
+    def __init__(self):
+        pass
+
+    def write_msg(self, stream_writer:StreamWriter, msg:bytes):
+        packed = msg.decode('ascii').ljust(200, '\x00').encode('ascii')
+        _logger.debug(f"Sending packed raw message: {packed}")
+        stream_writer.write(packed)
+
+class DcssClientTransport(TcpipClientTransport):
+    def __init__(self, url:str, config:dict={}):
+        super().__init__(url, DcssDhsV1MessageReader(), DcssDhsV1MessageWriter(), config)
+
 @register_connection('dcss')
-class DcssClientConnection(TcpipClientConnection):
-    def __init__(self, url:str, config:dict, msg_processor:MessageProcessor):
-        super().__init__(url, config, msg_processor, DcssXOS1SocketReader(), DcssMessageFactory())
+class DcssClientConnection(ConnectionBase):
+    def __init__(self, url:str, incoming_message_queue:MessageQueue, outgoing_message_queue:MessageQueue, config:dict={}):
+        super().__init__(url, DcssClientTransport(url, config), incoming_message_queue, outgoing_message_queue, DcssMessageFactory(), config)
