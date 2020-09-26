@@ -41,13 +41,15 @@ def dhs_init(message:DhsInit, context:Context):
         action="store_const",
         const=logging.DEBUG)
 
-    args = parser.parse_args(message.get_args())
+    #args = parser.parse_args(message.get_args())
     #print(args)
     # I'm not sure how to set a default logging level in argparse so will try this
-    if args.loglevel == None:
-        loglevel = logging.INFO
-    else:
-        loglevel = args.loglevel
+    #if args.loglevel == None:
+    #    loglevel = logging.INFO
+    #else:
+    #    loglevel = args.loglevel
+
+    loglevel = logging.DEBUG
 
     logformat = "[%(asctime)s] %(levelname)s:%(name)s:%(lineno)d - %(message)s"
     logging.basicConfig(level=loglevel, stream=sys.stdout, format=logformat, datefmt="%Y-%m-%d %H:%M:%S")
