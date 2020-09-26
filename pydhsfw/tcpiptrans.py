@@ -6,9 +6,9 @@ import errno
 from urllib.parse import urlparse
 from collections import deque
 from pydhsfw.threads import AbortableThread
-from pydhsfw.messages import MessageIn, MessageOut, MessageFactory
+from pydhsfw.messages import MessageIn, MessageOut, MessageFactory, MessageQueue
 from pydhsfw.connection import Connection
-from pydhsfw.transport import Transport, TransportStream, TransportState, StreamReader, StreamWriter, MessageReader, MessageWriter
+from pydhsfw.transport import Transport, TransportStream, TransportState, StreamReader, StreamWriter, MessageStreamReader, MessageStreamWriter
 
 _logger = logging.getLogger(__name__)
 
@@ -21,14 +21,13 @@ class SocketStreamReader(StreamReader):
         self._connected_event = threading.Event()
 
     @property
-    def socket(self)->socket:
+    def socket(self):
         return self._sock
 
     @socket.setter
     def socket(self, sock:socket):
         self._sock = sock
-        if not self._sock:
-            self._connected = False
+        self._connected = bool(sock != None)
 
     def read(self, msglen:int)->bytes:
 
@@ -51,6 +50,11 @@ class SocketStreamReader(StreamReader):
                     bytes_recd = bytes_recd + chunk_len
 
                 res = bytearray(chunks)
+            
+            return res
+
+        except socket.timeout:
+            raise TimeoutError()
 
         except OSError as e:
             if e.errno == errno.EBADF:
@@ -61,10 +65,14 @@ class SocketStreamReader(StreamReader):
         except Exception:
             # Log an exception here this way we can track other potential socket errors and 
             # handle them specifcally like above.
-            _logger.exception()
+            _logger.exception(None)
             raise
 
     @property
+    def _connected(self):
+        raise NotImplementedError
+    
+    @_connected.setter
     def _connected(self, is_connected:bool):
         if is_connected:
             self._connected_event.set()
@@ -72,10 +80,14 @@ class SocketStreamReader(StreamReader):
             self._connected_event.clear()
 
 class SocketStreamWriter(StreamWriter):
-    def __init__(self):
+    def __init__(self, config:dict={}):
         self._sock = None
 
     @property
+    def socket(self):
+        return self._sock
+
+    @socket.setter
     def socket(self, sock:socket):
         self._sock = sock
 
@@ -83,22 +95,23 @@ class SocketStreamWriter(StreamWriter):
         try:
             self._sock.sendall(buffer)
         except Exception:
-            _logger.exception()
+            _logger.exception(None)
             raise
 
 
 class TcpipTransport(TransportStream):
     ''' Tcpip transport base'''
 
-    def __init(self, message_reader:MessageReader, message_writer:MessageWriter, config:dict={}):
-        super().__init__(message_reader, message_writer, config)
+    def __init__(self, url:str,  message_reader:MessageStreamReader, message_writer:MessageStreamWriter, config:dict={}):
+        super().__init__(url, message_reader, message_writer, config)
         self._stream_reader = SocketStreamReader(config)
         self._stream_writer = SocketStreamWriter(config)
 
 class TcpipClientTransportConnectionWorker(AbortableThread):
 
-    def __init__(self, socket_stream_reader:SocketStreamReader, socket_stream_writer:SocketStreamWriter, config:dict={}):
+    def __init__(self, url:str, socket_stream_reader:SocketStreamReader, socket_stream_writer:SocketStreamWriter, config:dict={}):
         super().__init__(name='tcpip client transport connection worker', config=config)
+        self._url = url
         self._config = config
         self._stream_reader = socket_stream_reader
         self._stream_reader._read_timeout = self._get_blocking_timeout()
@@ -111,9 +124,11 @@ class TcpipClientTransportConnectionWorker(AbortableThread):
         self._set_desired_state(TransportState.CONNECTED)
 
     def reconnect(self):
+        self._stream_reader._connected = False
         self._set_desired_state(TransportState.RECONNECTED)
 
     def disconnect(self):
+        self._stream_reader._connected = False
         self._set_desired_state(TransportState.DISCONNECTED)
 
     def _set_desired_state(self, state:TransportState):
@@ -144,13 +159,15 @@ class TcpipClientTransportConnectionWorker(AbortableThread):
                     elif self._desired_state == TransportState.RECONNECTED:
                         self._reconnect()
 
+                    self._state_change_event.clear()
+
                 except TimeoutError:
                     # This is normal and allows for handling the SystemExit exception.
                     pass
                 except Exception:
                     # Send all other exceptions to the log so we can analyse them to determine if
                     # they need special handling or possibly ignoring them.
-                    _logger.exception()
+                    _logger.exception(None)
                     raise
 
         except SystemExit:
@@ -166,12 +183,11 @@ class TcpipClientTransportConnectionWorker(AbortableThread):
         return self._state
       
     def _get_url(self):
-        return self._config.get('url')
+        return self._url
 
     def _set_state(self, state:TransportState):
         self._state = state
-        msg = f'Connection state: {state}, url: {self._get_url()}'
-        _logger.info(msg)
+        _logger.info(f'Connection state: {state}, url: {self._get_url()}')
 
     def _connect(self):
 
@@ -189,10 +205,10 @@ class TcpipClientTransportConnectionWorker(AbortableThread):
 
                 self._set_state(TransportState.CONNECTING)
 
-                end_time = time.time() + connect_timeout
+                end_time = time.time() + float(connect_timeout or 0.0)
                 end_delay_time = time.time()
 
-                while self._state_desired == TransportState.CONNECTED and (connect_timeout == None or time.time() < end_time):
+                while self._desired_state == TransportState.CONNECTED and (connect_timeout == None or time.time() < end_time):
                     try:
                         if time.time() >= end_delay_time:
                             sock = socket.socket()
@@ -207,15 +223,15 @@ class TcpipClientTransportConnectionWorker(AbortableThread):
                             time.sleep(socket_timeout)
 
                     except socket.timeout:
-                        if self._state_desired == TransportState.CONNECTED:
+                        if self._desired_state == TransportState.CONNECTED:
                             _logger.info(f'Connection timeout: cannot connect to {url}, trying again in {connect_retry_delay} seconds')
                             end_delay_time = time.time() + connect_retry_delay
                     except ConnectionRefusedError:
-                        if self._state_desired == TransportState.CONNECTED:
+                        if self._desired_state == TransportState.CONNECTED:
                             _logger.info(f'Connection refused: cannot connect to {url}, trying again in {connect_retry_delay} seconds')
                             end_delay_time = time.time() + connect_retry_delay
                     except Exception:
-                        _logger.exception()
+                        _logger.exception(None)
                         self._set_state(TransportState.DISCONNECTED)
                         raise
             else:
@@ -224,7 +240,6 @@ class TcpipClientTransportConnectionWorker(AbortableThread):
     def _disconnect(self):
 
         if self._desired_state == TransportState.DISCONNECTED:
-            url = self._get_url()
             # Only disconnect if we are connected
             if self.state == TransportState.CONNECTED:
                 self._set_state(TransportState.DISCONNECTING)
@@ -239,19 +254,30 @@ class TcpipClientTransportConnectionWorker(AbortableThread):
                 _logger.debug("Not connected, ignoring disconnect request")
 
     def _reconnect(self):
+        
         if self._desired_state == TransportState.RECONNECTED:
-            self._desired_state == TransportState.DISCONNECTED
+            self._desired_state = TransportState.DISCONNECTED
+            self._state = TransportState.CONNECTED
             self._disconnect()
             time.sleep(3)
-            self._desired_state == TransportState.CONNECTED
+            self._desired_state = TransportState.CONNECTED
             self._connect()
 
 class TcpipClientTransport(TcpipTransport):
     ''' Tcpip client transport '''
 
-    def __init(self, message_reader:MessageReader, message_writer:MessageWriter, config:dict=None):
-        super().__init__(message_reader, message_writer, config)
-        self._connection_worker = TcpipClientTransportConnectionWorker(self._stream_reader, self._stream_writer, config)
+    def __init__(self, url:str, message_reader:MessageStreamReader, message_writer:MessageStreamWriter, config:dict={}):
+        super().__init__(url, message_reader, message_writer, config)
+        self._connection_worker = TcpipClientTransportConnectionWorker(url, self._stream_reader, self._stream_writer, config)
+
+    def connect(self):
+        self._connection_worker.connect()
+
+    def disconnect(self):
+        self._connection_worker.disconnect()
+
+    def reconnect(self):
+        self._connection_worker.reconnect()
 
     def start(self):
         self._connection_worker.start()
@@ -260,51 +286,7 @@ class TcpipClientTransport(TcpipTransport):
         self._connection_worker.abort()
 
     def wait(self):
-        self._connection_worker.wait()
-
-
-class MessageQueue():
-
-    def __init__(self):
-        pass
-    def _queque_message(self, message:MessageIn):
-        pass
-    def _get_message(self, timeout=None):
-        pass
-    def _clear_messages(self):
-        pass
-
-class BlockingMessageQueue(MessageQueue):
-
-    def __init__(self):
-        super().__init__()
-        self._deque_message = deque()
-        self._deque_event = threading.Event()
-
-    def _queque_message(self, message:MessageIn):
-        #Append message and unblock
-        self._deque_message.append(message)
-        self._deque_event.set()
-
-    def _get_message(self, timeout=None):
-        
-        msg = None
-
-        #Block until items are available
-        if not self._deque_event.wait(timeout):
-            raise TimeoutError
-        
-        elif self._deque_message: 
-            msg = self._deque_message.popleft()
-
-        #If there are no more items, start blocking again
-        if not self._deque_message:
-            self._deque_event.clear()
-        return msg
-
-    def _clear_messages(self):
-            self._deque_event.clear()
-            self._deque_message.clear()
+        self._connection_worker.join()
 
 
 class ConnectionReadWorker(AbortableThread):
@@ -337,7 +319,7 @@ class ConnectionReadWorker(AbortableThread):
                     pass
                 except Exception:
                     # Log other exceptions so we can monitor and create special handlng if needed.
-                    _logger.exception()
+                    _logger.exception(None)
                     raise
 
         except SystemExit:
@@ -349,7 +331,7 @@ class ConnectionReadWorker(AbortableThread):
 class ConnectionWriteWorker(AbortableThread):
     
     def __init__(self, transport:Transport, outgoing_message_queue:MessageQueue, config:dict={}):
-        super().__init__(name='connection reader worker', config=config)
+        super().__init__(name='connection write worker', config=config)
         self._transport = transport
         self._msg_queue = outgoing_message_queue
 
@@ -363,9 +345,9 @@ class ConnectionWriteWorker(AbortableThread):
                     # Blocking call with timeout configured elsewhere. This will timeout to check for control messages, specifically SystemExit.
                     msg = self._msg_queue._get_message(self._get_blocking_timeout())
                     if msg:
-                        _logger.info(f"Sending message: {msg}")
+                        _logger.debug(f"Sending message: {msg}")
                         buffer = msg.write()
-                        _logger.info(f"Sending unpacked raw message: {buffer}")
+                        _logger.debug(f"Sending unpacked raw message: {buffer}")
                         self._transport.send(buffer)
 
                 except TimeoutError:
@@ -373,7 +355,7 @@ class ConnectionWriteWorker(AbortableThread):
                     pass
                 except Exception:
                     # Log other exceptions so we can monitor and create special handlng if needed.
-                    _logger.exception()
+                    _logger.exception(None)
                     raise
 
         except SystemExit:
@@ -383,8 +365,8 @@ class ConnectionWriteWorker(AbortableThread):
             pass
 
 class ConnectionBase(Connection):
-    def __init__(self, transport:Transport, incoming_message_queue:MessageQueue, outgoing_message_queue:MessageQueue, message_factory:MessageFactory, config:dict={}):
-        super().__init__(None, config)
+    def __init__(self, url:str, transport:Transport, incoming_message_queue:MessageQueue, outgoing_message_queue:MessageQueue, message_factory:MessageFactory, config:dict={}):
+        super().__init__(url, config)
         self._transport = transport
         self._read_worker = ConnectionReadWorker(transport, incoming_message_queue, message_factory, config)
         self._write_worker = ConnectionWriteWorker(transport, outgoing_message_queue, config)
@@ -405,10 +387,10 @@ class ConnectionBase(Connection):
     def shutdown(self):
         self._read_worker.abort()
         self._write_worker.abort()
-        self._transport.abort()
+        self._transport.shutdown()
 
     def wait(self):
-        self._read_worker.wait()
-        self._write_worker.wait()
+        self._read_worker.join()
+        self._write_worker.join()
         self._transport.wait()
 

@@ -16,7 +16,8 @@ class TransportState(Enum):
 class Transport:
     ''' Underlying bass class that all transports must derive from. '''
 
-    def __init__(self, config:dict={}):
+    def __init__(self, url:str, config:dict={}):
+        self._url = url
         self._config = config
 
     def connect(self):
@@ -92,6 +93,10 @@ class StreamReader():
         pass
 
     @property
+    def _connected(self):
+        raise NotImplementedError
+
+    @_connected.setter
     def _connected(self, is_connected:bool):
         ''' Notifies the stream reader when a connection has been established or dropped.
         
@@ -102,7 +107,7 @@ class StreamReader():
         this is used to maintain the read() blocking call when the underlying stream is not connected as they only block
         when there is an actvie connection.
         '''
-        pass
+        raise NotImplementedError
 
 class StreamWriter():
     def __init__(self):
@@ -111,7 +116,7 @@ class StreamWriter():
     def write(self, buffer:bytes):
         pass
 
-class MessageReader():
+class MessageStreamReader():
     def __init__(self):
         pass
 
@@ -124,7 +129,7 @@ class MessageReader():
         '''
         pass
 
-class MessageWriter():
+class MessageStreamWriter():
     def __init__(self):
         pass
 
@@ -140,8 +145,8 @@ class MessageWriter():
 
 
 class TransportStream(Transport):
-    def __init__(self, message_reader:MessageReader, messsage_writer:MessageWriter, config:dict=None):
-        super().__init__(config)
+    def __init__(self, url:str, message_reader:MessageStreamReader, messsage_writer:MessageStreamWriter, config:dict=None):
+        super().__init__(url, config)
         self._message_reader = message_reader
         self._message_writer = messsage_writer
 
@@ -153,12 +158,11 @@ class TransportStream(Transport):
             #Connection is lost because the socket was closed, probably from the other side.
             #Block the socket event and queue a reconnect message.
             _logger.warning('Connection lost, attempting to reconnect')
-            self._connected = False
             self.reconnect()
 
     def receive(self):
         try:
-            self._message_reader.read_msg(self._stream_reader)
+            return self._message_reader.read_msg(self._stream_reader)
         except TimeoutError:
             #Read timed out. This is normal, it just means that no messages have been sent so we can ignore it.
             pass
@@ -166,7 +170,6 @@ class TransportStream(Transport):
             #Connection is lost because the socket was closed, probably from the other side.
             #Block the socket event and queue a reconnect message.
             _logger.warning('Connection lost, attempting to reconnect')
-            self._connected = False
             self.reconnect()
 
     
