@@ -6,21 +6,24 @@ from pydhsfw.messages import MessageIn, MessageQueue, BlockingMessageQueue, regi
 from pydhsfw.connection import Connection
 from pydhsfw.processors import Context, MessageQueueDispatcher
 from pydhsfw.connectionmanager import ConnectionManager
+from pydhsfw.dcss import DcssContext, DcssActiveOperations, DcssOutgoingMessageQueue, DcssMessageQueueDispatcher
 
 _logger = logging.getLogger(__name__)
 
-class DhsContext(Context):
+class DhsContext(DcssContext):
     """
     DhsContext
     """
-    def __init__(self, connection_mgr:ConnectionManager, incoming_message_queue:MessageQueue):
+    def __init__(self, active_operations: DcssActiveOperations, connection_mgr:ConnectionManager, incoming_message_queue:MessageQueue, outgoing_message_queue:MessageQueue):
+        super().__init__(active_operations)
         self._conn_mgr = connection_mgr
         self._incoming_msg_queue = incoming_message_queue
+        self._outgoing_msg_queue = outgoing_message_queue
         self._state = None
 
     def create_connection(self, connection_name:str, url:str)->Connection:
 
-        conn = self._conn_mgr.create_connection(connection_name, url, self._incoming_msg_queue, BlockingMessageQueue())
+        conn = self._conn_mgr.create_connection(connection_name, url, self._incoming_msg_queue, self._outgoing_msg_queue)
         if not conn:
             _logger.error(f'Could not create a connection for {url}')
 
@@ -55,9 +58,11 @@ class Dhs:
     """
     def __init__(self, config:dict={}):
         self._conn_mgr = ConnectionManager()
+        self._active_operations = DcssActiveOperations()
         self._incoming_msg_queue = BlockingMessageQueue()
-        self._context = DhsContext(self._conn_mgr, self._incoming_msg_queue)
-        self._msg_disp = MessageQueueDispatcher('default', self._incoming_msg_queue, self._context, config)
+        self._outgoing_msg_queue = DcssOutgoingMessageQueue(self._active_operations)
+        self._context = DhsContext(self._active_operations, self._conn_mgr, self._incoming_msg_queue, self._outgoing_msg_queue)
+        self._msg_disp = DcssMessageQueueDispatcher('default', self._incoming_msg_queue, self._context, self._active_operations, config)
 
     def start(self):
         """
