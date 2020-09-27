@@ -53,6 +53,15 @@ class MessageRegistry():
 
 
 def register_message(msg_type_id:str, factory_name:str=None):
+    ''' Registers a MessageIn class with a message factory and assigns it a message type id..
+
+    msg_type_id - The message type id that uniquely identifies this message class. This decorator adds the message
+    type id to the class definition.
+    
+    factory_name - The name of the message factory that will convert this message type id's raw messages in to the message instances. 
+
+    '''
+
     def decorator_register_message(cls):
         cls._type_id = msg_type_id
         if factory_name and issubclass(cls, MessageIn):
