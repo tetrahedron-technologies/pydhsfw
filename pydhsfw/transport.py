@@ -25,7 +25,7 @@ class Transport:
         pass
 
     def disconnect(self):
-        ''' Disconnects from the resource. '''
+        ''' Disconnects from a resource. '''
         pass
 
     def reconnect(self):
@@ -38,6 +38,9 @@ class Transport:
         pass
 
     def send(self, msg:bytes):
+        ''' Send the raw bytes of an entire message.
+
+        '''
         pass
 
     def receive(self)->bytes:
@@ -45,8 +48,9 @@ class Transport:
 
         This is a blocking call and will wait for a message to arrive or until the timeout duration is reached.
         
-        Note: Implementations can only set the timeout during initialization of the Transport object.
-        Implementations must also throw a TimeoutError if there are no messages to read but the timeout duration has been reached.
+        Raises TimeoutError if there are no messages to read but the timeout duration has been reached.
+        Note: Most implementations can only set the timeout during initialization of the Transport object
+        so this is will be a requirement for all implementations.
 
         '''
         pass
@@ -85,7 +89,7 @@ class StreamReader():
     def read(self, msglen:int)->bytes:
         ''' Reads a chunk of bytes from the stream.
 
-        This is a blocking call and the wait timeout is determine by the implementation and genrally by the stream it wraps.
+        This is a blocking call and the wait timeout is determine by the implementation and generally by the stream it wraps.
         
         Raises a TimeoutError if the is nothing to read from the stream and the timeout has been reached.
         Raises a ConnectionAbortedError if the stream has been unusually aborted or disconnected.
@@ -114,6 +118,10 @@ class StreamWriter():
         pass
 
     def write(self, buffer:bytes):
+        ''' Writes a chunk of bytes to the stream.
+        
+        Raises a ConnectionAbortedError if the stream has been unusually aborted or disconnected.
+        '''
         pass
 
 class MessageStreamReader():
@@ -137,7 +145,7 @@ class MessageStreamWriter():
         ''' Write the message to the stream writer.
 
         The message packets may need to be padded to a fixed length, or require a delimeter to be added, or may require packing in
-        a message header that includes message sized. The derived is responsible for the particulars of the message encoding.
+        a message header that includes the message size. The derived class is responsible for the particulars of the message encoding.
 
         '''
         pass
@@ -145,6 +153,13 @@ class MessageStreamWriter():
 
 
 class TransportStream(Transport):
+    ''' Abstract class for transports that use streams and implementations of MessageStreamReader and MessageStreamWriter.
+
+        Derived classes will need to implement a MessageStreamReader/Writer for the specific stream. They will also
+        need to implement transport connection and thread management. 
+
+
+    '''
     def __init__(self, url:str, message_reader:MessageStreamReader, messsage_writer:MessageStreamWriter, config:dict=None):
         super().__init__(url, config)
         self._message_reader = message_reader
