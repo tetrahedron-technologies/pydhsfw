@@ -9,7 +9,7 @@ from pydhsfw.dhs import Dhs, DhsInit
 _logger = logging.getLogger(__name__)
 
 #Pre logging setup. Will be configure later based on config
-logformat = "[%(asctime)s] %(levelname)s:%(name)s:%(lineno)d - %(message)s"
+logformat = "[%(asctime)s] %(levelname)s:%(name)s:%(funcName)s():%(lineno)d - %(message)s"
 logging.basicConfig(level=logging.DEBUG, stream=sys.stdout, format=logformat, datefmt="%Y-%m-%d %H:%M:%S")
 
 
@@ -57,7 +57,7 @@ def dhs_init(message:DhsInit, context:Context):
 
     loglevel = logging.DEBUG
 
-    logformat = "[%(asctime)s] %(levelname)s:%(name)s:%(lineno)d - %(message)s"
+    logformat = "[%(asctime)s] %(levelname)s:%(name)s:%(funcName)s:%(lineno)d - %(message)s"
     logging.basicConfig(level=loglevel, stream=sys.stdout, format=logformat, datefmt="%Y-%m-%d %H:%M:%S")
 
     _logger.info("Initializing DHS")
@@ -75,6 +75,7 @@ def dhs_init(message:DhsInit, context:Context):
 
 @register_message_handler('stoc_send_client_type')
 def dcss_send_client_type(message:DcssStoCSendClientType, context:Context):
+    context.get_dhs_state['bob'] = "ya!"
     context.get_connection('dcss').send(DcssHtoSClientIsHardware('loopDHS'))
 
 @register_message_handler('stoh_register_operation')
@@ -89,25 +90,25 @@ def dcss_start_operation(message:DcssStoHStartOperation, context:Context):
     opid = message.operation_handle
     _logger.info(f"operation={op}, handle={opid}")
 
-@register_dcss_start_operation_handler('helloWord')
+@register_dcss_start_operation_handler('helloWorld')
 def hello_world_1(message:DcssStoHStartOperation, context:DcssContext):
     _logger.info("doing the stuff1")
     activeOps = context.get_active_operations(message.operation_name)
     _logger.debug(f'Active operations pre-completed={activeOps}')
     for ao in activeOps:
-        context.get_connection('dcss').send(DcssHtoSOperationUpdate(ao.get_operation_name(), ao.get_operation_handle(), "working on things"))
-        context.get_connection('dcss').send(DcssHtoSOperationCompleted(ao.get_operation_name(), ao.get_operation_handle(), "normal", "h1"))
+        context.get_connection('dcss').send(DcssHtoSOperationUpdate(ao.operation_name, ao.operation_handle, "working on things"))
+        context.get_connection('dcss').send(DcssHtoSOperationCompleted(ao.operation_name, ao.operation_handle, "normal", "h1"))
     _logger.debug(f'Active operations post-completed={activeOps}')
 
 
-@register_dcss_start_operation_handler('helloWord2')
+@register_dcss_start_operation_handler('helloWorld2')
 def hello_world_2(message:DcssStoHStartOperation, context:DcssContext):
     _logger.info("doing the stuff2")
     activeOps = context.get_active_operations(message.operation_name)
     _logger.debug(f'Active operations pre-completed={activeOps}')
     for ao in activeOps:
-        context.get_connection('dcss').send(DcssHtoSOperationUpdate(ao.get_operation_name(), ao.get_operation_handle(), "working on things2"))
-        context.get_connection('dcss').send(DcssHtoSOperationCompleted(ao.get_operation_name(), ao.get_operation_handle(), "normal", "h2"))
+        context.get_connection('dcss').send(DcssHtoSOperationUpdate(ao.operation_name, ao.operation_handle, "working on things2"))
+        context.get_connection('dcss').send(DcssHtoSOperationCompleted(ao.operation_name, ao.operation_handle, "normal", "h2"))
     _logger.debug(f'Active operations post-completed={activeOps}')
 
 dhs = Dhs()

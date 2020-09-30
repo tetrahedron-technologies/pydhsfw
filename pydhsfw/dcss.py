@@ -973,7 +973,7 @@ class DcssOperationHandlerRegistry():
             cls._registry[processor_name] = dict()
         
         cls._registry[processor_name][operation_name]=operation_handler_function
-        _logger.debug(f'Registered start operation handler: operation name={operation_name}, function name={operation_handler_function.__name__}, processor name={processor_name}')
+        _logger.info(f'Registered start operation handler: operation name={operation_name}, function name={operation_handler_function.__name__}, processor name={processor_name}')
 
     @classmethod
     def _get_operation_handlers(cls, processor_name:str=None):
@@ -1013,11 +1013,11 @@ class DcssActiveOperations:
         self._active_operations.append(message)
 
     def get_operations(self, operation_name:str=None, operation_handle=None):
-        return list(filter(lambda m: (not operation_name or operation_name == m.operation_name()) 
-            and (not operation_handle or operation_handle == m.get_operation_handle()), self._active_operations))
+        return list(filter(lambda m: (not operation_name or operation_name == m.operation_name) 
+            and (not operation_handle or operation_handle == m.operation_handle), self._active_operations))
 
     def remove_operation(self, message:DcssStoHStartOperation):
-        msgs = self.get_operations(message.get_operation_name(), message.get_operation_handle())
+        msgs = self.get_operations(message.operation_name, message.operation_handle)
         while message in msgs:
             self._active_operations.remove(message)
 
@@ -1040,7 +1040,7 @@ class DcssContext(Context):
          name and handle.
 
          '''
-        pass
+        return self._active_operations.get_operations(operation_name, operation_handle)
 
 class DcssOutgoingMessageQueue(BlockingMessageQueue):
     def __init__(self, active_operations:DcssActiveOperations):
@@ -1052,7 +1052,7 @@ class DcssOutgoingMessageQueue(BlockingMessageQueue):
 
         #Special handling for operation completed messages
         if isinstance(message, DcssHtoSOperationCompleted):
-            msgs = self._active_operations.get_operations(message.get_operation_name(), message.get_operation_handle())
+            msgs = self._active_operations.get_operations(message._split_msg[0], message._split_msg[1])
             self._active_operations.remove_operations(msgs)
 
 class DcssMessageQueueDispatcher(MessageQueueDispatcher):
@@ -1062,7 +1062,7 @@ class DcssMessageQueueDispatcher(MessageQueueDispatcher):
         self._operation_handler_map = DcssOperationHandlerRegistry._get_operation_handlers()
 
     def process_message(self, message:MessageIn):
-        #Send to default dispatcher to handle messages.
+        #Send to parent dispatcher to handle messages.
         super().process_message(message)
 
         #Special handling for start operation messages.
