@@ -1,4 +1,4 @@
-from .context import pydhsfw
+from context import pydhsfw
 from pydhsfw.threads import AbortableThread
 import time
 
