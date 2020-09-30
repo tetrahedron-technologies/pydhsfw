@@ -18,7 +18,8 @@ Ultimately these branches will be removed but it's nice to have them sort in a g
 `git pull origin master`
 6. Now you can push to the origin.  
 `git push origin gh10_use_decorators_to_register_messages`
-7. Then use the Github UI to create a pull request.  https://docs.github.com/en/github/collaborating-with-issues-and-pull-requests/creating-a-pull-request
+7. Then use the Github UI to create a pull request.  https://docs.github.com/en/github/collaborating-with-issues-and-pull-requests/creating-a-pull-request. Name the title of the pull request `GH-<issue#> <title of the issue>`. Add a brief description about changes to the code or notes that reviewer may need It's less about repeating what's in the original issue, but for simple changes they may be similar. 
+For example, `GH-10 Use decorators to register messages with message factories`. This convention is supposed to autolink the pull request with the issue.
 8. Discuss, review, assign reviewers, comment, edit code, etc. in Github until code it's ready to be merged. 
 Please expect to receive constructive comments and code change requests, this is very normal, don't worry you are amazing and so is your code.
 9. After reviewers have approved the request, the contributor that created the pull request should merge it.
