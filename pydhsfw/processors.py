@@ -1,10 +1,8 @@
 import logging
 from threading import Event
 from inspect import isfunction, signature
-from traceback import print_exc
-from collections import deque
 from pydhsfw.threads import AbortableThread
-from pydhsfw.messages import MessageIn
+from pydhsfw.messages import MessageIn, MessageQueue
 from pydhsfw.connection import Connection
 
 _logger = logging.getLogger(__name__)
@@ -48,6 +46,7 @@ class MessageHandlerRegistry():
             cls._registry[processor_name] = dict()
         
         cls._registry[processor_name][msg_type_id]=msg_handler_function
+        _logger.debug(f'Registered message handler: message type id={msg_type_id}, function name={msg_handler_function.__name__}, processor name={processor_name}')
 
     @classmethod
     def _get_message_handlers(cls, processor_name:str=None):
@@ -56,50 +55,39 @@ class MessageHandlerRegistry():
         return cls._registry.get(processor_name, {})        
 
 
-def register_message_handler(msg_type_id:str, processor_name:str=None):
+def register_message_handler(msg_type_id:str, dispatcher_name:str=None):
+    '''Registers a function to handle message instances of the specified type id.
+
+    msg_type_id - This message handler will receive all messages that are of this message type.
+
+    dispatcher_name - Name of the message dispatcher that will be routing the messages to the handler.
+    Each message dispatcher will run in it's own thread and in the future there may be a requirement 
+    to have multiple dispatchers. For now, there is only one dispatcher, so leave this blank or set
+    it to None.
+
+    The function signature must match:
+
+    def handler(message:MessageIn, context:Context)
+
+    To register a dcss server to client send client type message:
+
+    @register_message_handler('stoc_send_client_type')
+    
+    def send_client_type_handler(message:DcssStoCSendClientType, context:Context)
+
+    '''
     def decorator_register_handler(func):
-        MessageHandlerRegistry._register_message_handler(msg_type_id, func, processor_name)
+        MessageHandlerRegistry._register_message_handler(msg_type_id, func, dispatcher_name)
         return func
 
     return decorator_register_handler
 
-class BlockingMessageProcessor():
 
-    def __init__(self):
-        super().__init__()
-        self._deque_message = deque()
-        self._deque_event = Event()
+class MessageQueueWorker(AbortableThread):
 
-    def _queque_message(self, message:MessageIn):
-        #Append message and unblock
-        self._deque_message.append(message)
-        self._deque_event.set()
-
-    def _get_message(self, timeout=None):
-        
-        msg = None
-
-        #Block until items are available
-        if not self._deque_event.wait(timeout):
-            raise TimeoutError
-        
-        elif self._deque_message: 
-            msg = self._deque_message.popleft()
-
-        #If there are no more items, start blocking again
-        if not self._deque_message:
-            self._deque_event.clear()
-        return msg
-
-    def _clear_messages(self):
-            self._deque_event.clear()
-            self._deque_message.clear()
-        
-class MessageProcessorWorker(AbortableThread, BlockingMessageProcessor):
-
-    def __init__(self, name):
-        AbortableThread.__init__(self, name=name)
-        BlockingMessageProcessor.__init__(self)
+    def __init__(self, name, incoming_message_queue:MessageQueue, config:dict={}):
+        AbortableThread.__init__(self, name=name, config=config)
+        self._msg_queue = incoming_message_queue
 
     def process_message(self, message:MessageIn):
         pass
@@ -109,15 +97,16 @@ class MessageProcessorWorker(AbortableThread, BlockingMessageProcessor):
             while True:
                 try:
                     #Can't wait forever in blocking call, need to enter loop to check for control messages, specifically SystemExit.
-                    msg = self._get_message(5)
+                    msg = self._msg_queue._get_message(self._get_blocking_timeout())
                     if msg:
                         _logger.info(f"Processing message: {msg}")
                         self.process_message(msg)
                 except TimeoutError:
-                    #This is normal when there are no more mesages in the queue and wait time has ben statisfied. Just ignore it.
+                    #This is normal when there are no more mesages in the queue and wait time has ben satisfied. Just ignore it.
                     pass
                 except Exception:
-                    _logger.exception(f"da fuq?")
+                    # Log here for monitoring
+                    _logger.exception(None)
                     raise
 
         except SystemExit:
@@ -126,9 +115,9 @@ class MessageProcessorWorker(AbortableThread, BlockingMessageProcessor):
         finally:
             pass
 
-class MessageDispatcher(MessageProcessorWorker):
-    def __init__(self, name:str, context:Context):
-        super().__init__(f'dhs {name} message processor')
+class MessageQueueDispatcher(MessageQueueWorker):
+    def __init__(self, name:str, incoming_message_queue:MessageQueue, context:Context, config:dict={}):
+        super().__init__(f'dhs {name} message dispatcher', incoming_message_queue, config)
         self._handler_map = MessageHandlerRegistry._get_message_handlers()
         self._context = context
 

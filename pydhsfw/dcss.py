@@ -1,6 +1,12 @@
-from pydhsfw.messages import MessageIn, MessageOut, MessageFactory, register_message
-from pydhsfw.connection import MessageProcessor, register_connection
-from pydhsfw.tcpip import TcpipClientConnection, TcpipSocketReader
+import logging
+from inspect import isfunction, signature
+from pydhsfw.messages import MessageIn, MessageOut, MessageFactory, MessageQueue, BlockingMessageQueue, register_message
+from pydhsfw.transport import MessageStreamReader, MessageStreamWriter, StreamReader, StreamWriter
+from pydhsfw.connection import ConnectionBase, register_connection
+from pydhsfw.tcpip import TcpipClientTransport
+from pydhsfw.processors import Context, MessageQueueDispatcher
+
+_logger = logging.getLogger(__name__)
 
 # --------------------------------------------------------------------------
 # DCSS Message Base Classes
@@ -58,7 +64,7 @@ class DcssMessageOut(MessageOut):
         buffer = None
         
         if self._split_msg:
-            buffer = " ".join(self._split_msg).ljust(200, '\x00').encode('ascii')
+            buffer = " ".join(self._split_msg).encode('ascii')
 
         return buffer
 
@@ -846,14 +852,155 @@ class DcssMessageFactory(MessageFactory):
         return DcssMessageIn.parse_type_id(raw_msg)
 
 
-#Dcss xos v1 Reader
-class DcssXOS1SocketReader(TcpipSocketReader):
-    def read_socket(self, sock):
-        return self._read(sock, msglen=200)
+class DcssDhsV1MessageReader(MessageStreamReader):
+    def __init__(self):
+        pass
 
+    def read_msg(self, stream_reader:StreamReader)->bytes:
+        packed = stream_reader.read(200)
+        _logger.debug(f"Received packed raw message: {packed}")
+        return packed.decode('ascii').rstrip('\n\r\x00').encode('ascii')
 
-#DcssClientConnection
+class DcssDhsV1MessageWriter(MessageStreamWriter):
+    def __init__(self):
+        pass
+
+    def write_msg(self, stream_writer:StreamWriter, msg:bytes):
+        packed = msg.decode('ascii').ljust(200, '\x00').encode('ascii')
+        _logger.debug(f"Sending packed raw message: {packed}")
+        stream_writer.write(packed)
+
+class DcssClientTransport(TcpipClientTransport):
+    def __init__(self, url:str, config:dict={}):
+        super().__init__(url, DcssDhsV1MessageReader(), DcssDhsV1MessageWriter(), config)
+
 @register_connection('dcss')
-class DcssClientConnection(TcpipClientConnection):
-    def __init__(self, url:str, config:dict, msg_processor:MessageProcessor):
-        super().__init__(url, config, msg_processor, DcssXOS1SocketReader(), DcssMessageFactory())
+class DcssClientConnection(ConnectionBase):
+    def __init__(self, url:str, incoming_message_queue:MessageQueue, outgoing_message_queue:MessageQueue, config:dict={}):
+        super().__init__(url, DcssClientTransport(url, config), incoming_message_queue, outgoing_message_queue, DcssMessageFactory(), config)
+
+class DcssOperationHandlerRegistry():
+
+    _default_processor_name = 'default'
+    _registry = {}
+
+    @classmethod
+    def _register_start_operation_handler(cls, operation_name:str, operation_handler_function, processor_name:str=None):
+        if not processor_name:
+            processor_name = cls._default_processor_name
+
+        if not isfunction(operation_handler_function):
+            raise TypeError('handler_function must be a function')
+
+        hf_sig = signature(operation_handler_function)
+        msg_param = hf_sig.parameters.get('message')
+        if not issubclass(msg_param.annotation, DcssStoHStartOperation):
+            raise TypeError('The handler_function must have a named parameter "message" that is of type DcssStoHStartOperation')
+
+        ctx_param = hf_sig.parameters.get('context')
+        if not issubclass(ctx_param.annotation, DcssContext):
+            raise TypeError('The handler_function must have a named parameter "context" that is of type DcssContext')
+
+        if cls._registry.get(processor_name) == None:
+            cls._registry[processor_name] = dict()
+        
+        cls._registry[processor_name][operation_name]=operation_handler_function
+        _logger.debug(f'Registered start operation handler: operation name={operation_name}, function name={operation_handler_function.__name__}, processor name={processor_name}')
+
+    @classmethod
+    def _get_operation_handlers(cls, processor_name:str=None):
+        if not processor_name:
+            processor_name = cls._default_processor_name
+        return cls._registry.get(processor_name, {})        
+
+
+def register_dcss_start_operation_handler(operation_name:str, dispatcher_name:str=None):
+    '''Registers a function to handle a dcss start operation message.
+
+    operation_name - Start operations that match this operation name will be dispatched to this function.
+
+    dispatcher_name - Name of the message dispatcher that will be routing the messages to this message handler.
+    Each message dispatcher will run in it's own thread and in the future there may be a requirement 
+    to have multiple dispatchers. For now, there is only one dispatcher, so leave this blank or set
+    it to None.
+
+    The function signature must match:
+
+    def handler(message:DcssStoHStartOperation, context:DcssContext)
+
+    '''
+    def decorator_register_start_operation_handler(func):
+        DcssOperationHandlerRegistry._register_start_operation_handler(operation_name, func, dispatcher_name)
+        return func
+
+    return decorator_register_start_operation_handler
+
+class DcssActiveOperations:
+    def __init__(self):
+        self._active_operations = []
+
+    def add_operation(self, message:DcssStoHStartOperation):
+        # replace existing operation if there is one.
+        self.remove_operation(message)
+        self._active_operations.append(message)
+
+    def get_operations(self, operation_name:str=None, operation_handle=None):
+        return list(filter(lambda m: (not operation_name or operation_name == m.operation_name()) 
+            and (not operation_handle or operation_handle == m.get_operation_handle()), self._active_operations))
+
+    def remove_operation(self, message:DcssStoHStartOperation):
+        msgs = self.get_operations(message.get_operation_name(), message.get_operation_handle())
+        while message in msgs:
+            self._active_operations.remove(message)
+
+    def remove_operations(self, messages:list):
+        for m in messages:
+            self.remove_operation(m)
+
+class DcssContext(Context):
+    def __init__(self, active_operations:DcssActiveOperations):
+        super().__init__()
+        self._active_operations = active_operations
+
+    def get_active_operations(self, operation_name:str=None, operation_handle=None)->DcssStoHStartOperation:
+        ''' Retrieve active operations that match the name and/or handle.
+        
+         operation_name - Get all active operations that match that name. None acts as a wildcard.
+         operation_handle - Get all active operations that match that handle. None acts as a wildcard.
+
+         Note: To get active operations pas in None for name and handle. To be specific you can match both
+         name and handle.
+
+         '''
+        pass
+
+class DcssOutgoingMessageQueue(BlockingMessageQueue):
+    def __init__(self, active_operations:DcssActiveOperations):
+        super().__init__()
+        self._active_operations = active_operations
+
+    def _queque_message(self, message:MessageOut):
+        super()._queque_message(message)
+
+        #Special handling for operation completed messages
+        if isinstance(message, DcssHtoSOperationCompleted):
+            msgs = self._active_operations.get_operations(message.get_operation_name(), message.get_operation_handle())
+            self._active_operations.remove_operations(msgs)
+
+class DcssMessageQueueDispatcher(MessageQueueDispatcher):
+    def __init__(self, name:str, incoming_message_queue:MessageQueue, context:Context, active_operations:DcssActiveOperations, config:dict={}):
+        super().__init__(name, incoming_message_queue, context, config)
+        self._active_operations = active_operations
+        self._operation_handler_map = DcssOperationHandlerRegistry._get_operation_handlers()
+
+    def process_message(self, message:MessageIn):
+        #Send to default dispatcher to handle messages.
+        super().process_message(message)
+
+        #Special handling for start operation messages.
+        if isinstance(message, DcssStoHStartOperation):
+            handler = self._operation_handler_map.get(message.get_operation_name())
+            if isfunction(handler):
+                self._active_operations.add_operation(message)
+                handler(message, self._context)
+
