@@ -16,7 +16,7 @@ logging.basicConfig(level=logging.DEBUG, stream=sys.stdout, format=logformat, da
 @register_message_handler('dhs_init')
 def dhs_init(message:DhsInit, context:Context):
 
-    parser = message.get_parser()
+    parser = message.parser
     #print(f"parser: {parser}")
     #parser = argparse.ArgumentParser(description="DHS Distributed Hardware Server")
     parser.add_argument(

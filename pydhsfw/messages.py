@@ -86,7 +86,7 @@ class MessageFactory():
         self._msg_map[msg_cls.get_type_id()] = msg_cls
 
     def _register_messages(self):
-        for msg_cls in MessageRegistry._get_factory_messages(self._get_name()):
+        for msg_cls in MessageRegistry._get_factory_messages(self.name):
             if issubclass(msg_cls, MessageIn):
                 self._register_message(msg_cls)
 
@@ -99,7 +99,8 @@ class MessageFactory():
     def _parse_type_id(self, raw_msg:bytes)->Any:
         return NotImplemented
 
-    def _get_name(self):
+    @property
+    def name(self):
         return self._name
 
     def create_message(self, raw_msg:bytes)->MessageIn:

@@ -32,10 +32,18 @@ class DhsContext(DcssContext):
     def get_connection(self, connection_name:str)->Connection:
         return self._conn_mgr.get_connection(connection_name)
 
-    def get_dhs_state(self)->object:
+    @property
+    def state(self)->object:
+        """
+        The state property getter
+        """
         return self._state
 
-    def set_dhs_state(self, state)->object:
+    @state.setter
+    def state(self, state)->object:
+        """
+        The state property setter
+        """
         self._state = state
 
 
@@ -47,10 +55,18 @@ class DhsInit(MessageIn):
         self.cmd_args = args
         self.conf_file = conf_file
 
-    def get_parser(self):
+    @property
+    def parser(self):
+        """
+        The parser property getter
+        """
         return self.arg_parser
 
-    def get_args(self):
+    @property
+    def args(self):
+        """
+        The args property getter
+        """
         return self.cmd_args
 
     def get_conf_file(self):
