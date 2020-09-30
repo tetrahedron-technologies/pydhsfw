@@ -1067,7 +1067,7 @@ class DcssMessageQueueDispatcher(MessageQueueDispatcher):
 
         #Special handling for start operation messages.
         if isinstance(message, DcssStoHStartOperation):
-            handler = self._operation_handler_map.get(message.get_operation_name())
+            handler = self._operation_handler_map.get(message.operation_name)
             if isfunction(handler):
                 self._active_operations.add_operation(message)
                 handler(message, self._context)

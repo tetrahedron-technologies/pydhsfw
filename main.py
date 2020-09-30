@@ -85,14 +85,14 @@ def dcss_reg_operation(message:DcssStoHRegisterOperation, context:Context):
 @register_message_handler('stoh_start_operation')
 def dcss_start_operation(message:DcssStoHStartOperation, context:Context):
     _logger.info(f"GOT: {message}")
-    op = message.get_operation_name()
-    opid = message.get_operation_handle()
+    op = message.operation_name
+    opid = message.operation_handle
     _logger.info(f"operation={op}, handle={opid}")
 
 @register_dcss_start_operation_handler('helloWord')
 def hello_world_1(message:DcssStoHStartOperation, context:DcssContext):
     _logger.info("doing the stuff1")
-    activeOps = context.get_active_operations(message.get_operation_name())
+    activeOps = context.get_active_operations(message.operation_name)
     _logger.debug(f'Active operations pre-completed={activeOps}')
     for ao in activeOps:
         context.get_connection('dcss').send(DcssHtoSOperationUpdate(ao.get_operation_name(), ao.get_operation_handle(), "working on things"))
@@ -103,7 +103,7 @@ def hello_world_1(message:DcssStoHStartOperation, context:DcssContext):
 @register_dcss_start_operation_handler('helloWord2')
 def hello_world_2(message:DcssStoHStartOperation, context:DcssContext):
     _logger.info("doing the stuff2")
-    activeOps = context.get_active_operations(message.get_operation_name())
+    activeOps = context.get_active_operations(message.operation_name)
     _logger.debug(f'Active operations pre-completed={activeOps}')
     for ao in activeOps:
         context.get_connection('dcss').send(DcssHtoSOperationUpdate(ao.get_operation_name(), ao.get_operation_handle(), "working on things2"))
