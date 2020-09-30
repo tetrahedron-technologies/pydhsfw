@@ -46,7 +46,7 @@ class MessageHandlerRegistry():
             cls._registry[processor_name] = dict()
         
         cls._registry[processor_name][msg_type_id]=msg_handler_function
-        _logger.debug(f'Registered message handler: message type id={msg_type_id}, function name={msg_handler_function.__name__}, processor name={processor_name}')
+        _logger.info(f'Registered message handler: message type id={msg_type_id}, function name={msg_handler_function.__name__}, processor name={processor_name}')
 
     @classmethod
     def _get_message_handlers(cls, processor_name:str=None):
