@@ -1,5 +1,5 @@
 import logging
-from inspect import isfunction, signature
+from inspect import isfunction, signature, getsourcelines, getmodule
 from pydhsfw.messages import MessageIn, MessageOut, MessageFactory, MessageQueue, BlockingMessageQueue, register_message
 from pydhsfw.transport import MessageStreamReader, MessageStreamWriter, StreamReader, StreamWriter
 from pydhsfw.connection import ConnectionBase, register_connection
@@ -973,7 +973,6 @@ class DcssOperationHandlerRegistry():
             cls._registry[processor_name] = dict()
         
         cls._registry[processor_name][operation_name]=operation_handler_function
-        _logger.info(f'Registered start operation handler: operation name={operation_name}, function name={operation_handler_function.__name__}, processor name={processor_name}')
 
     @classmethod
     def _get_operation_handlers(cls, processor_name:str=None):
@@ -1061,6 +1060,13 @@ class DcssMessageQueueDispatcher(MessageQueueDispatcher):
         self._active_operations = active_operations
         self._operation_handler_map = DcssOperationHandlerRegistry._get_operation_handlers()
 
+    def start(self):
+        super().start()
+        for op_name, func in self._operation_handler_map.items():
+            lineno = getsourcelines(func)[1]
+            module = getmodule(func)
+            _logger.info(f'Registered start operation handler: {op_name}, {module.__name__}:{func.__name__}():{lineno} with {self._name} dispatcher')
+
     def process_message(self, message:MessageIn):
         #Send to parent dispatcher to handle messages.
         super().process_message(message)
@@ -1071,4 +1077,8 @@ class DcssMessageQueueDispatcher(MessageQueueDispatcher):
             if isfunction(handler):
                 self._active_operations.add_operation(message)
                 handler(message, self._context)
+
+    def process_message_now(self, message:MessageIn):
+        #Send to parent dispatcher to handle messages.
+        super().process_message(message)
 

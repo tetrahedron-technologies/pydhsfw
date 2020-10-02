@@ -2,6 +2,7 @@ import argparse
 import sys
 import logging
 import signal
+from typing import Any
 from pydhsfw.messages import MessageIn, MessageQueue, BlockingMessageQueue, register_message
 from pydhsfw.connection import Connection
 from pydhsfw.processors import Context, MessageQueueDispatcher
@@ -33,14 +34,14 @@ class DhsContext(DcssContext):
         return self._conn_mgr.get_connection(connection_name)
 
     @property
-    def state(self)->object:
+    def state(self)->Any:
         """
         The state property getter
         """
         return self._state
 
     @state.setter
-    def state(self, state)->object:
+    def state(self, state):
         """
         The state property setter
         """
@@ -49,11 +50,10 @@ class DhsContext(DcssContext):
 
 @register_message('dhs_init')
 class DhsInit(MessageIn):
-    def __init__(self, parser, args, conf_file ):
+    def __init__(self, parser, args):
         super().__init__()
         self.arg_parser = parser
         self.cmd_args = args
-        self.conf_file = conf_file
 
     @property
     def parser(self):
@@ -69,8 +69,10 @@ class DhsInit(MessageIn):
         """
         return self.cmd_args
 
-    def get_conf_file(self):
-        return self.conf_file
+@register_message('dhs_start')
+class DhsStart(MessageIn):
+    def __init__(self):
+        super().__init__()
 
 class Dhs:
     """
@@ -83,23 +85,24 @@ class Dhs:
         self._outgoing_msg_queue = DcssOutgoingMessageQueue(self._active_operations)
         self._context = DhsContext(self._active_operations, self._conn_mgr, self._incoming_msg_queue, self._outgoing_msg_queue)
         self._msg_disp = DcssMessageQueueDispatcher('default', self._incoming_msg_queue, self._context, self._active_operations, config)
+        self._init()
+
+    def _init(self):
+
+        # Add DCSS parsing parameters that all DHSs will need here and pass below, that will give the DHS
+        # writers a head start.
+        # DHS writer can then handle in Dhs_Init to add Dhs specific parse elements.
+        #
+        # Send the DHSInit message now out of band of the normal message queue.
+        parser = argparse.ArgumentParser(description="DHS Distributed Hardware Server")
+        self._msg_disp.process_message_now(DhsInit(parser, sys.argv[1:]))
 
     def start(self):
         """
         Starts the DHS context and reads in the arg parser
         """
         self._msg_disp.start()
-        parser = argparse.ArgumentParser(description="DHS Distributed Hardware Server")
-        # Add DCSS parsing parameters that all DHSs will need here and pass below, that will give the DHS
-        # writers a head start.
-        # DHS writer can then handle in Dhs_Init to add Dhs specific parse elements.
-        #
-        # hard code a config file? seems non-optimal. Would be good if we could parse beamline name from
-        # the command line and then use that to decide which config file to use, but it seems we're too
-        # early to use argparse....
-        config = 'config/bl831.config'
-        self._incoming_msg_queue._queque_message(DhsInit(parser, sys.argv[1:], config))
-
+        self._msg_disp.process_message_now(DhsStart())
 
     def shutdown(self):
         """

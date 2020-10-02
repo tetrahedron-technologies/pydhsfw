@@ -4,17 +4,12 @@ import sys
 import yaml
 from pydhsfw.processors import  Context, register_message_handler
 from pydhsfw.dcss import DcssContext, DcssStoCSendClientType, DcssHtoSClientIsHardware, DcssStoHRegisterOperation, DcssStoHStartOperation, DcssHtoSOperationUpdate, DcssHtoSOperationCompleted, register_dcss_start_operation_handler
-from pydhsfw.dhs import Dhs, DhsInit
+from pydhsfw.dhs import Dhs, DhsInit, DhsStart, DhsContext
 
 _logger = logging.getLogger(__name__)
 
-#Pre logging setup. Will be configure later based on config
-logformat = "[%(asctime)s] %(levelname)s:%(name)s:%(funcName)s():%(lineno)d - %(message)s"
-logging.basicConfig(level=logging.DEBUG, stream=sys.stdout, format=logformat, datefmt="%Y-%m-%d %H:%M:%S")
-
-
 @register_message_handler('dhs_init')
-def dhs_init(message:DhsInit, context:Context):
+def dhs_init(message:DhsInit, context:DhsContext):
 
     parser = message.parser
     #print(f"parser: {parser}")
@@ -24,14 +19,14 @@ def dhs_init(message:DhsInit, context:Context):
         action="version",
         version="0.1")
         #version="pyDHS {ver}".format(ver=__version__))
-    parser.add_argument(
-        dest="beamline",
-        help="Beamline Name (e.g. BL-831)",
-        metavar="Beamline")
-    parser.add_argument(
-        dest="dhs_name",
-        help="DHS Name (e.g. loop or chain or detector)",
-        metavar="DHS Name")
+    #parser.add_argument(
+    #    dest="beamline",
+    #    help="Beamline Name (e.g. BL-831)",
+    #    metavar="Beamline")
+    #parser.add_argument(
+    #    dest="dhs_name",
+    #    help="DHS Name (e.g. loop or chain or detector)",
+    #    metavar="DHS Name")
     parser.add_argument(
         "-v",
         "--verbose",
@@ -46,8 +41,14 @@ def dhs_init(message:DhsInit, context:Context):
         help="set loglevel to DEBUG",
         action="store_const",
         const=logging.DEBUG)
-
-    #args = parser.parse_args(message.get_args())
+    parser.add_argument(
+        "-c",
+        "--config",
+        dest="config_file",
+        help="pull settings from config file",
+        metavar="config_file")
+    
+    args = parser.parse_args(message.args)
     #print(args)
     # I'm not sure how to set a default logging level in argparse so will try this
     #if args.loglevel == None:
@@ -57,19 +58,30 @@ def dhs_init(message:DhsInit, context:Context):
 
     loglevel = logging.DEBUG
 
-    logformat = "[%(asctime)s] %(levelname)s:%(name)s:%(funcName)s:%(lineno)d - %(message)s"
+    #Logging setup. Will be able to change logging level later with config parameters.
+    logformat = "[%(asctime)s] %(levelname)s:%(name)s:%(funcName)s():%(lineno)d - %(message)s"
     logging.basicConfig(level=loglevel, stream=sys.stdout, format=logformat, datefmt="%Y-%m-%d %H:%M:%S")
+    #Update log level for all registered log handlers.
+    #for handler in logging.root.handlers:
+    #    handler.setLevel(loglevel)
+
+    conf_file = 'config/bl831.config'
 
     _logger.info("Initializing DHS")
-    conf_file = message.get_conf_file()
-    _logger.info(f"log file: {conf_file}")
+    _logger.info(f"config file: {conf_file}")
     with open(conf_file, 'r') as f:
         conf = yaml.safe_load(f)
         dcss_host = conf['dcss']['host']
         dcss_port = conf['dcss']['port']
         _logger.info(f"DCSS HOST: {dcss_host} PORT: {dcss_port}")
-
+    
     url = 'dcss://' + dcss_host + ':' + str(dcss_port)
+    context.state = {'url':url}
+
+@register_message_handler('dhs_start')
+def dhs_start(message:DhsStart, context:DhsContext):
+    url = context.state['url']
+
     context.create_connection('dcss', url)
     context.get_connection('dcss').connect()
 

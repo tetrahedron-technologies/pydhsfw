@@ -1,6 +1,6 @@
 import logging
 from threading import Event
-from inspect import isfunction, signature
+from inspect import isfunction, signature, getsourcelines, getmodule
 from pydhsfw.threads import AbortableThread
 from pydhsfw.messages import MessageIn, MessageQueue
 from pydhsfw.connection import Connection
@@ -12,12 +12,6 @@ class Context:
         pass
 
     def get_connection(self, connection_name:str)->Connection:
-        pass
-
-    def get_dhs_state(self)->object:
-        pass
-
-    def set_dhs_state(self)->object:
         pass
 
 class MessageHandlerRegistry():
@@ -46,7 +40,6 @@ class MessageHandlerRegistry():
             cls._registry[processor_name] = dict()
         
         cls._registry[processor_name][msg_type_id]=msg_handler_function
-        _logger.info(f'Registered message handler: message type id={msg_type_id}, function name={msg_handler_function.__name__}, processor name={processor_name}')
 
     @classmethod
     def _get_message_handlers(cls, processor_name:str=None):
@@ -118,8 +111,16 @@ class MessageQueueWorker(AbortableThread):
 class MessageQueueDispatcher(MessageQueueWorker):
     def __init__(self, name:str, incoming_message_queue:MessageQueue, context:Context, config:dict={}):
         super().__init__(f'dhs {name} message dispatcher', incoming_message_queue, config)
-        self._handler_map = MessageHandlerRegistry._get_message_handlers()
+        self._name = name
+        self._handler_map = MessageHandlerRegistry._get_message_handlers()         
         self._context = context
+
+    def start(self):
+        super().start()
+        for type, func in self._handler_map.items():
+            lineno = getsourcelines(func)[1]
+            module = getmodule(func)
+            _logger.info(f'Registered message handler: {type}, {module.__name__}:{func.__name__}():{lineno} with {self._name} dispatcher')
 
     def process_message(self, message:MessageIn):
         type_id = message.get_type_id()
