@@ -8,10 +8,6 @@ from pydhsfw.dhs import Dhs, DhsInit, DhsStart, DhsContext
 
 _logger = logging.getLogger(__name__)
 
-#Logging setup. Will be able to change logging level later with config parameters.
-logformat = "[%(asctime)s] %(levelname)s:%(name)s:%(funcName)s():%(lineno)d - %(message)s"
-logging.basicConfig(level=logging.INFO, stream=sys.stdout, format=logformat, datefmt="%Y-%m-%d %H:%M:%S")
-
 @register_message_handler('dhs_init')
 def dhs_init(message:DhsInit, context:DhsContext):
 
@@ -62,9 +58,12 @@ def dhs_init(message:DhsInit, context:DhsContext):
 
     loglevel = logging.DEBUG
 
+    #Logging setup. Will be able to change logging level later with config parameters.
+    logformat = "[%(asctime)s] %(levelname)s:%(name)s:%(funcName)s():%(lineno)d - %(message)s"
+    logging.basicConfig(level=loglevel, stream=sys.stdout, format=logformat, datefmt="%Y-%m-%d %H:%M:%S")
     #Update log level for all registered log handlers.
-    for handler in logging.root.handlers:
-        handler.setLevel(loglevel)
+    #for handler in logging.root.handlers:
+    #    handler.setLevel(loglevel)
 
     conf_file = 'config/bl831.config'
 
