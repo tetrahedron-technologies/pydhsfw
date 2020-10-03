@@ -1065,7 +1065,7 @@ class DcssMessageQueueDispatcher(MessageQueueDispatcher):
         for op_name, func in self._operation_handler_map.items():
             lineno = getsourcelines(func)[1]
             module = getmodule(func)
-            _logger.info(f'Registered start operation handler: {op_name}, {module.__name__}:{func.__name__}():{lineno} with {self._name} dispatcher')
+            _logger.info(f'Registered start operation handler: {op_name}, {module.__name__}:{func.__name__}():{lineno} with {self._disp_name} dispatcher')
 
     def process_message(self, message:MessageIn):
         #Send to parent dispatcher to handle messages.

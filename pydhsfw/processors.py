@@ -110,8 +110,8 @@ class MessageQueueWorker(AbortableThread):
 
 class MessageQueueDispatcher(MessageQueueWorker):
     def __init__(self, name:str, incoming_message_queue:MessageQueue, context:Context, config:dict={}):
-        super().__init__(f'dhs {name} message dispatcher', incoming_message_queue, config)
-        self._name = name
+        super().__init__(f'{name} dhs message dispatcher', incoming_message_queue, config)
+        self._disp_name = name
         self._handler_map = MessageHandlerRegistry._get_message_handlers()         
         self._context = context
 
@@ -120,7 +120,7 @@ class MessageQueueDispatcher(MessageQueueWorker):
         for type, func in self._handler_map.items():
             lineno = getsourcelines(func)[1]
             module = getmodule(func)
-            _logger.info(f'Registered message handler: {type}, {module.__name__}:{func.__name__}():{lineno} with {self._name} dispatcher')
+            _logger.info(f'Registered message handler: {type}, {module.__name__}:{func.__name__}():{lineno} with {self._disp_name} dispatcher')
 
     def process_message(self, message:MessageIn):
         type_id = message.get_type_id()
