@@ -3,7 +3,7 @@ from inspect import isfunction, signature, getsourcelines, getmodule
 from pydhsfw.messages import MessageIn, MessageOut, MessageFactory, MessageQueue, BlockingMessageQueue, register_message
 from pydhsfw.transport import MessageStreamReader, MessageStreamWriter, StreamReader, StreamWriter
 from pydhsfw.connection import ConnectionBase, register_connection
-from pydhsfw.tcpip import SocketStreamReader, TcpipClientTransport
+from pydhsfw.tcpip import TcpipClientTransport
 from pydhsfw.processors import Context, MessageQueueDispatcher
 
 _logger = logging.getLogger(__name__)
@@ -944,7 +944,7 @@ class DcssDhsV2MessageReaderWriter(MessageStreamReader, MessageStreamWriter):
         super(MessageStreamWriter).__init__()
         self._version = 1
 
-    def read_msg(self, stream_reader:SocketStreamReader)->bytes:
+    def read_msg(self, stream_reader:StreamReader)->bytes:
         
         unpacked = None
 
