@@ -256,7 +256,7 @@ class TcpipClientTransportConnectionWorker(AbortableThread):
             self._desired_state = TransportState.DISCONNECTED
             self._state = TransportState.CONNECTED
             self._disconnect()
-            time.sleep(3)
+            time.sleep(self._get_blocking_timeout())
             self._desired_state = TransportState.CONNECTED
             self._connect()
 
