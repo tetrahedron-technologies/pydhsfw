@@ -87,7 +87,6 @@ def dhs_start(message:DhsStart, context:DhsContext):
 
 @register_message_handler('stoc_send_client_type')
 def dcss_send_client_type(message:DcssStoCSendClientType, context:Context):
-    context.get_dhs_state['bob'] = "ya!"
     context.get_connection('dcss').send(DcssHtoSClientIsHardware('loopDHS'))
 
 @register_message_handler('stoh_register_operation')
