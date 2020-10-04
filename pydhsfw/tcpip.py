@@ -185,6 +185,10 @@ class TcpipClientTransportConnectionWorker(AbortableThread):
     def _set_state(self, state:TransportState):
         self._state = state
         _logger.info(f'Connection state: {state}, url: {self._get_url()}')
+        if state in (TransportState.CONNECTED, TransportState.DISCONNECTED):
+            #TODO[Giles]: Add ConnectionConnectedMessage or ConnectionDisconnectedMessage to the queue.
+            pass
+
 
     def _connect(self):
 
