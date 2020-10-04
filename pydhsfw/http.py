@@ -1,35 +1,132 @@
 import threading
 import time
 import logging
-import requests
-from urllib.parse import urlparse, urljoin
+from requests import Response, Request, Session, Timeout, request
+from urllib.parse import urljoin
 from typing import Any
+from enum import Enum
 from pydhsfw.threads import AbortableThread
-from pydhsfw.messages import BlockingMessageQueue
+from pydhsfw.messages import BlockingQueue, MessageOut, MessageIn
 from pydhsfw.transport import Transport, TransportState
 
 _logger = logging.getLogger(__name__)
+
+class RequestVerb(Enum):
+    GET ='GET'
+    POST = 'POST'
+
+class Headers(Enum):
+    DHS_REQUEST_TYPE_ID = 'DHS-Request-Type-Id'
+    DHS_RESPONSE_TYPE_ID = 'DHS-Response-Type-Id'
+
+class ResponseMessage(MessageIn):
+    def __init__(self, response):
+        super().__init__()
+        self._response = response
+
+    @staticmethod
+    def parse_type_id(response:Response):
+        return response.request.headers.get(Headers.DHS_RESPONSE_TYPE_ID.value)
+
+    @classmethod
+    def parse(cls, response:Response)->Any:
+        
+        msg = None
+        
+        type_id = ResponseMessage.parse_type_id(response)
+        if type_id == cls.get_type_id():
+            msg = cls(response)
+        
+        return msg
+
+class JsonResponseMessage(ResponseMessage):
+    def __init__(self, response):
+        super().__init__(response)
+
+    @property
+    def json(self):
+        return self._response.json()
+
+class FileResponseMessage(ResponseMessage):
+    def __init__(self, response):
+        super().__init__(response)
+
+    @property
+    def file(self):
+        return self._response.content
+
+class GetRequestMessage(MessageOut):
+    def __init__(self, path:str, params:dict=None):
+        super().__init__()
+        self._path = path
+        self._params = params
+    
+    def write(self)->Request:
+        request = Request(RequestVerb.GET.value, self._path, params=self._params)
+        request.headers[Headers.DHS_REQUEST_TYPE_ID.value] = self.get_type_id()
+        return request
+
+    def __str__(self):
+        return f'{super().__str__()} {self._path} {self._params}'
+
+class PostRequestMessage(MessageOut):
+    def __init__(self, path:str, json:dict=None, data:dict=None):
+        super().__init__()
+        self._path = path
+        self._data = data
+        self._json = json
+    
+    def write(self)->bytes:
+        request = Request(RequestVerb.POST.value, self._path)
+        request.headers[Headers.DHS_REQUEST_TYPE_ID.value] = self.get_type_id()
+        if self._json:
+            request.json = self._json
+        elif self._data:
+            request.data = self._data
+
+        return request
+
+    def __str__(self):
+        return f'{super().__str__()} {self._path} {self._json} {self._data}'
+
+class PostJsonRequestMessage(PostRequestMessage):
+    def __init__(self, path:str, json:dict):
+        super().__init__(path, json=json)
+
+class PostFormRequestMessage(PostRequestMessage):
+    def __init__(self, path:str, data:dict):
+        super().__init__(path, data=data)
 
 class MessageResponseReader():
     def __init__(self):
         pass
 
-    def read_response(self, response:requests.Response)->Any:
+    def read_response(self, response:Response)->Response:
         ''' Read the http response and convert it into an object that the message factory can read and convert to a message.
 
         '''
-        pass
+        return response
 
 class MessageRequestWriter():
     def __init__(self):
         pass
 
-    def write_request(self, request:Any)->requests.Request:
-        ''' Create an http request out of a message object.
+    def write_request(self, request:Request)->Request:
+        ''' Create an http request out of a message bytes.
 
         '''
-        pass
 
+        # Read the custom header for the message request type id and add a custom header with the response
+        # message type id which is just replacing the _request at the end with _response
+        req_type_id = request.headers.get(Headers.DHS_REQUEST_TYPE_ID.value) 
+        if req_type_id:
+            res_type_id = req_type_id
+            if res_type_id.endswith('_request'): 
+                 res_type_id = res_type_id[:-(len('_request'))]
+            res_type_id += '_response'
+            request.headers[Headers.DHS_RESPONSE_TYPE_ID.value] = res_type_id
+
+        return request
 
 
 class HttpClientTransportConnectionWorker(AbortableThread):
@@ -81,8 +178,8 @@ class HttpClientTransportConnectionWorker(AbortableThread):
                         self._state_change_event.clear()
 
                     else:
-                        if self._next_heatbeat and time() > self._next_heatbeat:
-                            state = self._heartbeat(self._get_heartbeat_url(), self._get_blocking_timeout)
+                        if self._next_heatbeat and time.time() > self._next_heatbeat:
+                            state = self._heartbeat(self._get_heartbeat_url(), self._get_blocking_timeout())
                             if state != TransportState.CONNECTED:
                                 _logger.warning(f'Heartbeat failed: cannot connect to {self._get_heartbeat_url()}')
                                 self._set_state(state)
@@ -135,14 +232,14 @@ class HttpClientTransportConnectionWorker(AbortableThread):
                 while self._desired_state == TransportState.CONNECTED and (connect_timeout == None or time.time() < end_time):
                     try:
                         if time.time() >= end_delay_time:
-                            state = self._hearbeat(url, wait_timeout)
+                            state = self._heartbeat(url, wait_timeout)
                             if state == TransportState.CONNECTED:
                                 self._set_state(TransportState.CONNECTED)
                                 break
                         else:
                             time.sleep(wait_timeout)
 
-                    except requests.Timeout:
+                    except Timeout:
                         if self._desired_state == TransportState.CONNECTED:
                             _logger.info(f'Connection timeout: cannot connect to {url}, trying again in {connect_retry_delay} seconds')
                             end_delay_time = time.time() + connect_retry_delay
@@ -176,13 +273,17 @@ class HttpClientTransportConnectionWorker(AbortableThread):
     def _heartbeat(self, url, timeout)->TransportState:
         state = TransportState.DISCONNECTED
         hearbeat_delay = self._config.get('heartbeat_delay', 30)
-        self._next_heatbeat = time() + hearbeat_delay
+        self._next_heatbeat = time.time() + hearbeat_delay
         _logger.info(f'Sending heartbeat to {url}')
-        response = requests.request('GET', url, timeout=timeout)
+        response = request('GET', url, timeout=timeout)
         if response.ok:
             state = TransportState.CONNECTED
         
         return state
+
+class ResponseQueue(BlockingQueue[Response]):
+    def __init__(self):
+        super().__init__()
 
 class HttpClientTransport(Transport):
     ''' Http client transport '''
@@ -192,16 +293,30 @@ class HttpClientTransport(Transport):
         self._message_reader = message_reader
         self._message_writer = message_writer
         self._connection_worker = HttpClientTransportConnectionWorker(url, config)
-        self._msg_queue = BlockingMessageQueue
+        self._response_queue = ResponseQueue()
 
-    def send(self, msg:Any):
+    def _send(self, request:Request)->Response:
+        response = None
+        if self._connection_worker._state == TransportState.CONNECTED:
+            with Session() as s:
+                p = s.prepare_request(request)
+                response = s.send(p)
+        return response
+
+    def send(self, msg:Request):
         try:
             if self._connection_worker._state == TransportState.CONNECTED:
                 request = self._message_writer.write_request(msg)
-                s = requests.Session()
-                p = s.prepare_request(request)
-                response = s.send(p)
-                self._msg_queue._queque_message(response)
+                type_id = None
+                if hasattr(request, 'type_id'):
+                    type_id = request.type_id
+                # Add the path to the base url.
+                request.url = urljoin(self._url, request.url)
+                response = self._send(request)
+                if type_id:
+                    response.__setattr__('type_id', type_id)
+
+                self._response_queue.queque(response)
             
         except Exception:
             #Connection is lost because the socket was closed, probably from the other side.
@@ -210,10 +325,11 @@ class HttpClientTransport(Transport):
             raise
             #self.reconnect()
 
-    def receive(self):
+    def receive(self)->Response:
         try:
-            response = self._msg_queue._get_message(self._connection_worker._get_blocking_timeout)
-            return self._message_reader.read_response(response)
+            response = self._response_queue.fetch(self._connection_worker._get_blocking_timeout())
+            if response: 
+                return self._message_reader.read_response(response)
         except TimeoutError:
             #Read timed out. This is normal, it just means that no messages have been sent so we can ignore it.
             pass
