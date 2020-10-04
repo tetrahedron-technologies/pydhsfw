@@ -1,8 +1,9 @@
 import threading
 import time
 import logging
-from requests import Response, Request, Session, Timeout, request
-from urllib.parse import urljoin
+from socket import gaierror, gethostbyname
+from requests import Response, Request, Session, Timeout, exceptions, request
+from urllib.parse import urljoin, urlparse
 from typing import Any
 from enum import Enum
 from pydhsfw.threads import AbortableThread
@@ -163,6 +164,7 @@ class HttpClientTransportConnectionWorker(AbortableThread):
         # 2. Keep hitting the heartbeat url occasionally to make sure the connection is still there.
         try:
 
+            url = self._get_heartbeat_url()
             while True:
                 try:
                     if self._state_change_event.wait(self._get_blocking_timeout()):
@@ -177,14 +179,20 @@ class HttpClientTransportConnectionWorker(AbortableThread):
 
                         self._state_change_event.clear()
 
-                    else:
+                    elif self._state == TransportState.CONNECTED:
                         if self._next_heatbeat and time.time() > self._next_heatbeat:
-                            state = self._heartbeat(self._get_heartbeat_url(), self._get_blocking_timeout())
+                            _logger.info(f'Sending heartbeat to {url}')
+                            state = self._heartbeat(url, self._get_blocking_timeout())
                             if state != TransportState.CONNECTED:
-                                _logger.warning(f'Heartbeat failed: cannot connect to {self._get_heartbeat_url()}')
+                                _logger.warning(f'Heartbeat failed: cannot connect to {url}')
                                 self._set_state(state)
 
-
+                except gaierror as e:
+                    _logger.error(f'Connection error, could not resolve hostname {urlparse(url).hostname}')
+                    self._set_state(TransportState.DISCONNECTED)
+                except exceptions.ConnectionError as e:
+                    _logger.error(f'Connection error, could not connect to {url}')
+                    self._set_state(TransportState.DISCONNECTED)
                 except Exception:
                     # Send all other exceptions to the log so we can analyse them to determine if
                     # they need special handling or possibly ignoring them.
@@ -212,6 +220,9 @@ class HttpClientTransportConnectionWorker(AbortableThread):
     def _set_state(self, state:TransportState):
         self._state = state
         _logger.info(f'Connection state: {state}, url: {self._get_url()}')
+        if state in (TransportState.CONNECTED, TransportState.DISCONNECTED):
+            #TODO[Giles]: Add ConnectionConnectedMessage or ConnectionDisconnectedMessage to the queue.
+            pass
 
     def _connect(self):
 
@@ -232,6 +243,7 @@ class HttpClientTransportConnectionWorker(AbortableThread):
                 while self._desired_state == TransportState.CONNECTED and (connect_timeout == None or time.time() < end_time):
                     try:
                         if time.time() >= end_delay_time:
+                            _logger.info(f'Connecting to {url}')
                             state = self._heartbeat(url, wait_timeout)
                             if state == TransportState.CONNECTED:
                                 self._set_state(TransportState.CONNECTED)
@@ -243,6 +255,12 @@ class HttpClientTransportConnectionWorker(AbortableThread):
                         if self._desired_state == TransportState.CONNECTED:
                             _logger.info(f'Connection timeout: cannot connect to {url}, trying again in {connect_retry_delay} seconds')
                             end_delay_time = time.time() + connect_retry_delay
+                    except gaierror as e:
+                        _logger.error(f'Connection error, could not resolve hostname {urlparse(url).hostname}')
+                        self._set_state(TransportState.DISCONNECTED)
+                    except exceptions.ConnectionError as e:
+                        _logger.error(f'Connection error, could not connect to {url}')
+                        self._set_state(TransportState.DISCONNECTED)
                     except Exception:
                         _logger.exception(None)
                         self._set_state(TransportState.DISCONNECTED)
@@ -272,9 +290,11 @@ class HttpClientTransportConnectionWorker(AbortableThread):
 
     def _heartbeat(self, url, timeout)->TransportState:
         state = TransportState.DISCONNECTED
+        
+        #Use DNS lookup to resolve hostname since the request call below takes a long time.
+        gethostbyname(urlparse(url).hostname)
         hearbeat_delay = self._config.get('heartbeat_delay', 30)
         self._next_heatbeat = time.time() + hearbeat_delay
-        _logger.info(f'Sending heartbeat to {url}')
         response = request('GET', url, timeout=timeout)
         if response.ok:
             state = TransportState.CONNECTED
@@ -307,16 +327,16 @@ class HttpClientTransport(Transport):
         try:
             if self._connection_worker._state == TransportState.CONNECTED:
                 request = self._message_writer.write_request(msg)
-                type_id = None
-                if hasattr(request, 'type_id'):
-                    type_id = request.type_id
                 # Add the path to the base url.
                 request.url = urljoin(self._url, request.url)
                 response = self._send(request)
-                if type_id:
-                    response.__setattr__('type_id', type_id)
+                if response.ok:
+                    self._response_queue.queque(response)
+                else:
+                    _logger.warning(f'Bad response {response.status_code}')
 
-                self._response_queue.queque(response)
+            else:
+                _logger.warning(f'Send failed, not connected {msg}')
             
         except Exception:
             #Connection is lost because the socket was closed, probably from the other side.
