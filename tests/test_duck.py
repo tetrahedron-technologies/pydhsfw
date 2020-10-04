@@ -56,9 +56,9 @@ def dhs_start(message:DhsStart, context:DhsContext):
     context.create_connection('duck_conn', 'duck', url)
     context.get_connection('duck_conn').connect()
 
-    time.sleep(2)
+    time.sleep(3)
 
-    context.get_connection('duck_conn').send(DuckQueryRequest('what time is it'))
+    context.get_connection('duck_conn').send(DuckQueryRequest('what is the meaning of life'))
     
 @register_message_handler('duck_query_response')
 def duck_query_response(message:DuckQueryResponse, context:DhsContext):
