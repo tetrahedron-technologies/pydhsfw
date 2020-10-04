@@ -1,7 +1,5 @@
-import threading
 import logging
 from enum import Enum
-from pydhsfw.threads import AbortableThread
 
 _logger = logging.getLogger(__name__)
 
