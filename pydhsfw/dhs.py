@@ -102,7 +102,7 @@ class Dhs:
         Starts the DHS context and reads in the arg parser
         """
         self._msg_disp.start()
-        self._msg_disp.process_message_now(DhsStart())
+        self._msg_disp.process_message(DhsStart())
 
     def shutdown(self):
         """

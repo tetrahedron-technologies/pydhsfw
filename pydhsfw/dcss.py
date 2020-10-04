@@ -938,9 +938,60 @@ class DcssDhsV1MessageWriter(MessageStreamWriter):
         _logger.debug(f"Sending packed raw message: {packed}")
         stream_writer.write(packed)
 
+class DcssDhsV2MessageReaderWriter(MessageStreamReader, MessageStreamWriter):
+    def __init__(self):
+        super(MessageStreamReader).__init__()
+        super(MessageStreamWriter).__init__()
+        self._version = 1
+
+    def read_msg(self, stream_reader:StreamReader)->bytes:
+        
+        unpacked = None
+
+        header = stream_reader.read(26)
+        packed = header
+        hdr_str = header.decode('ascii').rstrip('\x00\r\n').split()
+        if hdr_str[0].isnumeric():
+            text_size = int(hdr_str[0])
+            bin_size = int(hdr_str[1])
+            text_buf = stream_reader.read(text_size)
+            packed += text_buf
+            bin_buf = stream_reader.read(bin_size)
+            if bin_buf:
+                packed += bin_buf
+
+            unpacked = text_buf
+            self._version = 2
+        else:
+            tailer = stream_reader.read(174)
+            packed += tailer
+            unpacked = packed
+            self._version = 1
+
+        _logger.debug(f"Received packed raw message version {self._version}: {packed}")
+
+        return unpacked.decode('ascii').rstrip('\n\r\x00').encode('ascii')
+
+    def write_msg(self, stream_writer:StreamWriter, msg:bytes):
+        
+        packed = None
+        if self._version == 2:
+            msg_str = msg.decode('ascii').rstrip('\r\n\x00') + ' \x00'
+            msg_text_buf = msg_str.encode('ascii')
+            msg_text_len = len(msg_text_buf)
+            msg_header = str(msg_text_len).rjust(12) + str(0).rjust(13) + ' '
+            msg_hdr_buf = msg_header.encode('ascii')
+            packed = msg_hdr_buf + msg_text_buf
+        else:
+            packed = msg.decode('ascii').ljust(200, '\x00').encode('ascii')
+
+        _logger.debug(f"Sending packed raw message version {self._version}: {packed}")
+        stream_writer.write(packed)
+    
 class DcssClientTransport(TcpipClientTransport):
     def __init__(self, url:str, config:dict={}):
-        super().__init__(url, DcssDhsV1MessageReader(), DcssDhsV1MessageWriter(), config)
+        self._msg_reader_writer = DcssDhsV2MessageReaderWriter()
+        super().__init__(url, self._msg_reader_writer, self._msg_reader_writer, config)
 
 @register_connection('dcss')
 class DcssClientConnection(ConnectionBase):
@@ -1017,8 +1068,9 @@ class DcssActiveOperations:
 
     def remove_operation(self, message:DcssStoHStartOperation):
         msgs = self.get_operations(message.operation_name, message.operation_handle)
-        while message in msgs:
-            self._active_operations.remove(message)
+        for msg in msgs:
+            while msg in self._active_operations:
+                self._active_operations.remove(msg)
 
     def remove_operations(self, messages:list):
         for m in messages:
@@ -1051,7 +1103,7 @@ class DcssOutgoingMessageQueue(BlockingMessageQueue):
 
         #Special handling for operation completed messages
         if isinstance(message, DcssHtoSOperationCompleted):
-            msgs = self._active_operations.get_operations(message._split_msg[0], message._split_msg[1])
+            msgs = self._active_operations.get_operations(message._split_msg[1], message._split_msg[2])
             self._active_operations.remove_operations(msgs)
 
 class DcssMessageQueueDispatcher(MessageQueueDispatcher):
@@ -1065,7 +1117,7 @@ class DcssMessageQueueDispatcher(MessageQueueDispatcher):
         for op_name, func in self._operation_handler_map.items():
             lineno = getsourcelines(func)[1]
             module = getmodule(func)
-            _logger.info(f'Registered start operation handler: {op_name}, {module.__name__}:{func.__name__}():{lineno} with {self._name} dispatcher')
+            _logger.info(f'Registered start operation handler: {op_name}, {module.__name__}:{func.__name__}():{lineno} with {self._disp_name} dispatcher')
 
     def process_message(self, message:MessageIn):
         #Send to parent dispatcher to handle messages.
