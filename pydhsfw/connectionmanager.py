@@ -1,27 +1,45 @@
+import logging
+from inspect import getmodule, getsourcelines
 from urllib.parse import urlparse
-from pydhsfw.messages import MessageFactory, MessageQueue
+from pydhsfw.messages import MessageQueue
 from pydhsfw.connection import Connection, ConnectionRegistry
-from pydhsfw.processors import Context
+
+_logger = logging.getLogger(__name__)
 
 class ConnectionManager:
     def __init__(self):
         self._connections = {}
+        self._connection_factory = None
 
-    def create_connection(self, name:str, url:str, incoming_message_queue:MessageQueue, outgoing_message_queue:MessageQueue, config:dict={})->Connection:
-        
+    def load_registry(self):
+        self._connection_factory = ConnectionFactory()
+
+    def create_connection(self, name:str, scheme:str, url:str, incoming_message_queue:MessageQueue, outgoing_message_queue:MessageQueue, config:dict={})->Connection:
+        ''' Create a connection connection that has been registered.
+
+        Create a connection that has been registered with @register_connection
+
+        name - Name of the connection instance. This must be unique to each connection that is created. The name is used to retrieve the connection 
+        instance using get_connection().
+
+        scheme - Type of connection to create. The available connection schemes are based on all connections that were registered using @register_connection
+
+        url - Url that the connection will used when connecting to a resource.
+
+        '''
         conn = None
         
         if name in self._connections.keys():
             raise ValueError('Connection name already exists')
 
-        conn = ConnectionFactory.create_connection(url, incoming_message_queue, outgoing_message_queue, config)
+        conn = self._connection_factory.create_connection(scheme, url, incoming_message_queue, outgoing_message_queue, config)
         if conn:
             self._connections[name] = conn
 
         return conn
 
     def get_connection(self, name:str)->Connection:
-        return self._connections.get(name, None)
+        return self._connections.get(name)
 
     def start_connections(self):
         for conn in self._connections.values():
@@ -36,13 +54,17 @@ class ConnectionManager:
             conn.wait()
 
 class ConnectionFactory():
+    def __init__(self):
+        self._registry = ConnectionRegistry._get_connection_classes()
+        for scheme, conn_cls in self._registry.items():
+            lineno = getsourcelines(conn_cls)[1]
+            module = getmodule(conn_cls)
+            _logger.info(f'Registered connection class: {scheme}, {module.__name__}:{conn_cls.__name__}():{lineno} with connection registry')
 
-    @staticmethod
-    def create_connection(url:str, incoming_message_queue:MessageQueue, outgoing_message_queue:MessageQueue, config:dict=None) -> Connection:
+    def create_connection(self, scheme:str, url:str, incoming_message_queue:MessageQueue, outgoing_message_queue:MessageQueue, config:dict=None) -> Connection:
 
         connection = None
-        scheme = urlparse(url).scheme
-        conn_cls = ConnectionRegistry._get_connection_class(scheme)
+        conn_cls = self._registry.get(scheme)
         if conn_cls:
             connection = conn_cls(url, incoming_message_queue, outgoing_message_queue, config)
             

@@ -22,11 +22,11 @@ class DhsContext(DcssContext):
         self._outgoing_msg_queue = outgoing_message_queue
         self._state = None
 
-    def create_connection(self, connection_name:str, url:str)->Connection:
+    def create_connection(self, connection_name:str, scheme:str, url:str, config:dict={})->Connection:
 
-        conn = self._conn_mgr.create_connection(connection_name, url, self._incoming_msg_queue, self._outgoing_msg_queue)
+        conn = self._conn_mgr.create_connection(connection_name, scheme, url, self._incoming_msg_queue, self._outgoing_msg_queue, config)
         if not conn:
-            _logger.error(f'Could not create a connection for {url}')
+            _logger.error(f'Could not create a connection for {scheme}')
 
         return conn
 
@@ -86,6 +86,7 @@ class Dhs:
         self._context = DhsContext(self._active_operations, self._conn_mgr, self._incoming_msg_queue, self._outgoing_msg_queue)
         self._msg_disp = DcssMessageQueueDispatcher('default', self._incoming_msg_queue, self._context, self._active_operations, config)
         self._init()
+        self._conn_mgr.load_registry()
 
     def _init(self):
 
