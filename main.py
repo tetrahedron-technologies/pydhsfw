@@ -82,12 +82,12 @@ def dhs_init(message:DhsInit, context:DhsContext):
 def dhs_start(message:DhsStart, context:DhsContext):
     url = context.state['url']
 
-    context.create_connection('dcss', url)
-    context.get_connection('dcss').connect()
+    context.create_connection('dcss_conn', 'dcss', url)
+    context.get_connection('dcss_conn').connect()
 
 @register_message_handler('stoc_send_client_type')
 def dcss_send_client_type(message:DcssStoCSendClientType, context:Context):
-    context.get_connection('dcss').send(DcssHtoSClientIsHardware('loopDHS2'))
+    context.get_connection('dcss_conn').send(DcssHtoSClientIsHardware('loopDHS2'))
 
 @register_message_handler('stoh_register_operation')
 def dcss_reg_operation(message:DcssStoHRegisterOperation, context:Context):
@@ -107,8 +107,8 @@ def hello_world_1(message:DcssStoHStartOperation, context:DcssContext):
     activeOps = context.get_active_operations(message.operation_name)
     _logger.debug(f'Active operations pre-completed={activeOps}')
     for ao in activeOps:
-        context.get_connection('dcss').send(DcssHtoSOperationUpdate(ao.operation_name, ao.operation_handle, "working on things"))
-        context.get_connection('dcss').send(DcssHtoSOperationCompleted(ao.operation_name, ao.operation_handle, "normal", "h1"))
+        context.get_connection('dcss_conn').send(DcssHtoSOperationUpdate(ao.operation_name, ao.operation_handle, "working on things"))
+        context.get_connection('dcss_conn').send(DcssHtoSOperationCompleted(ao.operation_name, ao.operation_handle, "normal", "h1"))
     _logger.debug(f'Active operations post-completed={context.get_active_operations(message.operation_name)}')
 
 
@@ -118,8 +118,8 @@ def hello_world_2(message:DcssStoHStartOperation, context:DcssContext):
     activeOps = context.get_active_operations(message.operation_name)
     _logger.debug(f'Active operations pre-completed={activeOps}')
     for ao in activeOps:
-        context.get_connection('dcss').send(DcssHtoSOperationUpdate(ao.operation_name, ao.operation_handle, "working on things2"))
-        context.get_connection('dcss').send(DcssHtoSOperationCompleted(ao.operation_name, ao.operation_handle, "normal", "h2"))
+        context.get_connection('dcss_conn').send(DcssHtoSOperationUpdate(ao.operation_name, ao.operation_handle, "working on things2"))
+        context.get_connection('dcss_conn').send(DcssHtoSOperationCompleted(ao.operation_name, ao.operation_handle, "normal", "h2"))
     _logger.debug(f'Active operations post-completed={context.get_active_operations(message.operation_name)}')
 
 dhs = Dhs()

@@ -1,7 +1,6 @@
-import threading 
+from threading import Event
 from collections import deque
-from typing import Any
-from pydhsfw.threads import AbortableThread
+from typing import Any, TypeVar, Generic
 
 class MessageIn():
 
@@ -12,11 +11,11 @@ class MessageIn():
         return cls._type_id
 
     @classmethod
-    def parse(cls, buffer:bytes):
+    def parse(cls, buffer:Any):
         pass
 
     @staticmethod
-    def parse_type_id(cls, buffer:bytes):
+    def parse_type_id(cls, buffer:Any)->Any:
         pass
 
     def __str__(self):
@@ -30,7 +29,7 @@ class MessageOut():
     def get_type_id(cls):
         return cls._type_id
 
-    def write(self)->bytes:
+    def write(self)->Any:
         pass
 
     def __str__(self):
@@ -90,13 +89,13 @@ class MessageFactory():
             if issubclass(msg_cls, MessageIn):
                 self._register_message(msg_cls)
 
-    def _create_message(self, type_id, raw_msg:bytes):
+    def _create_message(self, type_id, raw_msg:Any):
        
         msg_cls = self._get_msg_cls(type_id)
         if msg_cls:
             return msg_cls.parse(raw_msg)
 
-    def _parse_type_id(self, raw_msg:bytes)->Any:
+    def _parse_type_id(self, raw_msg:Any)->Any:
         return NotImplemented
 
     @property
@@ -109,6 +108,57 @@ class MessageFactory():
         type_id = self._parse_type_id(raw_msg)
         return self._create_message(type_id, raw_msg)
     
+T = TypeVar('T')
+class Queue(Generic[T]):
+    def __init__(self):
+        pass
+    def queque(self, item:T):
+        pass
+    def fetch(self, timeout=None)->T:
+        pass
+    def clear(self):
+        pass
+
+class BlockingQueue(Queue[T]):
+
+    def __init__(self):
+        super().__init__()
+        self._deque = deque()
+        self._deque_event = Event()
+
+    def queque(self, item:T):
+        #Append message and unblock
+        self._deque.append(item)
+        self._deque_event.set()
+
+    def fetch(self, timeout=None)->T:
+        
+        item = None
+
+        #Block until items are available
+        if not self._deque_event.wait(timeout):
+            raise TimeoutError
+        
+        elif self._deque: 
+            item = self._deque.popleft()
+
+        #If there are no more items, start blocking again
+        if not self._deque:
+            self._deque_event.clear()
+        return item
+
+    def clear(self):
+            self._deque_event.clear()
+            self._deque.clear()
+
+class IncomingMessageQueue(BlockingQueue[MessageIn]):
+    def __init__(self):
+        super().__init__()
+
+class OutgoingMessageQueue(BlockingQueue[MessageOut]):
+    def __init__(self):
+        super().__init__()
+
 class MessageQueue():
 
     def __init__(self):
@@ -125,7 +175,7 @@ class BlockingMessageQueue(MessageQueue):
     def __init__(self):
         super().__init__()
         self._deque_message = deque()
-        self._deque_event = threading.Event()
+        self._deque_event = Event()
 
     def _queque_message(self, message:MessageIn):
         #Append message and unblock

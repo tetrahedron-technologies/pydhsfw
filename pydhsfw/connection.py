@@ -67,6 +67,9 @@ class ConnectionRegistry():
     def _get_connection_class(cls, connection_scheme:str):
         return cls._registry.get(connection_scheme, None)        
 
+    @classmethod
+    def _get_connection_classes(cls):
+        return cls._registry
 
 def register_connection(connection_scheme:str):
     def decorator_register_connection(cls):
@@ -98,7 +101,7 @@ class ConnectionReadWorker(AbortableThread):
                     # Blocking call with timeout configured elsewhere. This will timeout to check for control messages, specifically SystemExit.
                     raw_msg = self._transport.receive()
                     if raw_msg:
-                        _logger.debug(f'Received unpacked raw message, len: {len(raw_msg)}, buffer: {raw_msg}')
+                        _logger.debug(f'Received unpacked raw message, {raw_msg}')
                         msg = self._msg_factory.create_message(raw_msg)
                         if msg:
                             _logger.debug(f'Received factory created message: {msg}')

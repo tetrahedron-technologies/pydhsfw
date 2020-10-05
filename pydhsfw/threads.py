@@ -26,10 +26,12 @@ class AbortableThread(threading.Thread):
 
     def abort(self): 
         thread_id = self._get_id()
+
         thread = threading._active.get(thread_id)
-        _logger.info(f'Sending SystemExit exceptions to: {thread.name}')
-        res = ctypes.pythonapi.PyThreadState_SetAsyncExc(ctypes.c_ulong(thread_id), 
-              ctypes.py_object(SystemExit)) 
-        if res > 1: 
-            ctypes.pythonapi.PyThreadState_SetAsyncExc(ctypes.c_ulong(thread_id), None) 
-            print('Exception raise failure') 
+        if thread:
+            _logger.info(f'Sending SystemExit exceptions to: {thread.name}')
+            res = ctypes.pythonapi.PyThreadState_SetAsyncExc(ctypes.c_ulong(thread_id), 
+                ctypes.py_object(SystemExit)) 
+            if res > 1: 
+                ctypes.pythonapi.PyThreadState_SetAsyncExc(ctypes.c_ulong(thread_id), None) 
+                print('Exception raise failure') 

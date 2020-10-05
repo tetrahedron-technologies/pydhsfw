@@ -185,6 +185,10 @@ class TcpipClientTransportConnectionWorker(AbortableThread):
     def _set_state(self, state:TransportState):
         self._state = state
         _logger.info(f'Connection state: {state}, url: {self._get_url()}')
+        if state in (TransportState.CONNECTED, TransportState.DISCONNECTED):
+            #TODO[Giles]: Add ConnectionConnectedMessage or ConnectionDisconnectedMessage to the queue.
+            pass
+
 
     def _connect(self):
 
@@ -256,7 +260,7 @@ class TcpipClientTransportConnectionWorker(AbortableThread):
             self._desired_state = TransportState.DISCONNECTED
             self._state = TransportState.CONNECTED
             self._disconnect()
-            time.sleep(3)
+            time.sleep(self._get_blocking_timeout())
             self._desired_state = TransportState.CONNECTED
             self._connect()
 
