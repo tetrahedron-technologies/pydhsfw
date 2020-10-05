@@ -17,5 +17,5 @@ setup(
     #url='https://github.com/gcmullen/pydhsfw',
     license=license,
     packages=find_packages(exclude=('tests', 'docs')),
-    install_requires=['PyYAML']
+    install_requires=['PyYAML', 'dotty-dict']
 )

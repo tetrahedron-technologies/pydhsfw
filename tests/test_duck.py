@@ -2,8 +2,9 @@ from context import pydhsfw
 import logging
 import sys
 import time
-from typing import Any
 import signal
+from typing import Any
+from dotty_dict import dotty
 from pydhsfw.messages import MessageFactory, MessageQueue, register_message
 from pydhsfw.connection import ConnectionBase, register_connection
 from pydhsfw.processors import register_message_handler
@@ -25,7 +26,7 @@ class DuckQueryResponse(JsonResponseMessage):
 
     @property
     def top_result(self):
-        return self.json['RelatedTopics'][0]['Text']
+        return dotty(self.json)['RelatedTopics.0.Text']
 
 class DuckMessageFactory(MessageFactory):
     def __init__(self):
