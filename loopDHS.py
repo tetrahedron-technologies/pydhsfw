@@ -2,15 +2,20 @@ import logging
 import signal
 import sys
 import yaml
+import time
+import io
+import base64
 from pydhsfw.processors import  Context, register_message_handler
 from pydhsfw.dcss import DcssContext, DcssStoCSendClientType, DcssHtoSClientIsHardware, DcssStoHRegisterOperation, DcssStoHStartOperation, DcssHtoSOperationUpdate, DcssHtoSOperationCompleted, register_dcss_start_operation_handler
 from pydhsfw.dhs import Dhs, DhsInit, DhsStart, DhsContext
-from pydhsfw.automl import AutoMLPredictResponse
+from pydhsfw.automl import AutoMLPredictResponse, AutoMLPredictRequest
 
 _logger = logging.getLogger(__name__)
 
 @register_message_handler('dhs_init')
 def dhs_init(message:DhsInit, context:DhsContext):
+
+    loglevel = logging.INFO
 
     parser = message.parser
     #print(f"parser: {parser}")
@@ -57,7 +62,7 @@ def dhs_init(message:DhsInit, context:DhsContext):
     #else:
     #    loglevel = args.loglevel
 
-    loglevel = logging.DEBUG
+    #loglevel = logging.DEBUG
 
     #Logging setup. Will be able to change logging level later with config parameters.
     logformat = "[%(asctime)s] %(levelname)s:%(name)s:%(funcName)s():%(lineno)d - %(message)s"
@@ -81,8 +86,11 @@ def dhs_init(message:DhsInit, context:DhsContext):
     
     dcss_url = 'dcss://' + dcss_host + ':' + str(dcss_port)
     automl_url = 'http://' + automl_host + ':' + str(automl_port)
-    context.state = {'dcss_url':dcss_url}
-    context.state = {'automl_url':automl_url}
+    context.state = {}
+    context.state['dcss_url'] = dcss_url
+    context.state['automl_url'] = automl_url
+    #context.state = {'dcss_url':dcss_url}
+    #context.state = {'automl_url':automl_url}
 
 
 @register_message_handler('dhs_start')
@@ -94,7 +102,7 @@ def dhs_start(message:DhsStart, context:DhsContext):
     context.get_connection('dcss_conn').connect()
 
     image_key = '1a2s3d4f5g'
-    filename = 'loop_nylon.jpg'
+    filename = 'tests/loop_nylon.jpg'
 
     context.create_connection('automl_conn', 'automl', automl_url, {'heartbeat_path': '/v1/models/default'})
     context.get_connection('automl_conn').connect()
