@@ -5,7 +5,7 @@ import time
 import signal
 from typing import Any
 from dotty_dict import dotty
-from pydhsfw.messages import MessageFactory, MessageQueue, register_message
+from pydhsfw.messages import IncomingMessageQueue, MessageFactory, OutgoingMessageQueue, register_message
 from pydhsfw.connection import ConnectionBase, register_connection
 from pydhsfw.processors import register_message_handler
 from pydhsfw.http import GetRequestMessage, HttpClientTransport, JsonResponseMessage, MessageResponseReader, MessageRequestWriter, ResponseMessage
@@ -41,7 +41,7 @@ class DuckClientTransport(HttpClientTransport):
 
 @register_connection('duck')
 class DuckClientConnection(ConnectionBase):
-    def __init__(self, url:str, incoming_message_queue:MessageQueue, outgoing_message_queue:MessageQueue, config:dict={}):
+    def __init__(self, url:str, incoming_message_queue:IncomingMessageQueue, outgoing_message_queue:OutgoingMessageQueue, config:dict={}):
         super().__init__(url, DuckClientTransport(url, config), incoming_message_queue, outgoing_message_queue, DuckMessageFactory(), config)
 
 

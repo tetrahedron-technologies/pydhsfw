@@ -2,7 +2,7 @@ import logging
 from threading import Event
 from inspect import isfunction, signature, getsourcelines, getmodule
 from pydhsfw.threads import AbortableThread
-from pydhsfw.messages import MessageIn, MessageQueue
+from pydhsfw.messages import IncomingMessageQueue, MessageIn
 from pydhsfw.connection import Connection
 
 _logger = logging.getLogger(__name__)
@@ -78,7 +78,7 @@ def register_message_handler(msg_type_id:str, dispatcher_name:str=None):
 
 class MessageQueueWorker(AbortableThread):
 
-    def __init__(self, name, incoming_message_queue:MessageQueue, config:dict={}):
+    def __init__(self, name, incoming_message_queue:IncomingMessageQueue, config:dict={}):
         AbortableThread.__init__(self, name=name, config=config)
         self._msg_queue = incoming_message_queue
 
@@ -90,7 +90,7 @@ class MessageQueueWorker(AbortableThread):
             while True:
                 try:
                     #Can't wait forever in blocking call, need to enter loop to check for control messages, specifically SystemExit.
-                    msg = self._msg_queue._get_message(self._get_blocking_timeout())
+                    msg = self._msg_queue.fetch(self._get_blocking_timeout())
                     if msg:
                         _logger.info(f"Processing message: {msg}")
                         self.process_message(msg)
@@ -109,7 +109,7 @@ class MessageQueueWorker(AbortableThread):
             pass
 
 class MessageQueueDispatcher(MessageQueueWorker):
-    def __init__(self, name:str, incoming_message_queue:MessageQueue, context:Context, config:dict={}):
+    def __init__(self, name:str, incoming_message_queue:IncomingMessageQueue, context:Context, config:dict={}):
         super().__init__(f'{name} dhs message dispatcher', incoming_message_queue, config)
         self._disp_name = name
         self._handler_map = MessageHandlerRegistry._get_message_handlers()         

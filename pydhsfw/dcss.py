@@ -1,6 +1,6 @@
 import logging
 from inspect import isfunction, signature, getsourcelines, getmodule
-from pydhsfw.messages import MessageIn, MessageOut, MessageFactory, MessageQueue, BlockingMessageQueue, register_message
+from pydhsfw.messages import IncomingMessageQueue, MessageIn, MessageOut, MessageFactory, OutgoingMessageQueue, register_message
 from pydhsfw.transport import MessageStreamReader, MessageStreamWriter, StreamReader, StreamWriter
 from pydhsfw.connection import ConnectionBase, register_connection
 from pydhsfw.tcpip import TcpipClientTransport
@@ -995,7 +995,7 @@ class DcssClientTransport(TcpipClientTransport):
 
 @register_connection('dcss')
 class DcssClientConnection(ConnectionBase):
-    def __init__(self, url:str, incoming_message_queue:MessageQueue, outgoing_message_queue:MessageQueue, config:dict={}):
+    def __init__(self, url:str, incoming_message_queue:IncomingMessageQueue, outgoing_message_queue:OutgoingMessageQueue, config:dict={}):
         super().__init__(url, DcssClientTransport(url, config), incoming_message_queue, outgoing_message_queue, DcssMessageFactory(), config)
 
 class DcssOperationHandlerRegistry():
@@ -1093,7 +1093,7 @@ class DcssContext(Context):
          '''
         return self._active_operations.get_operations(operation_name, operation_handle)
 
-class DcssOutgoingMessageQueue(BlockingMessageQueue):
+class DcssOutgoingMessageQueue(OutgoingMessageQueue):
     def __init__(self, active_operations:DcssActiveOperations):
         super().__init__()
         self._active_operations = active_operations
@@ -1107,7 +1107,7 @@ class DcssOutgoingMessageQueue(BlockingMessageQueue):
             self._active_operations.remove_operations(msgs)
 
 class DcssMessageQueueDispatcher(MessageQueueDispatcher):
-    def __init__(self, name:str, incoming_message_queue:MessageQueue, context:Context, active_operations:DcssActiveOperations, config:dict={}):
+    def __init__(self, name:str, incoming_message_queue:IncomingMessageQueue, context:Context, active_operations:DcssActiveOperations, config:dict={}):
         super().__init__(name, incoming_message_queue, context, config)
         self._active_operations = active_operations
         self._operation_handler_map = DcssOperationHandlerRegistry._get_operation_handlers()
