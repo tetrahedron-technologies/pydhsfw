@@ -154,11 +154,53 @@ class BlockingQueue(Queue[T]):
 class IncomingMessageQueue(BlockingQueue[MessageIn]):
     def __init__(self):
         super().__init__()
+        self._deque_message = deque()
+        self._deque_event = Event()
+
+    def _queque_message(self, message:MessageIn):
+        #Append message and unblock
+        self._deque_message.append(message)
+        self._deque_event.set()
+
+ 
+        #If there are no more items, start blocking again
+        if not self._deque_message:
+            self._deque_event.clear()
+        return msg
+
+    def clear(self):
+            self._deque_event.clear()
+            self._deque_message.clear()
 
 class OutgoingMessageQueue(BlockingQueue[MessageOut]):
     def __init__(self):
         super().__init__()
+        self._deque_message = deque()
+        self._deque_event = Event()
 
+    def fetch(self, timeout=None)->MessageOut:
+
+        msg = None
+
+        #Blocks until items are available
+        if not self._deque_event.wait(timeout):
+            raise TimeoutError      
+
+        #If message is available, we pop the message from the left of the deque
+        elif self._deque_message:
+            msg = self._deque_message.popleft() 
+
+
+        #If there are no more items, start blocking again
+        if not self._deque_message:
+            self._deque_event.clear()
+        return msg
+
+    def clear(self):
+            self._deque_event.clear()
+            self._deque_message.clear()
+
+'''
 class MessageQueue():
 
     def __init__(self):
@@ -201,3 +243,4 @@ class BlockingMessageQueue(MessageQueue):
     def _clear_messages(self):
             self._deque_event.clear()
             self._deque_message.clear()
+'''
