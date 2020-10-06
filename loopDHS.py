@@ -140,7 +140,7 @@ def hello_world_2(message:DcssStoHStartOperation, context:DcssContext):
 
 @register_dcss_start_operation_handler('predictOne')
 def predict_one(message:DcssStoHStartOperation, context:DcssContext):
-    _logger.info("received predictOne from DCSS")
+    _logger.info(f'GOT: {message}')
     activeOps = context.get_active_operations(message.operation_name)
     for ao in activeOps:
         context.get_connection('dcss_conn').send(DcssHtoSOperationUpdate(ao.operation_name, ao.operation_handle, "about to predict one test image"))
@@ -149,19 +149,28 @@ def predict_one(message:DcssStoHStartOperation, context:DcssContext):
         with io.open(filename, 'rb') as image_file:
             binary_image = image_file.read()
         context.get_connection('automl_conn').send(AutoMLPredictRequest(image_key, binary_image))
-        
-        # how to I get the values back from automl_predict_response ?
-        #context.get_connection('dcss_conn').send(DcssHtoSOperationUpdate(ao.operation_name, ao.operation_handle, "send bounding box info here"))
-        
 
-# @register_message_handler('automl_predict_request')
-# def automl_predict_request(message:AutoMLPredictRequest, context:DhsContext):
-#     image_key = '1a2s3d4f5g'
-#     filename = 'tests/loop_nylon.jpg'
+@register_dcss_start_operation_handler('collectLoopImages')
+def collect_loop_images(message:DcssStoHStartOperation, context:DcssContext):
+    _logger.info(f'GOT: {message}')
 
-#     with io.open(filename, 'rb') as image_file:
-#         binary_image = image_file.read()
-#     context.get_connection('automl_conn').send(AutoMLPredictRequest(image_key, binary_image))
+@register_dcss_start_operation_handler('getLoopTip')
+def get_loop_tip(message:DcssStoHStartOperation, context:DcssContext):
+    _logger.info(f'GOT: {message}')
+
+@register_dcss_start_operation_handler('getLoopInfo')
+def get_loop_info(message:DcssStoHStartOperation, context:DcssContext):
+    _logger.info(f'GOT: {message}')
+
+@register_dcss_start_operation_handler('stopCollectLoopImages')
+def stop_collect_loop_images(message:DcssStoHStartOperation, context:DcssContext):
+    _logger.info(f'GOT: {message}')
+
+# reboxLoopImage is used in loopFast.tcl
+# not sure we need it? but need to explore a bit.
+@register_dcss_start_operation_handler('reboxLoopImage')
+def rebox_loop_image(message:DcssStoHStartOperation, context:DcssContext):
+    _logger.info(f'GOT: {message}')
 
 
 @register_message_handler('automl_predict_response')
@@ -169,12 +178,16 @@ def automl_predict_response(message:AutoMLPredictResponse, context:DhsContext):
     _logger.info(f'TOP BB SCORE: {message.top_result}')
     _logger.info(f'TOP BB DIM: {message.top_bb}')
     _logger.info(f'TOP BB TYPE: {message.top_classification}')
+    return_msg = str(message.top_result) + " " + str(message.top_bb) + " " + str(message.top_classification)
+    _logger.info(f'RETURN_MSG: {return_msg}')
     # where do I store various values? some sort of global varibale?
     # some property within a class within a context?
     # do stuff n math n things
     # figurte out which op
     # send operation updates to dcss
-    context.get_connection('dcss_conn').send(DcssHtoSOperationCompleted(ao.operation_name, ao.operation_handle, "normal", "final results go here"))
+
+    # how do I get the operation name and handle?
+    context.get_connection('dcss_conn').send(DcssHtoSOperationCompleted(operation_name, operation_handle, "normal", return_msg))
 
 dhs = Dhs()
 dhs.start()
