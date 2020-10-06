@@ -86,7 +86,8 @@ def dhs_init(message:DhsInit, context:DhsContext):
 
     dcss_url = 'dcss://' + dcss_host + ':' + str(dcss_port)
     automl_url = 'http://' + automl_host + ':' + str(automl_port)
-    context.state = {'dcss_url': dcss_url, 'automl_url': automl_url}
+    # merge values from command line and config file:
+    context.state = {'dcss_url': dcss_url, 'automl_url': automl_url, 'DHS': args.dhs_name}
 
 @register_message_handler('dhs_start')
 def dhs_start(message:DhsStart, context:DhsContext):
@@ -103,7 +104,7 @@ def dhs_start(message:DhsStart, context:DhsContext):
 
 @register_message_handler('stoc_send_client_type')
 def dcss_send_client_type(message:DcssStoCSendClientType, context:Context):
-    context.get_connection('dcss_conn').send(DcssHtoSClientIsHardware('loopDHS2'))
+    context.get_connection('dcss_conn').send(DcssHtoSClientIsHardware(context.state['DHS']))
 
 @register_message_handler('stoh_register_operation')
 def dcss_reg_operation(message:DcssStoHRegisterOperation, context:Context):
