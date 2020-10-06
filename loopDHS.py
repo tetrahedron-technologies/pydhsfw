@@ -166,7 +166,9 @@ def predict_one(message:DcssStoHStartOperation, context:DcssContext):
 
 @register_message_handler('automl_predict_response')
 def automl_predict_response(message:AutoMLPredictResponse, context:DhsContext):
-    _logger.info(message.top_result)
+    _logger.info(f'TOP BB SCORE: {message.top_result}')
+    _logger.info(f'TOP BB DIM: {message.top_bb}')
+    _logger.info(f'TOP BB TYPE: {message.top_classification}')
     # where do I store various values? some sort of global varibale?
     # some property within a class within a context?
     # do stuff n math n things
