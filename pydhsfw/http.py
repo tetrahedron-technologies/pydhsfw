@@ -129,7 +129,6 @@ class MessageRequestWriter():
 
         return request
 
-
 class HttpClientTransportConnectionWorker(AbortableThread):
 
     def __init__(self, url:str, config:dict={}):
