@@ -8,7 +8,7 @@ import base64
 from pydhsfw.processors import  Context, register_message_handler
 from pydhsfw.dcss import DcssContext, DcssStoCSendClientType, DcssHtoSClientIsHardware, DcssStoHRegisterOperation, DcssStoHStartOperation, DcssHtoSOperationUpdate, DcssHtoSOperationCompleted, register_dcss_start_operation_handler
 from pydhsfw.dhs import Dhs, DhsInit, DhsStart, DhsContext
-from pydhsfw.automl import AutoMLPredictResponse, AutoMLPredictRequest
+from pydhsfw.automl import AutoMLPredictRequest, AutoMLPredictResponse
 
 _logger = logging.getLogger(__name__)
 
@@ -62,7 +62,7 @@ def dhs_init(message:DhsInit, context:DhsContext):
     #else:
     #    loglevel = args.loglevel
 
-    #loglevel = logging.DEBUG
+    loglevel = logging.DEBUG
 
     #Logging setup. Will be able to change logging level later with config parameters.
     logformat = "[%(asctime)s] %(levelname)s:%(name)s:%(funcName)s():%(lineno)d - %(message)s"
@@ -86,11 +86,8 @@ def dhs_init(message:DhsInit, context:DhsContext):
     
     dcss_url = 'dcss://' + dcss_host + ':' + str(dcss_port)
     automl_url = 'http://' + automl_host + ':' + str(automl_port)
-    context.state = {}
-    context.state['dcss_url'] = dcss_url
-    context.state['automl_url'] = automl_url
-    #context.state = {'dcss_url':dcss_url}
-    #context.state = {'automl_url':automl_url}
+    context.state = {'dcss_url': dcss_url, 'automl_url': automl_url}
+
 
 
 @register_message_handler('dhs_start')
@@ -98,19 +95,13 @@ def dhs_start(message:DhsStart, context:DhsContext):
     dcss_url = context.state['dcss_url']
     automl_url = context.state['automl_url']
 
+    # connect to DCSS
     context.create_connection('dcss_conn', 'dcss', dcss_url)
     context.get_connection('dcss_conn').connect()
 
-    image_key = '1a2s3d4f5g'
-    filename = 'tests/loop_nylon.jpg'
-
+    # connect to GCP AutoML docker service
     context.create_connection('automl_conn', 'automl', automl_url, {'heartbeat_path': '/v1/models/default'})
     context.get_connection('automl_conn').connect()
-    time.sleep(3)
-    with io.open(filename, 'rb') as image_file:
-        binary_image = image_file.read()
-    context.get_connection('automl_conn').send(AutoMLPredictRequest(image_key,binary_image))
-
 
 @register_message_handler('stoc_send_client_type')
 def dcss_send_client_type(message:DcssStoCSendClientType, context:Context):
@@ -147,6 +138,17 @@ def hello_world_2(message:DcssStoHStartOperation, context:DcssContext):
         context.get_connection('dcss_conn').send(DcssHtoSOperationUpdate(ao.operation_name, ao.operation_handle, "working on things2"))
         context.get_connection('dcss_conn').send(DcssHtoSOperationCompleted(ao.operation_name, ao.operation_handle, "normal", "h2"))
     _logger.debug(f'Active operations post-completed={context.get_active_operations(message.operation_name)}')
+
+
+""" @register_message_handler('automl_predict_request')
+def automl_predict_request(message:AutoMLPredictRequest, context:DhsContext):
+    image_key = '1a2s3d4f5g'
+    filename = 'tests/loop_nylon.jpg'
+
+    with io.open(filename, 'rb') as image_file:
+        binary_image = image_file.read()
+    context.get_connection('automl_conn').send(AutoMLPredictRequest(image_key, binary_image)) """
+
 
 @register_message_handler('automl_predict_response')
 def automl_predict_response(message:AutoMLPredictResponse, context:DhsContext):
