@@ -5,9 +5,8 @@ import signal
 from typing import Any
 from pydhsfw.messages import MessageIn, MessageQueue, BlockingMessageQueue, register_message
 from pydhsfw.connection import Connection
-from pydhsfw.processors import Context, MessageQueueDispatcher
 from pydhsfw.connectionmanager import ConnectionManager
-from pydhsfw.dcss import DcssContext, DcssActiveOperations, DcssOutgoingMessageQueue, DcssMessageQueueDispatcher
+from pydhsfw.dcss import DcssClientConnection, DcssContext, DcssActiveOperations, DcssOutgoingMessageQueue, DcssMessageQueueDispatcher
 
 _logger = logging.getLogger(__name__)
 
@@ -15,16 +14,19 @@ class DhsContext(DcssContext):
     """
     DhsContext
     """
-    def __init__(self, active_operations: DcssActiveOperations, connection_mgr:ConnectionManager, incoming_message_queue:MessageQueue, outgoing_message_queue:MessageQueue):
+    def __init__(self, active_operations: DcssActiveOperations, connection_mgr:ConnectionManager, incoming_message_queue:MessageQueue, dcss_outgoing_message_queue:MessageQueue):
         super().__init__(active_operations)
         self._conn_mgr = connection_mgr
         self._incoming_msg_queue = incoming_message_queue
-        self._outgoing_msg_queue = outgoing_message_queue
+        self._dcss_outgoing_msg_queue = dcss_outgoing_message_queue
         self._state = None
 
     def create_connection(self, connection_name:str, scheme:str, url:str, config:dict={})->Connection:
 
-        conn = self._conn_mgr.create_connection(connection_name, scheme, url, self._incoming_msg_queue, self._outgoing_msg_queue, config)
+        outgoing_msg_queue = BlockingMessageQueue()
+        if scheme == DcssClientConnection._scheme:
+            outgoing_msg_queue = self._dcss_outgoing_msg_queue
+        conn = self._conn_mgr.create_connection(connection_name, scheme, url, self._incoming_msg_queue, outgoing_msg_queue, config)
         if not conn:
             _logger.error(f'Could not create a connection for {scheme}')
 
@@ -82,8 +84,8 @@ class Dhs:
         self._conn_mgr = ConnectionManager()
         self._active_operations = DcssActiveOperations()
         self._incoming_msg_queue = BlockingMessageQueue()
-        self._outgoing_msg_queue = DcssOutgoingMessageQueue(self._active_operations)
-        self._context = DhsContext(self._active_operations, self._conn_mgr, self._incoming_msg_queue, self._outgoing_msg_queue)
+        self._dcss_outgoing_msg_queue = DcssOutgoingMessageQueue(self._active_operations)
+        self._context = DhsContext(self._active_operations, self._conn_mgr, self._incoming_msg_queue, self._dcss_outgoing_msg_queue)
         self._msg_disp = DcssMessageQueueDispatcher('default', self._incoming_msg_queue, self._context, self._active_operations, config)
         self._init()
         self._conn_mgr.load_registry()
