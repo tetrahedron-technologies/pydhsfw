@@ -6,8 +6,8 @@ import time
 import io
 import base64
 from pydhsfw.processors import  Context, register_message_handler
-from pydhsfw.dcss import DcssContext, DcssStoCSendClientType, DcssHtoSClientIsHardware, DcssStoHRegisterOperation, DcssStoHStartOperation, DcssHtoSOperationUpdate, DcssHtoSOperationCompleted, register_dcss_start_operation_handler
 from pydhsfw.dhs import Dhs, DhsInit, DhsStart, DhsContext
+from pydhsfw.dcss import DcssContext, DcssStoCSendClientType, DcssHtoSClientIsHardware, DcssStoHRegisterOperation, DcssStoHStartOperation, DcssHtoSOperationUpdate, DcssHtoSOperationCompleted, register_dcss_start_operation_handler
 from pydhsfw.automl import AutoMLPredictRequest, AutoMLPredictResponse
 
 _logger = logging.getLogger(__name__)
@@ -79,16 +79,14 @@ def dhs_init(message:DhsInit, context:DhsContext):
         conf = yaml.safe_load(f)
         dcss_host = conf['dcss']['host']
         dcss_port = conf['dcss']['port']
-        automl_host = conf['loopdhs']['gcp_automl_docker_host']
-        automl_port = conf['loopdhs']['gcp_automl_docker_port']
+        automl_host = conf['loopdhs']['automl']['host']
+        automl_port = conf['loopdhs']['automl']['port']
         _logger.info(f"DCSS HOST: {dcss_host} PORT: {dcss_port}")
         _logger.info(f"AUTOML HOST: {automl_host} PORT: {automl_port}")
-    
+
     dcss_url = 'dcss://' + dcss_host + ':' + str(dcss_port)
     automl_url = 'http://' + automl_host + ':' + str(automl_port)
     context.state = {'dcss_url': dcss_url, 'automl_url': automl_url}
-
-
 
 @register_message_handler('dhs_start')
 def dhs_start(message:DhsStart, context:DhsContext):
@@ -139,15 +137,27 @@ def hello_world_2(message:DcssStoHStartOperation, context:DcssContext):
         context.get_connection('dcss_conn').send(DcssHtoSOperationCompleted(ao.operation_name, ao.operation_handle, "normal", "h2"))
     _logger.debug(f'Active operations post-completed={context.get_active_operations(message.operation_name)}')
 
+@register_dcss_start_operation_handler('predictOne')
+def predict_one(message:DcssStoHStartOperation, context:DcssContext):
+    _logger.info("received predictOne from DCSS")
+    activeOps = context.get_active_operations(message.operation_name)
+    for ao in activeOps:
+            context.get_connection('dcss_conn').send(DcssHtoSOperationUpdate(ao.operation_name, ao.operation_handle, "working on things2"))
+            image_key = "1q2w3e4r5t"
+            filename = 'tests/loop_nylon.jpg'
+            with io.open(filename, 'rb') as image_file:
+                binary_image = image_file.read()
+            context.get_connection('automl_conn').send(AutoMLPredictRequest(image_key, binary_image))
+            context.get_connection('dcss_conn').send(DcssHtoSOperationCompleted(ao.operation_name, ao.operation_handle, "normal", "h2"))
 
-""" @register_message_handler('automl_predict_request')
-def automl_predict_request(message:AutoMLPredictRequest, context:DhsContext):
-    image_key = '1a2s3d4f5g'
-    filename = 'tests/loop_nylon.jpg'
+# @register_message_handler('automl_predict_request')
+# def automl_predict_request(message:AutoMLPredictRequest, context:DhsContext):
+#     image_key = '1a2s3d4f5g'
+#     filename = 'tests/loop_nylon.jpg'
 
-    with io.open(filename, 'rb') as image_file:
-        binary_image = image_file.read()
-    context.get_connection('automl_conn').send(AutoMLPredictRequest(image_key, binary_image)) """
+#     with io.open(filename, 'rb') as image_file:
+#         binary_image = image_file.read()
+#     context.get_connection('automl_conn').send(AutoMLPredictRequest(image_key, binary_image))
 
 
 @register_message_handler('automl_predict_response')
