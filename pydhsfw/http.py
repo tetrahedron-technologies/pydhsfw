@@ -258,9 +258,11 @@ class HttpClientTransportConnectionWorker(AbortableThread):
                     except gaierror as e:
                         _logger.error(f'Connection error, could not resolve hostname {urlparse(url).hostname}')
                         self._set_state(TransportState.DISCONNECTED)
+                        end_delay_time = time.time() + connect_retry_delay
                     except exceptions.ConnectionError as e:
                         _logger.error(f'Connection error, could not connect to {url}')
                         self._set_state(TransportState.DISCONNECTED)
+                        end_delay_time = time.time() + connect_retry_delay
                     except Exception:
                         _logger.exception(None)
                         self._set_state(TransportState.DISCONNECTED)
