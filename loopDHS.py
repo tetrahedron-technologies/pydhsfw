@@ -149,9 +149,10 @@ def predict_one(message:DcssStoHStartOperation, context:DcssContext):
         with io.open(filename, 'rb') as image_file:
             binary_image = image_file.read()
         context.get_connection('automl_conn').send(AutoMLPredictRequest(image_key, binary_image))
+        
         # how to I get the values back from automl_predict_response ?
-        context.get_connection('dcss_conn').send(DcssHtoSOperationUpdate(ao.operation_name, ao.operation_handle, "send bounding box info here"))
-        context.get_connection('dcss_conn').send(DcssHtoSOperationCompleted(ao.operation_name, ao.operation_handle, "normal", "final results go here"))
+        #context.get_connection('dcss_conn').send(DcssHtoSOperationUpdate(ao.operation_name, ao.operation_handle, "send bounding box info here"))
+        
 
 # @register_message_handler('automl_predict_request')
 # def automl_predict_request(message:AutoMLPredictRequest, context:DhsContext):
@@ -171,6 +172,7 @@ def automl_predict_response(message:AutoMLPredictResponse, context:DhsContext):
     # do stuff n math n things
     # figurte out which op
     # send operation updates to dcss
+    context.get_connection('dcss_conn').send(DcssHtoSOperationCompleted(ao.operation_name, ao.operation_handle, "normal", "final results go here"))
 
 dhs = Dhs()
 dhs.start()
