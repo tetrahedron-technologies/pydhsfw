@@ -13,10 +13,8 @@ _logger = logging.getLogger(__name__)
 
 @register_message('automl_predict_request')
 class AutoMLPredictRequest(PostJsonRequestMessage):
-    """AutoMLPredictRequest
-
-        formats the json data package and sends to the GCP AutoML server for prediction
-    """
+    """Formats a json data package and sends to the GCP AutoML server for prediction."""
+    
     def __init__(self, key:str, image:bytes):
 
         encoded_image = base64.b64encode(image).decode('utf-8')
@@ -32,10 +30,8 @@ class AutoMLPredictRequest(PostJsonRequestMessage):
 
 @register_message('automl_predict_response', 'automl')
 class AutoMLPredictResponse(JsonResponseMessage):
-    """AutoMLPredictResponse
+    """Parses the response json file and stores various values the top hit in class properties."""
 
-        parses the response json file and stores vrious values the top hit in class properties
-    """
     def __init__(self, response):
         super().__init__(response)
 
@@ -61,10 +57,14 @@ class AutoMLMessageFactory(MessageFactory):
         return ResponseMessage.parse_type_id(response)
 
 class AutoMLClientTransport(HttpClientTransport):
+    """Overrides HttpClientTransport and handles message reading and writing"""
+
     def __init__(self, url:str, config:dict={}):
         super().__init__(url, MessageResponseReader(), MessageRequestWriter(), config)
 
 @register_connection('automl')
 class AutoMLClientConnection(ConnectionBase):
+    """Overrides ConnectionBase and creates a GCP AutoML connection"""
+
     def __init__(self, url:str, incoming_message_queue:MessageQueue, outgoing_message_queue:MessageQueue, config:dict={}):
         super().__init__(url, AutoMLClientTransport(url, config), incoming_message_queue, outgoing_message_queue, AutoMLMessageFactory(), config)
