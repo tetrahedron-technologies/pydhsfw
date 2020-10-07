@@ -140,6 +140,9 @@ def hello_world_2(message:DcssStoHStartOperation, context:DcssContext):
 
 @register_dcss_start_operation_handler('predictOne')
 def predict_one(message:DcssStoHStartOperation, context:DcssContext):
+    """
+    The operation is for testing AutoML. It send a single image from the tests directory
+    """
     _logger.info(f'GOT: {message}')
     activeOps = context.get_active_operations(message.operation_name)
     for ao in activeOps:
@@ -152,25 +155,89 @@ def predict_one(message:DcssStoHStartOperation, context:DcssContext):
 
 @register_dcss_start_operation_handler('collectLoopImages')
 def collect_loop_images(message:DcssStoHStartOperation, context:DcssContext):
+    """
+    This operation initiates the the jpeg receiver, informs DCSS to start_oscillation, as each jpeg image file is received it is processed
+    and the AutoML results sent back as operation updates.
+
+    DCSS may send a single arg <pinBaseSizeHint>, but I think we can ignore it.
+    """
     _logger.info(f'GOT: {message}')
+    # 1. tell the http server to get ready to receive images
+    # 2. send an operation update message to DCSS to trigger both sample rotation and axis server to send images.
+    #    htos_operation_update collectLoopImages operation_handle start_oscillation
+    # 3. as each image arrives forward it to AutoML for loop classification and bounding box determination.
+    # 4. format an operation update for each image and send to DCSS
+    #    for error:
+    #    htos_operation_update collectLoopImages operation_handle LOOP_INFO <index> failed <error_message>
+    #    for success:
+    #    htos_operation_update collectLoopImages operation_handle LOOP_INFO <index> normal tipX tipY pinBaseX fiberWidth loopWidth boxMinX boxMaxX boxMinY boxMaxY loopWidthX isMicroMount
+    # 5. listen for some global flag/signal (set by the stopCollectLoopImages operation) that operation should stop processing images
+    #    and then send an operation complete message to DCSS
+    #    for error:
+    #    htos_operation_completed collectLoopImages operation_handle aborted
+    #    for success:
+    #    htos_operation_completed collectLoopImages operation_handle normal done
 
 @register_dcss_start_operation_handler('getLoopTip')
 def get_loop_tip(message:DcssStoHStartOperation, context:DcssContext):
+    """
+    This operation should return the position of the right (or left) most point of a loop.
+    This operation takes a single optional integer arg <ifaskPinPosFlag>
+    
+    1. htos_operation_completed getLoopTip operation_handle normal tipX tipY  (when ifaskPinPosFlag = 0)
+       or:
+       htos_operation_completed getLoopTip operation_handle normal tipX tipY pinBaseX (when ifaskPinPosFlag = 1)
+    2. htos_operation_completed getLoopTip operation_handle error TipNotInView +/-
+
+    """
     _logger.info(f'GOT: {message}')
+    # need to confirm that pinBaseX is the same as PinPos in imgCentering.cc
+    #
+    # 1. request single jpeg image from axis video server
+    # 2. send to AutoML
+    # 3. format results and send results bacxk to DCSS
 
 @register_dcss_start_operation_handler('getLoopInfo')
 def get_loop_info(message:DcssStoHStartOperation, context:DcssContext):
+    """
+    This operation should return full suite of info about a single image.
+
+    DCSS may send a single arg pinBaseSizeHint, but I think we can ignore it.
+    """
     _logger.info(f'GOT: {message}')
+    # 1. Grab single image from Axis Video server
+    #    on error:
+    #    htos_operation_completed getLoopInfo operation_handle error failed to get image
+    # 2. Send to AutoML
+    # 3. Format AutoML results and send info back to DCSS
+    #    on error:
+    #    htos_operation_completed getLoopInfo operation_handle failed <error_message>
+    #    on success:
+    #    htos_operation_completed getLoopInfo operation_handle normal tipX tipY pinBaseX fiberWidth loopWidth boxMinX boxMaxX boxMinY boxMaxY loopWidthX isMicroMount
 
 @register_dcss_start_operation_handler('stopCollectLoopImages')
 def stop_collect_loop_images(message:DcssStoHStartOperation, context:DcssContext):
+    """
+    This operation should set a global flag to signal collectLoopImages to stop and to shutdown the jpeg receiver.
+    """
     _logger.info(f'GOT: {message}')
+    # 1. set global stop flag
+    # 2. shutdown jpeg receiver
+    # 3. send update message to DCSS
+    #    htos_operation_completed stopCollectLoopImages operation_handle normal flag set
 
-# reboxLoopImage is used in loopFast.tcl
-# not sure we need it? but need to explore a bit.
 @register_dcss_start_operation_handler('reboxLoopImage')
 def rebox_loop_image(message:DcssStoHStartOperation, context:DcssContext):
+    """
+    This operation is used to more accurately define the loop bounding box.
+
+    Parameters:
+    index (int):
+    start (double):
+    end (double):
+    """
     _logger.info(f'GOT: {message}')
+    # need to figure this out.
 
 
 @register_message_handler('automl_predict_response')
