@@ -1,6 +1,6 @@
 import logging
 from inspect import isfunction, signature, getsourcelines, getmodule
-from pydhsfw.messages import IncomingMessageQueue, MessageIn, MessageOut, MessageFactory, OutgoingMessageQueue, register_message
+from pydhsfw.messages import IncomingMessageQueue, OutgoingMessageQueue, MessageIn, MessageOut, MessageFactory, register_message
 from pydhsfw.transport import MessageStreamReader, MessageStreamWriter, StreamReader, StreamWriter
 from pydhsfw.connection import ConnectionBase, register_connection
 from pydhsfw.tcpip import TcpipClientTransport

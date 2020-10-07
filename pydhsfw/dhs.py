@@ -3,7 +3,7 @@ import sys
 import logging
 import signal
 from typing import Any
-from pydhsfw.messages import IncomingMessageQueue, MessageIn, OutgoingMessageQueue, register_message
+from pydhsfw.messages import IncomingMessageQueue, OutgoingMessageQueue, MessageIn, register_message
 from pydhsfw.connection import Connection
 from pydhsfw.connectionmanager import ConnectionManager
 from pydhsfw.dcss import DcssClientConnection, DcssContext, DcssActiveOperations, DcssOutgoingMessageQueue, DcssMessageQueueDispatcher
@@ -84,8 +84,8 @@ class Dhs:
         self._conn_mgr = ConnectionManager()
         self._active_operations = DcssActiveOperations()
         self._incoming_msg_queue = IncomingMessageQueue()
-        self._outgoing_msg_queue = DcssOutgoingMessageQueue(self._active_operations)
-        self._context = DhsContext(self._active_operations, self._conn_mgr, self._incoming_msg_queue, self._outgoing_msg_queue)
+        self._dcss_outgoing_msg_queue = DcssOutgoingMessageQueue(self._active_operations)
+        self._context = DhsContext(self._active_operations, self._conn_mgr, self._incoming_msg_queue, self._dcss_outgoing_msg_queue)
         self._msg_disp = DcssMessageQueueDispatcher('default', self._incoming_msg_queue, self._context, self._active_operations, config)
         self._init()
         self._conn_mgr.load_registry()

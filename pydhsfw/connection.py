@@ -1,7 +1,7 @@
 import logging
 from enum import Enum
 from pydhsfw.threads import AbortableThread
-from pydhsfw.messages import IncomingMessageQueue, MessageIn, MessageOut, MessageFactory, OutgoingMessageQueue
+from pydhsfw.messages import IncomingMessageQueue, OutgoingMessageQueue, MessageIn, MessageOut, MessageFactory
 from pydhsfw.transport import Transport
 
 _logger = logging.getLogger(__name__)

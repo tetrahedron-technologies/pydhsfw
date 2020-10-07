@@ -8,7 +8,7 @@ import time
 import signal
 from typing import Any
 from dotty_dict import dotty
-from pydhsfw.messages import IncomingMessageQueue, MessageFactory, OutgoingMessageQueue, register_message
+from pydhsfw.messages import IncomingMessageQueue, OutgoingMessageQueue, MessageFactory, register_message
 from pydhsfw.connection import ConnectionBase, register_connection
 from pydhsfw.processors import register_message_handler
 from pydhsfw.http import PostJsonRequestMessage, JsonResponseMessage, HttpClientTransport, MessageResponseReader, MessageRequestWriter, ResponseMessage
