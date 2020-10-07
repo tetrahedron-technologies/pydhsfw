@@ -18,8 +18,7 @@ def dhs_init(message:DhsInit, context:DhsContext):
     loglevel = logging.INFO
 
     parser = message.parser
-    #print(f"parser: {parser}")
-    #parser = argparse.ArgumentParser(description="DHS Distributed Hardware Server")
+
     parser.add_argument(
         "--version",
         action="version",
@@ -47,20 +46,8 @@ def dhs_init(message:DhsInit, context:DhsContext):
         help="set loglevel to DEBUG",
         action="store_const",
         const=logging.DEBUG)
-    #parser.add_argument(
-    #    "-c",
-    #    "--config",
-    #    dest="config_file",
-    #    help="pull settings from config file",
-    #    metavar="config_file")
-    
+
     args = parser.parse_args(message.args)
-    #print(args)
-    # I'm not sure how to set a default logging level in argparse so will try this
-    #if args.loglevel == None:
-    #    loglevel = logging.INFO
-    #else:
-    #    loglevel = args.loglevel
 
     loglevel = logging.DEBUG
 
@@ -141,7 +128,7 @@ def hello_world_2(message:DcssStoHStartOperation, context:DcssContext):
 @register_dcss_start_operation_handler('predictOne')
 def predict_one(message:DcssStoHStartOperation, context:DcssContext):
     """
-    The operation is for testing AutoML. It send a single image from the tests directory
+    The operation is for testing AutoML. It reads a single image of a nylon loop from the tests directory and sends it to AutoML.
     """
     _logger.info(f'GOT: {message}')
     activeOps = context.get_active_operations(message.operation_name)
@@ -162,16 +149,16 @@ def collect_loop_images(message:DcssStoHStartOperation, context:DcssContext):
     DCSS may send a single arg <pinBaseSizeHint>, but I think we can ignore it.
     """
     _logger.info(f'GOT: {message}')
-    # 1. tell the http server to get ready to receive images
-    # 2. send an operation update message to DCSS to trigger both sample rotation and axis server to send images.
+    # 1. Tell the http server to get ready to receive images
+    # 2. Send an operation update message to DCSS to trigger both sample rotation and axis server to send images.
     #    htos_operation_update collectLoopImages operation_handle start_oscillation
-    # 3. as each image arrives forward it to AutoML for loop classification and bounding box determination.
-    # 4. format an operation update for each image and send to DCSS
+    # 3. As each image arrives forward it to AutoML for loop classification and bounding box determination.
+    # 4. Format an operation update for each image and send to DCSS
     #    for error:
     #    htos_operation_update collectLoopImages operation_handle LOOP_INFO <index> failed <error_message>
     #    for success:
     #    htos_operation_update collectLoopImages operation_handle LOOP_INFO <index> normal tipX tipY pinBaseX fiberWidth loopWidth boxMinX boxMaxX boxMinY boxMaxY loopWidthX isMicroMount
-    # 5. listen for some global flag/signal (set by the stopCollectLoopImages operation) that operation should stop processing images
+    # 5. Listen for some global flag/signal (set by the stopCollectLoopImages operation) that operation should stop processing images
     #    and then send an operation complete message to DCSS
     #    for error:
     #    htos_operation_completed collectLoopImages operation_handle aborted
@@ -193,9 +180,9 @@ def get_loop_tip(message:DcssStoHStartOperation, context:DcssContext):
     _logger.info(f'GOT: {message}')
     # need to confirm that pinBaseX is the same as PinPos in imgCentering.cc
     #
-    # 1. request single jpeg image from axis video server
-    # 2. send to AutoML
-    # 3. format results and send results bacxk to DCSS
+    # 1. Request single jpeg image from axis video server
+    # 2. Send to AutoML
+    # 3. Format results and send results bacxk to DCSS
 
 @register_dcss_start_operation_handler('getLoopInfo')
 def get_loop_info(message:DcssStoHStartOperation, context:DcssContext):
@@ -221,9 +208,9 @@ def stop_collect_loop_images(message:DcssStoHStartOperation, context:DcssContext
     This operation should set a global flag to signal collectLoopImages to stop and to shutdown the jpeg receiver.
     """
     _logger.info(f'GOT: {message}')
-    # 1. set global stop flag
-    # 2. shutdown jpeg receiver
-    # 3. send update message to DCSS
+    # 1. Set global stop flag
+    # 2. Shutdown jpeg receiver
+    # 3. Send update message to DCSS
     #    htos_operation_completed stopCollectLoopImages operation_handle normal flag set
 
 @register_dcss_start_operation_handler('reboxLoopImage')
@@ -238,7 +225,6 @@ def rebox_loop_image(message:DcssStoHStartOperation, context:DcssContext):
     """
     _logger.info(f'GOT: {message}')
     # need to figure this out.
-
 
 @register_message_handler('automl_predict_response')
 def automl_predict_response(message:AutoMLPredictResponse, context:DhsContext):
