@@ -1098,8 +1098,8 @@ class DcssOutgoingMessageQueue(OutgoingMessageQueue):
         super().__init__()
         self._active_operations = active_operations
 
-    def _queque_message(self, message:MessageOut):
-        super()._queque_message(message)
+    def queue(self, message:MessageOut):
+        super().queque(message)
 
         #Special handling for operation completed messages
         if isinstance(message, DcssHtoSOperationCompleted):
