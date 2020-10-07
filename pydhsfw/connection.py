@@ -1,7 +1,7 @@
 import logging
 from enum import Enum
 from pydhsfw.threads import AbortableThread
-from pydhsfw.messages import MessageIn, MessageOut, MessageQueue, MessageFactory
+from pydhsfw.messages import IncomingMessageQueue, OutgoingMessageQueue, MessageIn, MessageOut, MessageFactory
 from pydhsfw.transport import Transport
 
 _logger = logging.getLogger(__name__)
@@ -84,7 +84,7 @@ def register_connection(connection_scheme:str):
 
 class ConnectionReadWorker(AbortableThread):
     
-    def __init__(self, transport:Transport, incoming_message_queue:MessageQueue, message_factory:MessageFactory, config:dict={}):
+    def __init__(self, transport:Transport, incoming_message_queue:IncomingMessageQueue, message_factory:MessageFactory, config:dict={}):
         super().__init__(name='connection read worker', config=config)
         self._transport = transport
         self._msg_queue = incoming_message_queue
@@ -105,7 +105,7 @@ class ConnectionReadWorker(AbortableThread):
                         msg = self._msg_factory.create_message(raw_msg)
                         if msg:
                             _logger.debug(f'Received factory created message: {msg}')
-                            self._msg_queue._queque_message(msg)
+                            self._msg_queue.queque(msg)
 
                 except TimeoutError:
                     #Socket read timed out. This is normal, it just means that no messages have been sent so we can ignore it.
@@ -123,7 +123,7 @@ class ConnectionReadWorker(AbortableThread):
 
 class ConnectionWriteWorker(AbortableThread):
     
-    def __init__(self, transport:Transport, outgoing_message_queue:MessageQueue, config:dict={}):
+    def __init__(self, transport:Transport, outgoing_message_queue:OutgoingMessageQueue, config:dict={}):
         super().__init__(name='connection write worker', config=config)
         self._transport = transport
         self._msg_queue = outgoing_message_queue
@@ -136,7 +136,7 @@ class ConnectionWriteWorker(AbortableThread):
             while True:
                 try:
                     # Blocking call with timeout configured elsewhere. This will timeout to check for control messages, specifically SystemExit.
-                    msg = self._msg_queue._get_message(self._get_blocking_timeout())
+                    msg = self._msg_queue.fetch(self._get_blocking_timeout())
                     if msg:
                         _logger.debug(f"Sending message: {msg}")
                         buffer = msg.write()
@@ -158,7 +158,7 @@ class ConnectionWriteWorker(AbortableThread):
             pass
 
 class ConnectionBase(Connection):
-    def __init__(self, url:str, transport:Transport, incoming_message_queue:MessageQueue, outgoing_message_queue:MessageQueue, message_factory:MessageFactory, config:dict={}):
+    def __init__(self, url:str, transport:Transport, incoming_message_queue:IncomingMessageQueue, outgoing_message_queue:OutgoingMessageQueue, message_factory:MessageFactory, config:dict={}):
         super().__init__(url, config)
         self._transport = transport
         self._read_worker = ConnectionReadWorker(transport, incoming_message_queue, message_factory, config)
@@ -175,7 +175,7 @@ class ConnectionBase(Connection):
         self._transport.disconnect()
 
     def send(self, msg:MessageOut):
-        self._outgoing_message_queue._queque_message(msg)
+        self._outgoing_message_queue.queque(msg)
 
     def shutdown(self):
         self._read_worker.abort()

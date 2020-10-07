@@ -1,7 +1,7 @@
 import logging
 from inspect import getmodule, getsourcelines
 from urllib.parse import urlparse
-from pydhsfw.messages import MessageQueue
+from pydhsfw.messages import OutgoingMessageQueue, IncomingMessageQueue
 from pydhsfw.connection import Connection, ConnectionRegistry
 
 _logger = logging.getLogger(__name__)
@@ -14,7 +14,7 @@ class ConnectionManager:
     def load_registry(self):
         self._connection_factory = ConnectionFactory()
 
-    def create_connection(self, name:str, scheme:str, url:str, incoming_message_queue:MessageQueue, outgoing_message_queue:MessageQueue, config:dict={})->Connection:
+    def create_connection(self, name:str, scheme:str, url:str, incoming_message_queue:IncomingMessageQueue, outgoing_message_queue:OutgoingMessageQueue, config:dict={})->Connection:
         ''' Create a connection connection that has been registered.
 
         Create a connection that has been registered with @register_connection
@@ -61,7 +61,7 @@ class ConnectionFactory():
             module = getmodule(conn_cls)
             _logger.info(f'Registered connection class: {scheme}, {module.__name__}:{conn_cls.__name__}():{lineno} with connection registry')
 
-    def create_connection(self, scheme:str, url:str, incoming_message_queue:MessageQueue, outgoing_message_queue:MessageQueue, config:dict=None) -> Connection:
+    def create_connection(self, scheme:str, url:str, incoming_message_queue:IncomingMessageQueue, outgoing_message_queue:OutgoingMessageQueue, config:dict=None) -> Connection:
 
         connection = None
         conn_cls = self._registry.get(scheme)
