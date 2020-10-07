@@ -33,7 +33,8 @@ class MessageReader():
 
 class Connection:
 
-    def __init__(self, url:str, config:dict={}):
+    def __init__(self, connection_name:str, url:str, config:dict={}):
+        self._connection_name = connection_name
         self._url = url
         self._config = config
 
@@ -84,8 +85,9 @@ def register_connection(connection_scheme:str):
 
 class ConnectionReadWorker(AbortableThread):
     
-    def __init__(self, transport:Transport, incoming_message_queue:IncomingMessageQueue, message_factory:MessageFactory, config:dict={}):
-        super().__init__(name='connection read worker', config=config)
+    def __init__(self, connection_name:str, transport:Transport, incoming_message_queue:IncomingMessageQueue, message_factory:MessageFactory, config:dict={}):
+        super().__init__(name=f'{connection_name} connection read worker', config=config)
+        self._connection_name = connection_name
         self._transport = transport
         self._msg_queue = incoming_message_queue
         self._msg_factory = message_factory
@@ -123,8 +125,9 @@ class ConnectionReadWorker(AbortableThread):
 
 class ConnectionWriteWorker(AbortableThread):
     
-    def __init__(self, transport:Transport, outgoing_message_queue:OutgoingMessageQueue, config:dict={}):
-        super().__init__(name='connection write worker', config=config)
+    def __init__(self, connection_name:str, transport:Transport, outgoing_message_queue:OutgoingMessageQueue, config:dict={}):
+        super().__init__(name=f'{connection_name} connection write worker', config=config)
+        self._connection_name = connection_name
         self._transport = transport
         self._msg_queue = outgoing_message_queue
 
@@ -158,11 +161,11 @@ class ConnectionWriteWorker(AbortableThread):
             pass
 
 class ConnectionBase(Connection):
-    def __init__(self, url:str, transport:Transport, incoming_message_queue:IncomingMessageQueue, outgoing_message_queue:OutgoingMessageQueue, message_factory:MessageFactory, config:dict={}):
+    def __init__(self, connection_name:str, url:str, transport:Transport, incoming_message_queue:IncomingMessageQueue, outgoing_message_queue:OutgoingMessageQueue, message_factory:MessageFactory, config:dict={}):
         super().__init__(url, config)
         self._transport = transport
-        self._read_worker = ConnectionReadWorker(transport, incoming_message_queue, message_factory, config)
-        self._write_worker = ConnectionWriteWorker(transport, outgoing_message_queue, config)
+        self._read_worker = ConnectionReadWorker(connection_name, transport, incoming_message_queue, message_factory, config)
+        self._write_worker = ConnectionWriteWorker(connection_name, transport, outgoing_message_queue, config)
         self._outgoing_message_queue = outgoing_message_queue
         self._transport.start()
         self._read_worker.start()

@@ -14,7 +14,8 @@ class TransportState(Enum):
 class Transport:
     ''' Underlying bass class that all transports must derive from. '''
 
-    def __init__(self, url:str, config:dict={}):
+    def __init__(self, connection_name:str, url:str, config:dict={}):
+        self._connection_name = connection_name
         self._url = url
         self._config = config
 
@@ -158,8 +159,8 @@ class TransportStream(Transport):
 
 
     '''
-    def __init__(self, url:str, message_reader:MessageStreamReader, messsage_writer:MessageStreamWriter, config:dict=None):
-        super().__init__(url, config)
+    def __init__(self, connection_name:str, url:str, message_reader:MessageStreamReader, messsage_writer:MessageStreamWriter, config:dict=None):
+        super().__init__(connection_name, url, config)
         self._message_reader = message_reader
         self._message_writer = messsage_writer
 

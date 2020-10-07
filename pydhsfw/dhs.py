@@ -14,18 +14,20 @@ class DhsContext(DcssContext):
     """
     DhsContext
     """
-    def __init__(self, active_operations: DcssActiveOperations, connection_mgr:ConnectionManager, incoming_message_queue:IncomingMessageQueue, dcss_outgoing_message_queue:OutgoingMessageQueue):
+    def __init__(self, active_operations: DcssActiveOperations, connection_mgr:ConnectionManager, incoming_message_queue:IncomingMessageQueue):
         super().__init__(active_operations)
         self._conn_mgr = connection_mgr
         self._incoming_msg_queue = incoming_message_queue
-        self._dcss_outgoing_msg_queue = dcss_outgoing_message_queue
         self._state = None
 
     def create_connection(self, connection_name:str, scheme:str, url:str, config:dict={})->Connection:
 
-        outgoing_msg_queue = OutgoingMessageQueue()
+        outgoing_msg_queue = None
         if scheme == DcssClientConnection._scheme:
-            outgoing_msg_queue = self._dcss_outgoing_msg_queue
+            outgoing_msg_queue = DcssOutgoingMessageQueue(self._active_operations)
+        else:
+            outgoing_msg_queue = OutgoingMessageQueue()
+
         conn = self._conn_mgr.create_connection(connection_name, scheme, url, self._incoming_msg_queue, outgoing_msg_queue, config)
         if not conn:
             _logger.error(f'Could not create a connection for {scheme}')
@@ -84,8 +86,7 @@ class Dhs:
         self._conn_mgr = ConnectionManager()
         self._active_operations = DcssActiveOperations()
         self._incoming_msg_queue = IncomingMessageQueue()
-        self._dcss_outgoing_msg_queue = DcssOutgoingMessageQueue(self._active_operations)
-        self._context = DhsContext(self._active_operations, self._conn_mgr, self._incoming_msg_queue, self._dcss_outgoing_msg_queue)
+        self._context = DhsContext(self._active_operations, self._conn_mgr, self._incoming_msg_queue)
         self._msg_disp = DcssMessageQueueDispatcher('default', self._incoming_msg_queue, self._context, self._active_operations, config)
         self._init()
         self._conn_mgr.load_registry()

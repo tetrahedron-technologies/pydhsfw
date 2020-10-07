@@ -131,8 +131,9 @@ class MessageRequestWriter():
 
 class HttpClientTransportConnectionWorker(AbortableThread):
 
-    def __init__(self, url:str, config:dict={}):
-        super().__init__(name='http client transport connection worker', config=config)
+    def __init__(self, connection_name:str, url:str, config:dict={}):
+        super().__init__(name=f'{connection_name} http client transport connection worker', config=config)
+        self._connection_name = connection_name
         self._url = url
         self._hearbeat_path = config.get('heartbeat_path')
         self._config = config
@@ -309,11 +310,11 @@ class ResponseQueue(BlockingQueue[Response]):
 class HttpClientTransport(Transport):
     ''' Http client transport '''
 
-    def __init__(self, url:str, message_reader:MessageResponseReader, message_writer:MessageRequestWriter, config:dict={}):
-        super().__init__(url, config)
+    def __init__(self, connection_name:str, url:str, message_reader:MessageResponseReader, message_writer:MessageRequestWriter, config:dict={}):
+        super().__init__(connection_name, url, config)
         self._message_reader = message_reader
         self._message_writer = message_writer
-        self._connection_worker = HttpClientTransportConnectionWorker(url, config)
+        self._connection_worker = HttpClientTransportConnectionWorker(connection_name, url, config)
         self._response_queue = ResponseQueue()
 
     def _send(self, request:Request)->Response:

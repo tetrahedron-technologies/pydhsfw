@@ -56,12 +56,12 @@ class AutoMLMessageFactory(MessageFactory):
 class AutoMLClientTransport(HttpClientTransport):
     """Overrides HttpClientTransport and handles message reading and writing"""
 
-    def __init__(self, url:str, config:dict={}):
-        super().__init__(url, MessageResponseReader(), MessageRequestWriter(), config)
+    def __init__(self, connection_name:str, url:str, config:dict={}):
+        super().__init__(connection_name, url, MessageResponseReader(), MessageRequestWriter(), config)
 
 @register_connection('automl')
 class AutoMLClientConnection(ConnectionBase):
     """Overrides ConnectionBase and creates a GCP AutoML connection"""
 
-    def __init__(self, url:str, incoming_message_queue:IncomingMessageQueue, outgoing_message_queue:OutgoingMessageQueue, config:dict={}):
-        super().__init__(url, AutoMLClientTransport(url, config), incoming_message_queue, outgoing_message_queue, AutoMLMessageFactory(), config)
+    def __init__(self, connection_name:str, url:str, incoming_message_queue:IncomingMessageQueue, outgoing_message_queue:OutgoingMessageQueue, config:dict={}):
+        super().__init__(connection_name, url, AutoMLClientTransport(connection_name, url, config), incoming_message_queue, outgoing_message_queue, AutoMLMessageFactory(), config)
