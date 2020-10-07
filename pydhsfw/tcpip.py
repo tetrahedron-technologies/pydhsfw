@@ -5,9 +5,7 @@ import socket
 import errno
 from urllib.parse import urlparse
 from pydhsfw.threads import AbortableThread
-from pydhsfw.messages import MessageIn, MessageOut, MessageFactory, MessageQueue
-from pydhsfw.connection import Connection
-from pydhsfw.transport import Transport, TransportStream, TransportState, StreamReader, StreamWriter, MessageStreamReader, MessageStreamWriter
+from pydhsfw.transport import TransportStream, TransportState, StreamReader, StreamWriter, MessageStreamReader, MessageStreamWriter
 
 _logger = logging.getLogger(__name__)
 

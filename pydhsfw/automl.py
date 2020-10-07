@@ -1,11 +1,8 @@
 import base64
-import io
-import json
 import logging
-import sys
 from typing import Any
 from dotty_dict import dotty
-from pydhsfw.messages import MessageFactory, MessageQueue, register_message
+from pydhsfw.messages import IncomingMessageQueue, OutgoingMessageQueue, MessageFactory, register_message
 from pydhsfw.connection import ConnectionBase, register_connection
 from pydhsfw.http import PostJsonRequestMessage, JsonResponseMessage, HttpClientTransport, MessageResponseReader, MessageRequestWriter, ResponseMessage
 
@@ -66,5 +63,5 @@ class AutoMLClientTransport(HttpClientTransport):
 class AutoMLClientConnection(ConnectionBase):
     """Overrides ConnectionBase and creates a GCP AutoML connection"""
 
-    def __init__(self, url:str, incoming_message_queue:MessageQueue, outgoing_message_queue:MessageQueue, config:dict={}):
+    def __init__(self, url:str, incoming_message_queue:IncomingMessageQueue, outgoing_message_queue:OutgoingMessageQueue, config:dict={}):
         super().__init__(url, AutoMLClientTransport(url, config), incoming_message_queue, outgoing_message_queue, AutoMLMessageFactory(), config)
