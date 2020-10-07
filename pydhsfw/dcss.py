@@ -989,14 +989,14 @@ class DcssDhsV2MessageReaderWriter(MessageStreamReader, MessageStreamWriter):
         stream_writer.write(packed)
     
 class DcssClientTransport(TcpipClientTransport):
-    def __init__(self, url:str, config:dict={}):
+    def __init__(self, connection_name:str, url:str, config:dict={}):
         self._msg_reader_writer = DcssDhsV2MessageReaderWriter()
-        super().__init__(url, self._msg_reader_writer, self._msg_reader_writer, config)
+        super().__init__(connection_name, url, self._msg_reader_writer, self._msg_reader_writer, config)
 
 @register_connection('dcss')
 class DcssClientConnection(ConnectionBase):
-    def __init__(self, url:str, incoming_message_queue:IncomingMessageQueue, outgoing_message_queue:OutgoingMessageQueue, config:dict={}):
-        super().__init__(url, DcssClientTransport(url, config), incoming_message_queue, outgoing_message_queue, DcssMessageFactory(), config)
+    def __init__(self, connection_name:str, url:str, incoming_message_queue:IncomingMessageQueue, outgoing_message_queue:OutgoingMessageQueue, config:dict={}):
+        super().__init__(connection_name, url, DcssClientTransport(connection_name, url, config), incoming_message_queue, outgoing_message_queue, DcssMessageFactory(), config)
 
 class DcssOperationHandlerRegistry():
 

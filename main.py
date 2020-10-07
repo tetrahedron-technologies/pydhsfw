@@ -65,7 +65,7 @@ def dhs_init(message:DhsInit, context:DhsContext):
     #for handler in logging.root.handlers:
     #    handler.setLevel(loglevel)
 
-    conf_file = 'config/bl831.config'
+    conf_file = 'config/BL-831.config'
 
     _logger.info("Initializing DHS")
     _logger.info(f"config file: {conf_file}")

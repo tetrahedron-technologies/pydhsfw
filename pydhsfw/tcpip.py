@@ -97,15 +97,16 @@ class SocketStreamWriter(StreamWriter):
 class TcpipTransport(TransportStream):
     ''' Tcpip transport base'''
 
-    def __init__(self, url:str,  message_reader:MessageStreamReader, message_writer:MessageStreamWriter, config:dict={}):
-        super().__init__(url, message_reader, message_writer, config)
+    def __init__(self, connection_name:str, url:str,  message_reader:MessageStreamReader, message_writer:MessageStreamWriter, config:dict={}):
+        super().__init__(connection_name, url, message_reader, message_writer, config)
         self._stream_reader = SocketStreamReader(config)
         self._stream_writer = SocketStreamWriter(config)
 
 class TcpipClientTransportConnectionWorker(AbortableThread):
 
-    def __init__(self, url:str, socket_stream_reader:SocketStreamReader, socket_stream_writer:SocketStreamWriter, config:dict={}):
-        super().__init__(name='tcpip client transport connection worker', config=config)
+    def __init__(self, connection_name:str, url:str, socket_stream_reader:SocketStreamReader, socket_stream_writer:SocketStreamWriter, config:dict={}):
+        super().__init__(name=f'{connection_name} tcpip client transport connection worker', config=config)
+        self._connection_name = connection_name
         self._url = url
         self._config = config
         self._stream_reader = socket_stream_reader
@@ -265,9 +266,9 @@ class TcpipClientTransportConnectionWorker(AbortableThread):
 class TcpipClientTransport(TcpipTransport):
     ''' Tcpip client transport '''
 
-    def __init__(self, url:str, message_reader:MessageStreamReader, message_writer:MessageStreamWriter, config:dict={}):
-        super().__init__(url, message_reader, message_writer, config)
-        self._connection_worker = TcpipClientTransportConnectionWorker(url, self._stream_reader, self._stream_writer, config)
+    def __init__(self, connection_name:str, url:str, message_reader:MessageStreamReader, message_writer:MessageStreamWriter, config:dict={}):
+        super().__init__(connection_name, url, message_reader, message_writer, config)
+        self._connection_worker = TcpipClientTransportConnectionWorker(connection_name, url, self._stream_reader, self._stream_writer, config)
 
     def connect(self):
         self._connection_worker.connect()
