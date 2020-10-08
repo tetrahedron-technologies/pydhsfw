@@ -20,6 +20,9 @@ class AutoMLPredictRequest(PostJsonRequestMessage):
             'instances': [
                 {'image_bytes': {'b64': str(encoded_image)},
                 'key': key}
+            ],
+            'params': [
+                {'max_bounding_box_count': '10'}
             ]
         }
 
