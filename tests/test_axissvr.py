@@ -27,7 +27,7 @@ class AxisServerMessageRequestReader(ServerMessageRequestReader):
         if request.method == RequestVerb.GET.value:
             request.headers[Headers.DHS_REQUEST_TYPE_ID.value] = 'axissvr_get_request'
         elif request.method == RequestVerb.POST.value:
-            content_type = request.headers.get(Headers.CONTENT_TYPE)
+            content_type = request.headers.get(Headers.CONTENT_TYPE.value)
             if content_type == ContentType.JPEG.value:
                 request.headers[Headers.DHS_REQUEST_TYPE_ID.value] = 'axissvr_image_post_request'
 
@@ -48,17 +48,31 @@ class AxisServerRequestHandler(http.server.BaseHTTPRequestHandler):
         self._request_queue.queque(request)
 
     def do_POST(self):
-        data = None
-        data_len_hdr = self.headers.get('Content-Length')
-        if data_len_hdr is not None:
-            data_len = int(self.headers['Content-Length'])
-            data = self.rfile.read(data_len)
-        headers = dict(self.headers)
-        request = Request(method='POST', url=self.path, headers=headers, data=data)
-        self.send_response(200)
-        self.end_headers()
-        self._request_queue.queque(request)
 
+        headers = dict(self.headers)
+        expect = headers.get('Expect')
+        if expect and '100' in expect:
+    
+            data_len_hdr = self.headers.get('Content-Length')
+            data_len = int(data_len_hdr)
+
+            remainingbytes = data_len
+
+            data = bytes()
+            while remainingbytes > 0:
+                chunk = self.rfile.read(remainingbytes)
+                if chunk == b'':
+                    break
+                data += chunk
+                remainingbytes -= len(chunk)
+        
+            self.send_response(200)
+            self.end_headers()
+
+            request = Request(method='POST', url=self.path, headers=headers, data=data)
+            self._request_queue.queque(request)
+    
+    
 
 class HttpAbortableServer(http.server.HTTPServer):
     def __init__(self, server_address, RequestHandlerClass, bind_and_activate=True):
