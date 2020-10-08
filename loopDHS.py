@@ -4,7 +4,6 @@ import sys
 import yaml
 import time
 import io
-import base64
 from pydhsfw.processors import  Context, register_message_handler
 from pydhsfw.dhs import Dhs, DhsInit, DhsStart, DhsContext
 from pydhsfw.dcss import DcssContext, DcssStoCSendClientType, DcssHtoSClientIsHardware, DcssStoHRegisterOperation, DcssStoHStartOperation, DcssHtoSOperationUpdate, DcssHtoSOperationCompleted, register_dcss_start_operation_handler
@@ -131,6 +130,7 @@ def predict_one(message:DcssStoHStartOperation, context:DcssContext):
     The operation is for testing AutoML. It reads a single image of a nylon loop from the tests directory and sends it to AutoML.
     """
     _logger.info(f'GOT: {message}')
+    # I'm not sure why we loop through all active ops?
     activeOps = context.get_active_operations(message.operation_name)
     for ao in activeOps:
         context.get_connection('dcss_conn').send(DcssHtoSOperationUpdate(ao.operation_name, ao.operation_handle, "about to predict one test image"))
@@ -139,6 +139,10 @@ def predict_one(message:DcssStoHStartOperation, context:DcssContext):
         with io.open(filename, 'rb') as image_file:
             binary_image = image_file.read()
         context.get_connection('automl_conn').send(AutoMLPredictRequest(image_key, binary_image))
+        # is the rest of this operation done elsewhere?
+
+        # how to get return_msg?
+        #context.get_connection('dcss_conn').send(DcssHtoSOperationCompleted(ao.operation_name, ao.operation_handle, "normal", return_msg))
 
 @register_dcss_start_operation_handler('collectLoopImages')
 def collect_loop_images(message:DcssStoHStartOperation, context:DcssContext):
@@ -149,21 +153,27 @@ def collect_loop_images(message:DcssStoHStartOperation, context:DcssContext):
     DCSS may send a single arg <pinBaseSizeHint>, but I think we can ignore it.
     """
     _logger.info(f'GOT: {message}')
-    # 1. Tell the http server to get ready to receive images
-    # 2. Send an operation update message to DCSS to trigger both sample rotation and axis server to send images.
-    #    htos_operation_update collectLoopImages operation_handle start_oscillation
-    # 3. As each image arrives forward it to AutoML for loop classification and bounding box determination.
-    # 4. Format an operation update for each image and send to DCSS
-    #    for error:
-    #    htos_operation_update collectLoopImages operation_handle LOOP_INFO <index> failed <error_message>
-    #    for success:
-    #    htos_operation_update collectLoopImages operation_handle LOOP_INFO <index> normal tipX tipY pinBaseX fiberWidth loopWidth boxMinX boxMaxX boxMinY boxMaxY loopWidthX isMicroMount
-    # 5. Listen for some global flag/signal (set by the stopCollectLoopImages operation) that operation should stop processing images
-    #    and then send an operation complete message to DCSS
-    #    for error:
-    #    htos_operation_completed collectLoopImages operation_handle aborted
-    #    for success:
-    #    htos_operation_completed collectLoopImages operation_handle normal done
+    activeOps = context.get_active_operations(message.operation_name)
+    for ao in activeOps:
+        # 1. Tell the http server to get ready to receive images
+        # 2. Send an operation update message to DCSS to trigger both sample rotation and axis server to send images.
+        #    htos_operation_update collectLoopImages operation_handle start_oscillation
+        context.get_connection('dcss_conn').send(DcssHtoSOperationUpdate(ao.operation_name, ao.operation_handle, "start_oscillation"))
+
+        # I'm guessing everything below will happen in the AutoML response handler code:
+        #
+        # 3. As each image arrives forward it to AutoML for loop classification and bounding box determination.
+        # 4. Format an operation update for each image and send to DCSS
+        #    for error:
+        #    htos_operation_update collectLoopImages operation_handle LOOP_INFO <index> failed <error_message>
+        #    for success:
+        #    htos_operation_update collectLoopImages operation_handle LOOP_INFO <index> normal tipX tipY pinBaseX fiberWidth loopWidth boxMinX boxMaxX boxMinY boxMaxY loopWidthX isMicroMount
+        # 5. Listen for some global flag/signal (set by the stopCollectLoopImages operation) that operation should stop processing images
+        #    and then send an operation complete message to DCSS
+        #    for error:
+        #    htos_operation_completed collectLoopImages operation_handle aborted
+        #    for success:
+        #    htos_operation_completed collectLoopImages operation_handle normal done
 
 @register_dcss_start_operation_handler('getLoopTip')
 def get_loop_tip(message:DcssStoHStartOperation, context:DcssContext):
@@ -227,20 +237,20 @@ def rebox_loop_image(message:DcssStoHStartOperation, context:DcssContext):
     # need to figure this out.
 
 @register_message_handler('automl_predict_response')
-def automl_predict_response(message:AutoMLPredictResponse, context:DhsContext):
+def automl_predict_response(message:AutoMLPredictResponse, context:DcssContext):
+    """
+    This handler is hardcoded to accompany the predictOne operation
+    """
     _logger.info(f'TOP BB SCORE: {message.top_result}')
     _logger.info(f'TOP BB DIM: {message.top_bb}')
     _logger.info(f'TOP BB TYPE: {message.top_classification}')
-    return_msg = str(message.top_result) + " " + str(message.top_bb) + " " + str(message.top_classification)
+    return_msg = str(message.top_result) + " " + str(message.top_bb[0]) + " " + str(message.top_bb[1]) + " " + str(message.top_bb[2]) + " " + str(message.top_classification)
     _logger.info(f'RETURN_MSG: {return_msg}')
-    # where do I store various values? some sort of global varibale?
-    # some property within a class within a context?
-    # do stuff n math n things
-    # figurte out which op
-    # send operation updates to dcss
 
-    # how do I get the operation name and handle?
-    context.get_connection('dcss_conn').send(DcssHtoSOperationCompleted(operation_name, operation_handle, "normal", return_msg))
+    # not working because message has no property called operation_name
+    activeOps = context.get_active_operations('predictOne')
+    for ao in activeOps:
+        context.get_connection('dcss_conn').send(DcssHtoSOperationCompleted(ao.operation_name, ao.operation_handle, "normal", return_msg))
 
 dhs = Dhs()
 dhs.start()

@@ -37,7 +37,7 @@ class AutoMLPredictResponse(JsonResponseMessage):
        # might want to do some sort of filtering here?
        # only accept if score if better than 90% or something?
         return dotty(self.json)['predictions.0.detection_scores.0']
-    
+
     @property
     def top_bb(self):
         return dotty(self.json)['predictions.0.detection_boxes.0']
