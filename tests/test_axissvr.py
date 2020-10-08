@@ -5,6 +5,7 @@ import sys
 import time
 import signal
 import http.server
+from http import HTTPStatus
 from functools import partial
 from urllib.parse import urlparse
 from pydhsfw.threads import AbortableThread
@@ -38,41 +39,49 @@ class AxisServerRequestHandler(http.server.BaseHTTPRequestHandler):
         self._request_queue = request_queue
         super().__init__(*args, **kwargs)
 
-    protocol_version = '"HTTP/1.1'
+    protocol_version = 'HTTP/1.1'
+    timeout = 5
 
     def do_GET(self):
         headers = dict(self.headers)
         request = Request(method='GET', url=self.path, headers=headers)
-        self.send_response(200)
+        self.send_response(HTTPStatus.OK)
         self.end_headers()
         self._request_queue.queque(request)
 
     def do_POST(self):
 
-        headers = dict(self.headers)
-        expect = headers.get('Expect')
-        if expect and '100' in expect:
-    
-            data_len_hdr = self.headers.get('Content-Length')
-            data_len = int(data_len_hdr)
+        data_len_hdr = self.headers.get('Content-Length')
+        data_len = int(data_len_hdr)
 
-            remainingbytes = data_len
+        remainingbytes = data_len
 
-            data = bytes()
-            while remainingbytes > 0:
-                chunk = self.rfile.read(remainingbytes)
-                if chunk == b'':
-                    break
-                data += chunk
-                remainingbytes -= len(chunk)
-        
-            self.send_response(200)
-            self.end_headers()
+        data = bytes()
+        while remainingbytes > 0:
+            chunk = self.rfile.read(remainingbytes)
+            if chunk == b'':
+                break
+            data += chunk
+            remainingbytes -= len(chunk)
+    
+        self.send_response(HTTPStatus.OK)
+        self.send_header('Connection', 'close')
+        self.end_headers()
 
-            request = Request(method='POST', url=self.path, headers=headers, data=data)
-            self._request_queue.queque(request)
+        request = Request(method='POST', url=self.path, headers=dict(self.headers), data=data)
+        self._request_queue.queque(request)
+
+    def log_message(self, format: str, *args: Any) -> None:
+        _logger.info("%s - %s" % (self.address_string(), format%args))
     
-    
+    def log_error(self, format: str, *args: Any) -> None:
+        _logger.error("%s - %s" % (self.address_string(), format%args))
+
+    def handle_expect_100(self):
+        self.log_request(HTTPStatus.CONTINUE)
+        self.send_response_only(HTTPStatus.CONTINUE)
+        self.end_headers()
+        return True    
 
 class HttpAbortableServer(http.server.HTTPServer):
     def __init__(self, server_address, RequestHandlerClass, bind_and_activate=True):
@@ -243,7 +252,7 @@ class AxisImageServerConnection(ConnectionBase):
 @register_message_handler('dhs_init')
 def dhs_init(message:DhsInit, context:DhsContext):
     logformat = "[%(asctime)s] %(levelname)s:%(name)s:%(funcName)s():%(lineno)d - %(message)s"
-    logging.basicConfig(level=logging.DEBUG, stream=sys.stdout, format=logformat, datefmt="%Y-%m-%d %H:%M:%S")
+    logging.basicConfig(level=logging.INFO, stream=sys.stdout, format=logformat, datefmt="%Y-%m-%d %H:%M:%S")
 
 @register_message_handler('dhs_start')
 def dhs_start(message:DhsStart, context:DhsContext):
@@ -260,7 +269,7 @@ def axis_image_request(message:AxisServerGetRequestMessage, context:DhsContext):
     
 @register_message_handler('axissvr_image_post_request')
 def axis_image_request(message:AxisServerImagePostRequestMessage, context:DhsContext):
-    _logger.info(message.file)
+    _logger.debug(message.file)
 
 dhs = Dhs()
 dhs.start()
