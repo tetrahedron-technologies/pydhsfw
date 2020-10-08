@@ -18,6 +18,7 @@ class RequestVerb(Enum):
 
 class ContentType(Enum):
     JPEG = 'image/jpeg'
+    PNG = 'image/png'
 
 class Headers(Enum):
     DHS_REQUEST_TYPE_ID = 'DHS-Request-Type-Id'
@@ -43,6 +44,23 @@ class ResponseMessage(MessageIn):
             msg = cls(response)
         
         return msg
+
+class JsonResponseMessage(ResponseMessage):
+    def __init__(self, response):
+        super().__init__(response)
+
+    @property
+    def json(self):
+        return self._response.json()
+
+class FileResponseMessage(ResponseMessage):
+    def __init__(self, response):
+        super().__init__(response)
+
+    @property
+    def file(self):
+        return self._response.content
+
 class ServerRequestMessage(MessageIn):
     def __init__(self, request):
         super().__init__()
@@ -70,22 +88,6 @@ class FileServerRequestMessage(ServerRequestMessage):
     @property
     def file(self):
         return self._request.data
-
-class JsonResponseMessage(ResponseMessage):
-    def __init__(self, response):
-        super().__init__(response)
-
-    @property
-    def json(self):
-        return self._response.json()
-
-class FileResponseMessage(ResponseMessage):
-    def __init__(self, response):
-        super().__init__(response)
-
-    @property
-    def file(self):
-        return self._response.content
 
 class GetRequestMessage(MessageOut):
     def __init__(self, path:str, params:dict=None):
