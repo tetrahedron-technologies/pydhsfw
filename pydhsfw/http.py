@@ -16,9 +16,13 @@ class RequestVerb(Enum):
     GET ='GET'
     POST = 'POST'
 
+class ContentType(Enum):
+    JPEG = 'image/jpeg'
+
 class Headers(Enum):
     DHS_REQUEST_TYPE_ID = 'DHS-Request-Type-Id'
     DHS_RESPONSE_TYPE_ID = 'DHS-Response-Type-Id'
+    CONTENT_TYPE = 'Content-Type'
 
 class ResponseMessage(MessageIn):
     def __init__(self, response):
@@ -39,6 +43,33 @@ class ResponseMessage(MessageIn):
             msg = cls(response)
         
         return msg
+class ServerRequestMessage(MessageIn):
+    def __init__(self, request):
+        super().__init__()
+        self._request = request
+
+    @staticmethod
+    def parse_type_id(request:Request):
+        return request.headers.get(Headers.DHS_REQUEST_TYPE_ID.value)
+
+    @classmethod
+    def parse(cls, request:Request)->Any:
+        
+        msg = None
+        
+        type_id = ServerRequestMessage.parse_type_id(request)
+        if type_id == cls.get_type_id():
+            msg = cls(request)
+        
+        return msg
+
+class FileServerRequestMessage(ServerRequestMessage):
+    def __init__(self, request):
+        super().__init__(request)
+
+    @property
+    def file(self):
+        return self._request.data
 
 class JsonResponseMessage(ResponseMessage):
     def __init__(self, response):
@@ -127,6 +158,16 @@ class MessageRequestWriter():
             res_type_id += '_response'
             request.headers[Headers.DHS_RESPONSE_TYPE_ID.value] = res_type_id
 
+        return request
+
+class ServerMessageRequestReader():
+    def __init__(self):
+        pass
+
+    def read_request(self, request:Request)->Request:
+        ''' Read the http request and convert it into an object that the message factory can read and convert to a message.
+
+        '''
         return request
 
 class HttpClientTransportConnectionWorker(AbortableThread):
@@ -302,6 +343,10 @@ class HttpClientTransportConnectionWorker(AbortableThread):
             state = TransportState.CONNECTED
         
         return state
+
+class RequestQueue(BlockingQueue[Request]):
+    def __init__(self):
+        super().__init__()
 
 class ResponseQueue(BlockingQueue[Response]):
     def __init__(self):
