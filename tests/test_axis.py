@@ -52,6 +52,7 @@ def dhs_start(message:DhsStart, context:DhsContext):
 dhs = Dhs()
 dhs.start()
 sigs = {}
+
 if __name__ == '__main__':
     sigs = {signal.SIGINT, signal.SIGTERM}
 dhs.wait(sigs)
