@@ -26,7 +26,7 @@ class JpegReceiverMessageRequestReader(ServerMessageRequestReader):
             if content_type in (ContentType.JPEG.value, ContentType.PNG.value):
                 request.headers[Headers.DHS_REQUEST_TYPE_ID.value] = 'jpeg_receiver_image_post_request'
         elif request.method == RequestVerb.GET:
-            request.headers[Headers.DHS_REQUEST_TYPE_ID.value] = 'jpeg_receiver_get_request'
+            pass
 
         return request
 
@@ -37,13 +37,6 @@ class JpegReceiverRequestHandler(http.server.BaseHTTPRequestHandler):
 
     protocol_version = 'HTTP/1.1'
     timeout = 5
-
-    def do_GET(self):
-        headers = dict(self.headers)
-        request = Request(method='GET', url=self.path, headers=headers)
-        self.send_response(HTTPStatus.OK)
-        self.end_headers()
-        self._request_queue.queque(request)
 
     def do_POST(self):
 
@@ -212,11 +205,6 @@ class JpegReceiverServerTransport(Transport):
 
     def wait(self):
         self._connection_worker.join()
-
-@register_message('jpeg_receiver_get_request', 'jpeg_receiver')
-class JpegReceiverGetRequestMessage(ServerRequestMessage):
-    def __init__(self, request):
-        super().__init__(request)
 
 @register_message('jpeg_receiver_image_post_request', 'jpeg_receiver')
 class JpegReceiverImagePostRequestMessage(FileServerRequestMessage):

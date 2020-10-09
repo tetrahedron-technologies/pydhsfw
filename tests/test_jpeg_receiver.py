@@ -5,7 +5,7 @@ import time
 import signal
 from typing import Any
 from pydhsfw.processors import register_message_handler
-from pydhsfw.axis import JpegReceiverGetRequestMessage, JpegReceiverImagePostRequestMessage
+from pydhsfw.jpeg_receiver import JpegReceiverImagePostRequestMessage
 from pydhsfw.dhs import Dhs, DhsContext, DhsInit, DhsStart
 
 _logger = logging.getLogger(__name__)
@@ -24,10 +24,6 @@ def dhs_start(message:DhsStart, context:DhsContext):
 
     time.sleep(3)
 
-@register_message_handler('jpeg_receiver_get_request')
-def axis_image_request(message:JpegReceiverGetRequestMessage, context:DhsContext):
-    _logger.info(message)
-    
 @register_message_handler('jpeg_receiver_image_post_request')
 def axis_image_request(message:JpegReceiverImagePostRequestMessage, context:DhsContext):
     _logger.debug(message.file)
