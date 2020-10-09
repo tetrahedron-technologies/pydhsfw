@@ -28,7 +28,7 @@ def dhs_start(message:DhsStart, context:DhsContext):
 def axis_image_request(message:JpegReceiverGetRequestMessage, context:DhsContext):
     _logger.info(message)
     
-@register_message_handler('axis_image_post_request')
+@register_message_handler('jpeg_receiver_image_post_request')
 def axis_image_request(message:JpegReceiverImagePostRequestMessage, context:DhsContext):
     _logger.debug(message.file)
 

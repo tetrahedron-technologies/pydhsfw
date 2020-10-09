@@ -24,9 +24,9 @@ class JpegReceiverMessageRequestReader(ServerMessageRequestReader):
         if request.method == RequestVerb.POST.value:
             content_type = request.headers.get(Headers.CONTENT_TYPE.value)
             if content_type in (ContentType.JPEG.value, ContentType.PNG.value):
-                request.headers[Headers.DHS_REQUEST_TYPE_ID.value] = 'axis_image_post_request'
+                request.headers[Headers.DHS_REQUEST_TYPE_ID.value] = 'jpeg_receiver_image_post_request'
         elif request.method == RequestVerb.GET:
-            request.headers[Headers.DHS_REQUEST_TYPE_ID.value] = 'axis_get_request'
+            request.headers[Headers.DHS_REQUEST_TYPE_ID.value] = 'jpeg_receiver_get_request'
 
         return request
 
@@ -213,19 +213,19 @@ class JpegReceiverServerTransport(Transport):
     def wait(self):
         self._connection_worker.join()
 
-@register_message('axis_get_request', 'axis')
+@register_message('jpeg_receiver_get_request', 'jpeg_receiver')
 class JpegReceiverGetRequestMessage(ServerRequestMessage):
     def __init__(self, request):
         super().__init__(request)
 
-@register_message('axis_image_post_request', 'axis')
+@register_message('jpeg_receiver_image_post_request', 'jpeg_receiver')
 class JpegReceiverImagePostRequestMessage(FileServerRequestMessage):
     def __init__(self, request):
         super().__init__(request)
 
 class JpegReceiverServerMessageFactory(MessageFactory):
     def __init__(self):
-        super().__init__('axis')
+        super().__init__('jpeg_receiver')
 
     def _parse_type_id(self, request:Any):
         return ServerRequestMessage.parse_type_id(request)
@@ -234,7 +234,7 @@ class JpegReceiverServerTransport(JpegReceiverServerTransport):
     def __init__(self, connection_name:str, url:str, config:dict={}):
         super().__init__(connection_name, url, JpegReceiverMessageRequestReader(), config)
 
-@register_connection('axis')
+@register_connection('jpeg_receiver')
 class JpegReceiverServerConnection(ConnectionBase):
     def __init__(self, connection_name:str, url:str, incoming_message_queue:IncomingMessageQueue, outgoing_message_queue:OutgoingMessageQueue, config:dict={}):
         super().__init__(connection_name, url, JpegReceiverServerTransport(connection_name, url, config), incoming_message_queue, outgoing_message_queue, JpegReceiverServerMessageFactory(), config)
