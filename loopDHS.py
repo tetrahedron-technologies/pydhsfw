@@ -143,19 +143,14 @@ def predict_one(message:DcssStoHStartOperation, context:DcssContext):
     The operation is for testing AutoML. It reads a single image of a nylon loop from the tests directory and sends it to AutoML.
     """
     _logger.info(f'GOT: {message}')
-    # I'm not sure why we loop through all active ops?
-    activeOps = context.get_active_operations('predictOne')
-    for ao in activeOps:
-        context.get_connection('dcss_conn').send(DcssHtoSOperationUpdate(ao.operation_name, ao.operation_handle, "about to predict one test image"))
-        image_key = "THE-TEST-IMAGE"
-        filename = 'tests/loop_nylon.jpg'
-        with io.open(filename, 'rb') as image_file:
-            binary_image = image_file.read()
-        context.get_connection('automl_conn').send(AutoMLPredictRequest(image_key, binary_image))
-        # is the rest of this operation done elsewhere?
 
-        # how to get return_msg?
-        #context.get_connection('dcss_conn').send(DcssHtoSOperationCompleted(ao.operation_name, ao.operation_handle, "normal", return_msg))
+    context.get_connection('dcss_conn').send(DcssHtoSOperationUpdate(message.operation_name, message.operation_handle, "about to predict one test image"))
+    image_key = "THE-TEST-IMAGE"
+    filename = 'tests/loop_nylon.jpg'
+    with io.open(filename, 'rb') as image_file:
+        binary_image = image_file.read()
+    context.get_connection('automl_conn').send(AutoMLPredictRequest(image_key, binary_image))
+
 
 @register_dcss_start_operation_handler('collectLoopImages')
 def collect_loop_images(message:DcssStoHStartOperation, context:DcssContext):
@@ -258,40 +253,39 @@ def rebox_loop_image(message:DcssStoHStartOperation, context:DcssContext):
 @register_message_handler('automl_predict_response')
 def automl_predict_response(message:AutoMLPredictResponse, context:DcssContext):
     """
-    This handler is hardcoded to accompany the predictOne operation
+    This handler will deal with stuff coming back from AutoML
     """
 
-    activeOps = context.get_active_operations('predictOne')
+    activeOps = context.get_active_operations()
     for ao in activeOps:
-        predict_one_msg = ' '.join([str(message.image_key), str(message.top_result), str(message.top_bb[0]), str(message.top_bb[1]), str(message.top_bb[2]), str(message.top_bb[3]), message.top_classification])
-        _logger.info(f'AUTOML: {predict_one_msg}')
-        context.get_connection('dcss_conn').send(DcssHtoSOperationCompleted(ao.operation_name, ao.operation_handle, "normal", predict_one_msg))
-
-    activeOps = context.get_active_operations('collectLoopImages')
-    for ao in activeOps:
-        # need to increment index for each image we receive
-        index = 1
-        status = 'normal'
-        tipX = message.top_bb[2]
-        tipY = (message.top_bb[3] - message.top_bb[1])/2
-        pinBaseX = 0.111
-        fiberWidth = 0.222
-        loopWidth = (message.top_bb[3] - message.top_bb[1])
-        boxMinX = message.top_bb[0]
-        boxMaxX = message.top_bb[2]
-        boxMinY = message.top_bb[3]
-        boxMaxY = message.top_bb[1]
-        loopWidthX = (message.top_bb[2] - message.top_bb[0])
-        isMicroMount = 0
-        # I would like to format these numbers so they aren't so long.
-        collect_loop_images_msg = ' '.join(map(str,['LOOP INFO', index, status, tipX, tipY, pinBaseX, fiberWidth, loopWidth, boxMinX, boxMaxX, boxMinY, boxMaxY, loopWidthX, isMicroMount]))
-        _logger.info(f'FOR DCSS: {collect_loop_images_msg}')
-        context.get_connection('dcss_conn').send(DcssHtoSOperationUpdate(ao.operation_name,ao.operation_handle,collect_loop_images_msg))
+        if ao.operation_name == 'predictOne':
+            predict_one_msg = ' '.join(map(str,[message.image_key, message.top_result, message.top_bb[0], message.top_bb[1], message.top_bb[2], message.top_bb[3], message.top_classification]))
+            _logger.info(f'AUTOML: {predict_one_msg}')
+            context.get_connection('dcss_conn').send(DcssHtoSOperationCompleted(ao.operation_name, ao.operation_handle, "normal", predict_one_msg))
+        elif ao.operation_name == 'collectLoopImages':
+            # need to increment index for each image we receive
+            index = message.image_key
+            status = 'normal'
+            tipX = message.top_bb[2]
+            tipY = (message.top_bb[3] - message.top_bb[1])/2
+            pinBaseX = 0.111
+            fiberWidth = 0.222
+            loopWidth = (message.top_bb[3] - message.top_bb[1])
+            boxMinX = message.top_bb[0]
+            boxMaxX = message.top_bb[2]
+            boxMinY = message.top_bb[3]
+            boxMaxY = message.top_bb[1]
+            loopWidthX = (message.top_bb[2] - message.top_bb[0])
+            isMicroMount = 0
+            # I would like to format these numbers so they aren't so long.
+            collect_loop_images_msg = ' '.join(map(str,['LOOP_INFO', index, status, tipX, tipY, pinBaseX, fiberWidth, loopWidth, boxMinX, boxMaxX, boxMinY, boxMaxY, loopWidthX, isMicroMount]))
+            _logger.info(f'FOR DCSS: {collect_loop_images_msg}')
+            context.get_connection('dcss_conn').send(DcssHtoSOperationUpdate(ao.operation_name,ao.operation_handle,collect_loop_images_msg))
 
 @register_message_handler('jpeg_receiver_image_post_request')
 def axis_image_request(message:JpegReceiverImagePostRequestMessage, context:DhsContext):
     _logger.debug(message.file)
-    # generate key
+    # generate key. could injcrement here?!?!?!
     image_key = ''.join(choice(ascii_uppercase + digits) for i in range(12))
     # send 
     context.get_connection('automl_conn').send(AutoMLPredictRequest(image_key, message.file))
