@@ -5,7 +5,7 @@ import time
 import signal
 from typing import Any
 from pydhsfw.processors import register_message_handler
-from pydhsfw.axissvr import AxisServerGetRequestMessage, AxisServerImagePostRequestMessage
+from pydhsfw.jpeg_receiver import JpegReceiverImagePostRequestMessage
 from pydhsfw.dhs import Dhs, DhsContext, DhsInit, DhsStart
 
 _logger = logging.getLogger(__name__)
@@ -19,17 +19,13 @@ def dhs_init(message:DhsInit, context:DhsContext):
 def dhs_start(message:DhsStart, context:DhsContext):
     url = 'http://:7171'
 
-    context.create_connection('axis_svr_conn', 'axissvr', url)
-    context.get_connection('axis_svr_conn').connect()
+    context.create_connection('jpeg_receiver_conn', 'jpeg_receiver', url)
+    context.get_connection('jpeg_receiver_conn').connect()
 
     time.sleep(3)
 
-@register_message_handler('axissvr_get_request')
-def axis_image_request(message:AxisServerGetRequestMessage, context:DhsContext):
-    _logger.info(message)
-    
-@register_message_handler('axissvr_image_post_request')
-def axis_image_request(message:AxisServerImagePostRequestMessage, context:DhsContext):
+@register_message_handler('jpeg_receiver_image_post_request')
+def axis_image_request(message:JpegReceiverImagePostRequestMessage, context:DhsContext):
     _logger.debug(message.file)
 
 dhs = Dhs()
