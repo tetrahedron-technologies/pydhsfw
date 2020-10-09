@@ -19,12 +19,12 @@ def dhs_init(message:DhsInit, context:DhsContext):
 def dhs_start(message:DhsStart, context:DhsContext):
     url = 'http://:7171'
 
-    context.create_connection('axis_svr_conn', 'axis', url)
-    context.get_connection('axis_svr_conn').connect()
+    context.create_connection('jpeg_receiver_conn', 'jpeg_receiver', url)
+    context.get_connection('jpeg_receiver_conn').connect()
 
     time.sleep(3)
 
-@register_message_handler('axis_get_request')
+@register_message_handler('jpeg_receiver_get_request')
 def axis_image_request(message:JpegReceiverGetRequestMessage, context:DhsContext):
     _logger.info(message)
     
