@@ -16,7 +16,7 @@ from pydhsfw.http import ContentType, FileServerRequestMessage, Headers, Request
 
 _logger = logging.getLogger(__name__)
 
-class AxisServerMessageRequestReader(ServerMessageRequestReader):
+class JpegReceiverMessageRequestReader(ServerMessageRequestReader):
     def __init__(self):
         pass
 
@@ -30,7 +30,7 @@ class AxisServerMessageRequestReader(ServerMessageRequestReader):
 
         return request
 
-class AxisServerRequestHandler(http.server.BaseHTTPRequestHandler):
+class JpegReceiverRequestHandler(http.server.BaseHTTPRequestHandler):
     def __init__(self, request_queue:RequestQueue, *args, **kwargs):
         self._request_queue = request_queue
         super().__init__(*args, **kwargs)
@@ -86,10 +86,10 @@ class HttpAbortableServer(http.server.HTTPServer):
     def shutdown_trigger(self):
         self.__shutdown_request = True
 
-class AxisServerTransportConnectionWorker(AbortableThread):
+class JpegReceiverTransportConnectionWorker(AbortableThread):
 
     def __init__(self, connection_name:str, url:str, request_queue:RequestQueue, config:dict={}):
-        super().__init__(name=f'{connection_name} axis server transport connection worker', config=config)
+        super().__init__(name=f'{connection_name} jpeg receiver transport connection worker', config=config)
         self._connection_name = connection_name
         self._url = url
         self._config = config
@@ -97,7 +97,7 @@ class AxisServerTransportConnectionWorker(AbortableThread):
         self._desired_state = TransportState.DISCONNECTED
         self._state_change_event = threading.Event()
         self._request_queue = request_queue
-        request_hander = partial(AxisServerRequestHandler, self._request_queue)
+        request_hander = partial(JpegReceiverRequestHandler, self._request_queue)
         self._http_server = HttpAbortableServer(('', urlparse(url).port), request_hander)
 
     def connect(self):
@@ -166,15 +166,15 @@ class AxisServerTransportConnectionWorker(AbortableThread):
         time.sleep(self._get_blocking_timeout())
         self._connect()
 
-class AxisImageServerTransport(Transport):
+class JpegReceiverServerTransport(Transport):
     ''' Http server transport '''
 
-    def __init__(self, connection_name:str, url:str, message_reader:AxisServerMessageRequestReader, config:dict={}):
+    def __init__(self, connection_name:str, url:str, message_reader:JpegReceiverMessageRequestReader, config:dict={}):
         super().__init__(connection_name, url, config)
         self._poll_timeout = config.get(AbortableThread.THREAD_BLOCKING_TIMEOUT, AbortableThread.THREAD_BLOCKING_TIMEOUT_DEFAULT)
         self._message_reader = message_reader
         self._request_queue = RequestQueue()
-        self._connection_worker = AxisServerTransportConnectionWorker(connection_name, url, self._request_queue, config)
+        self._connection_worker = JpegReceiverTransportConnectionWorker(connection_name, url, self._request_queue, config)
 
     def send(self, msg:Any):
         raise NotImplemented
@@ -214,27 +214,27 @@ class AxisImageServerTransport(Transport):
         self._connection_worker.join()
 
 @register_message('axis_get_request', 'axis')
-class AxisServerGetRequestMessage(ServerRequestMessage):
+class JpegReceiverGetRequestMessage(ServerRequestMessage):
     def __init__(self, request):
         super().__init__(request)
 
 @register_message('axis_image_post_request', 'axis')
-class AxisServerImagePostRequestMessage(FileServerRequestMessage):
+class JpegReceiverImagePostRequestMessage(FileServerRequestMessage):
     def __init__(self, request):
         super().__init__(request)
 
-class AxisImageServerMessageFactory(MessageFactory):
+class JpegReceiverServerMessageFactory(MessageFactory):
     def __init__(self):
         super().__init__('axis')
 
     def _parse_type_id(self, request:Any):
         return ServerRequestMessage.parse_type_id(request)
 
-class AxisImageServerTransport(AxisImageServerTransport):
+class JpegReceiverServerTransport(JpegReceiverServerTransport):
     def __init__(self, connection_name:str, url:str, config:dict={}):
-        super().__init__(connection_name, url, AxisServerMessageRequestReader(), config)
+        super().__init__(connection_name, url, JpegReceiverMessageRequestReader(), config)
 
 @register_connection('axis')
-class AxisImageServerConnection(ConnectionBase):
+class JpegReceiverServerConnection(ConnectionBase):
     def __init__(self, connection_name:str, url:str, incoming_message_queue:IncomingMessageQueue, outgoing_message_queue:OutgoingMessageQueue, config:dict={}):
-        super().__init__(connection_name, url, AxisImageServerTransport(connection_name, url, config), incoming_message_queue, outgoing_message_queue, AxisImageServerMessageFactory(), config)
+        super().__init__(connection_name, url, JpegReceiverServerTransport(connection_name, url, config), incoming_message_queue, outgoing_message_queue, JpegReceiverServerMessageFactory(), config)
