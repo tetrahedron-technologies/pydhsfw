@@ -284,21 +284,15 @@ def automl_predict_response(message:AutoMLPredictResponse, context:DcssContext):
 
 @register_message_handler('jpeg_receiver_image_post_request')
 def axis_image_request(message:JpegReceiverImagePostRequestMessage, context:DhsContext):
+    """
+    This handler is triggered when a new jpeg image arrives from the jpeg_receiver. It is then shuttled off to AutoML
+    """
     _logger.debug(message.file)
     # generate key. could injcrement here?!?!?!
     image_key = ''.join(choice(ascii_uppercase + digits) for i in range(12))
     # send 
     context.get_connection('automl_conn').send(AutoMLPredictRequest(image_key, message.file))
 
-    #    for error:
-    #    htos_operation_update collectLoopImages operation_handle LOOP_INFO <index> failed <error_message>
-    #    for success:
-    #    htos_operation_update collectLoopImages operation_handle LOOP_INFO <index> normal tipX tipY pinBaseX fiberWidth loopWidth boxMinX boxMaxX boxMinY boxMaxY loopWidthX isMicroMount
-    #return_msg = "LOOP_INFO 1 normal 0.5 0.5 0.4 0.1 0.22 1 2 3 4 5 6"
-    # so I guess this is where we end up if an image arrives on teh jpeg_receiver_port.
-    #activeOps = context.get_active_operations('collectLoopImages')
-    #for ao in activeOps:
-    #    context.get_connection('dcss_conn').send(DcssHtoSOperationUpdate(ao.operation_name,ao.operation_handle, return_msg))
 
 dhs = Dhs()
 dhs.start()
