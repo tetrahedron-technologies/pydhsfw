@@ -24,9 +24,9 @@ class AxisServerMessageRequestReader(ServerMessageRequestReader):
         if request.method == RequestVerb.POST.value:
             content_type = request.headers.get(Headers.CONTENT_TYPE.value)
             if content_type in (ContentType.JPEG.value, ContentType.PNG.value):
-                request.headers[Headers.DHS_REQUEST_TYPE_ID.value] = 'axissvr_image_post_request'
+                request.headers[Headers.DHS_REQUEST_TYPE_ID.value] = 'axis_image_post_request'
         elif request.method == RequestVerb.GET:
-            request.headers[Headers.DHS_REQUEST_TYPE_ID.value] = 'axissvr_get_request'
+            request.headers[Headers.DHS_REQUEST_TYPE_ID.value] = 'axis_get_request'
 
         return request
 
@@ -166,7 +166,6 @@ class AxisServerTransportConnectionWorker(AbortableThread):
         time.sleep(self._get_blocking_timeout())
         self._connect()
 
-
 class AxisImageServerTransport(Transport):
     ''' Http server transport '''
 
@@ -214,19 +213,19 @@ class AxisImageServerTransport(Transport):
     def wait(self):
         self._connection_worker.join()
 
-@register_message('axissvr_get_request', 'axissvr')
+@register_message('axis_get_request', 'axis')
 class AxisServerGetRequestMessage(ServerRequestMessage):
     def __init__(self, request):
         super().__init__(request)
 
-@register_message('axissvr_image_post_request', 'axissvr')
+@register_message('axis_image_post_request', 'axis')
 class AxisServerImagePostRequestMessage(FileServerRequestMessage):
     def __init__(self, request):
         super().__init__(request)
 
 class AxisImageServerMessageFactory(MessageFactory):
     def __init__(self):
-        super().__init__('axissvr')
+        super().__init__('axis')
 
     def _parse_type_id(self, request:Any):
         return ServerRequestMessage.parse_type_id(request)
@@ -235,9 +234,7 @@ class AxisImageServerTransport(AxisImageServerTransport):
     def __init__(self, connection_name:str, url:str, config:dict={}):
         super().__init__(connection_name, url, AxisServerMessageRequestReader(), config)
 
-@register_connection('axissvr')
+@register_connection('axis')
 class AxisImageServerConnection(ConnectionBase):
     def __init__(self, connection_name:str, url:str, incoming_message_queue:IncomingMessageQueue, outgoing_message_queue:OutgoingMessageQueue, config:dict={}):
         super().__init__(connection_name, url, AxisImageServerTransport(connection_name, url, config), incoming_message_queue, outgoing_message_queue, AxisImageServerMessageFactory(), config)
-
-
