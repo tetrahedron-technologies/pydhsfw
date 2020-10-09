@@ -8,6 +8,7 @@ from pydhsfw.processors import  Context, register_message_handler
 from pydhsfw.dhs import Dhs, DhsInit, DhsStart, DhsContext
 from pydhsfw.dcss import DcssContext, DcssStoCSendClientType, DcssHtoSClientIsHardware, DcssStoHRegisterOperation, DcssStoHStartOperation, DcssHtoSOperationUpdate, DcssHtoSOperationCompleted, register_dcss_start_operation_handler
 from pydhsfw.automl import AutoMLPredictRequest, AutoMLPredictResponse
+from pydhsfw.axissvr import AxisServerGetRequestMessage, AxisServerImagePostRequestMessage
 
 _logger = logging.getLogger(__name__)
 
@@ -48,7 +49,7 @@ def dhs_init(message:DhsInit, context:DhsContext):
 
     args = parser.parse_args(message.args)
 
-    loglevel = logging.DEBUG
+    #loglevel = logging.DEBUG
 
     #Logging setup. Will be able to change logging level later with config parameters.
     logformat = "[%(asctime)s] %(levelname)s:%(name)s:%(funcName)s():%(lineno)d - %(message)s"
@@ -67,26 +68,35 @@ def dhs_init(message:DhsInit, context:DhsContext):
         dcss_port = conf['dcss']['port']
         automl_host = conf['loopdhs']['automl']['host']
         automl_port = conf['loopdhs']['automl']['port']
+        jpeg_receiver_port = conf['loopdhs']['jpeg_receiver']['port']
         _logger.info(f"DCSS HOST: {dcss_host} PORT: {dcss_port}")
         _logger.info(f"AUTOML HOST: {automl_host} PORT: {automl_port}")
 
     dcss_url = 'dcss://' + dcss_host + ':' + str(dcss_port)
     automl_url = 'http://' + automl_host + ':' + str(automl_port)
+    jpeg_receiver_url = 'http://localhost:' + str(jpeg_receiver_port)
     # merge values from command line and config file:
-    context.state = {'dcss_url': dcss_url, 'automl_url': automl_url, 'DHS': args.dhs_name}
+    context.state = {'DHS': args.dhs_name, 'dcss_url': dcss_url, 'automl_url': automl_url, 'jpeg_receiver_url': jpeg_receiver_url}
 
 @register_message_handler('dhs_start')
 def dhs_start(message:DhsStart, context:DhsContext):
     dcss_url = context.state['dcss_url']
     automl_url = context.state['automl_url']
+    jpeg_receiver_url = context.state['jpeg_receiver_url']
 
-    # connect to DCSS
+    # Connect to DCSS
     context.create_connection('dcss_conn', 'dcss', dcss_url)
     context.get_connection('dcss_conn').connect()
 
-    # connect to GCP AutoML docker service
+    # Connect to GCP AutoML docker service
     context.create_connection('automl_conn', 'automl', automl_url, {'heartbeat_path': '/v1/models/default'})
     context.get_connection('automl_conn').connect()
+
+    # Open a jpeg receiving port. Not sure this needs to be open all the time.
+    # but Giles suggests that this is safe because unexpected data arrivign on jpeg_receiver_url
+    # will be ignored if there is no activeOp to deal with it.
+    context.create_connection('axis_svr_conn', 'axissvr', jpeg_receiver_url)
+    context.get_connection('axis_svr_conn').connect()
 
 @register_message_handler('stoc_send_client_type')
 def dcss_send_client_type(message:DcssStoCSendClientType, context:Context):
@@ -156,6 +166,7 @@ def collect_loop_images(message:DcssStoHStartOperation, context:DcssContext):
     activeOps = context.get_active_operations(message.operation_name)
     for ao in activeOps:
         # 1. Tell the http server to get ready to receive images
+        open_jpegreceiver
         # 2. Send an operation update message to DCSS to trigger both sample rotation and axis server to send images.
         #    htos_operation_update collectLoopImages operation_handle start_oscillation
         context.get_connection('dcss_conn').send(DcssHtoSOperationUpdate(ao.operation_name, ao.operation_handle, "start_oscillation"))
@@ -174,7 +185,9 @@ def collect_loop_images(message:DcssStoHStartOperation, context:DcssContext):
         #    htos_operation_completed collectLoopImages operation_handle aborted
         #    for success:
         #    htos_operation_completed collectLoopImages operation_handle normal done
-
+        # 6. Close the jpegreceiver
+        close_jpegreceiver
+        
 @register_dcss_start_operation_handler('getLoopTip')
 def get_loop_tip(message:DcssStoHStartOperation, context:DcssContext):
     """
@@ -251,6 +264,14 @@ def automl_predict_response(message:AutoMLPredictResponse, context:DcssContext):
     activeOps = context.get_active_operations('predictOne')
     for ao in activeOps:
         context.get_connection('dcss_conn').send(DcssHtoSOperationCompleted(ao.operation_name, ao.operation_handle, "normal", return_msg))
+
+@register_message_handler('axissvr_get_request')
+def axis_image_request(message:AxisServerGetRequestMessage, context:DhsContext):
+    _logger.info(message)
+    
+@register_message_handler('axissvr_image_post_request')
+def axis_image_request(message:AxisServerImagePostRequestMessage, context:DhsContext):
+    _logger.debug(message.file)
 
 dhs = Dhs()
 dhs.start()
