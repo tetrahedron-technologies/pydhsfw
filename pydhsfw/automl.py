@@ -36,6 +36,10 @@ class AutoMLPredictResponse(JsonResponseMessage):
         super().__init__(response)
 
     @property
+    def image_key(self):
+        return dotty(self.json)['predictions.0.key']
+
+    @property
     def top_result(self):
        # might want to do some sort of filtering here?
        # only accept if score if better than 90% or something?

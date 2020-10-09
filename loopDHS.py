@@ -4,11 +4,14 @@ import sys
 import yaml
 import time
 import io
+from random import choice
+from string import ascii_uppercase, digits
+
 from pydhsfw.processors import  Context, register_message_handler
 from pydhsfw.dhs import Dhs, DhsInit, DhsStart, DhsContext
 from pydhsfw.dcss import DcssContext, DcssStoCSendClientType, DcssHtoSClientIsHardware, DcssStoHRegisterOperation, DcssStoHStartOperation, DcssHtoSOperationUpdate, DcssHtoSOperationCompleted, register_dcss_start_operation_handler
 from pydhsfw.automl import AutoMLPredictRequest, AutoMLPredictResponse
-from pydhsfw.axissvr import AxisServerGetRequestMessage, AxisServerImagePostRequestMessage
+from pydhsfw.jpeg_receiver import JpegReceiverImagePostRequestMessage
 
 _logger = logging.getLogger(__name__)
 
@@ -95,8 +98,8 @@ def dhs_start(message:DhsStart, context:DhsContext):
     # Open a jpeg receiving port. Not sure this needs to be open all the time.
     # but Giles suggests that this is safe because unexpected data arrivign on jpeg_receiver_url
     # will be ignored if there is no activeOp to deal with it.
-    context.create_connection('axis_svr_conn', 'axissvr', jpeg_receiver_url)
-    context.get_connection('axis_svr_conn').connect()
+    context.create_connection('jpeg_receiver_conn', 'jpeg_receiver', jpeg_receiver_url)
+    #context.get_connection('jpeg_receiver_conn').connect()
 
 @register_message_handler('stoc_send_client_type')
 def dcss_send_client_type(message:DcssStoCSendClientType, context:Context):
@@ -141,10 +144,10 @@ def predict_one(message:DcssStoHStartOperation, context:DcssContext):
     """
     _logger.info(f'GOT: {message}')
     # I'm not sure why we loop through all active ops?
-    activeOps = context.get_active_operations(message.operation_name)
+    activeOps = context.get_active_operations('predictOne')
     for ao in activeOps:
         context.get_connection('dcss_conn').send(DcssHtoSOperationUpdate(ao.operation_name, ao.operation_handle, "about to predict one test image"))
-        image_key = "1q2w3e4r5t"
+        image_key = "THE-TEST-IMAGE"
         filename = 'tests/loop_nylon.jpg'
         with io.open(filename, 'rb') as image_file:
             binary_image = image_file.read()
@@ -166,7 +169,8 @@ def collect_loop_images(message:DcssStoHStartOperation, context:DcssContext):
     activeOps = context.get_active_operations(message.operation_name)
     for ao in activeOps:
         # 1. Tell the http server to get ready to receive images
-        open_jpegreceiver
+        # NOT NEEDED. WILL LEAVE PORT OPEN ALWAYS
+        context.get_connection('jpeg_receiver_conn').connect()
         # 2. Send an operation update message to DCSS to trigger both sample rotation and axis server to send images.
         #    htos_operation_update collectLoopImages operation_handle start_oscillation
         context.get_connection('dcss_conn').send(DcssHtoSOperationUpdate(ao.operation_name, ao.operation_handle, "start_oscillation"))
@@ -186,7 +190,7 @@ def collect_loop_images(message:DcssStoHStartOperation, context:DcssContext):
         #    for success:
         #    htos_operation_completed collectLoopImages operation_handle normal done
         # 6. Close the jpegreceiver
-        close_jpegreceiver
+        # NOT NEEDED. WILL LEAVE PORT OPEN ALWAYS
         
 @register_dcss_start_operation_handler('getLoopTip')
 def get_loop_tip(message:DcssStoHStartOperation, context:DcssContext):
@@ -228,11 +232,13 @@ def get_loop_info(message:DcssStoHStartOperation, context:DcssContext):
 @register_dcss_start_operation_handler('stopCollectLoopImages')
 def stop_collect_loop_images(message:DcssStoHStartOperation, context:DcssContext):
     """
-    This operation should set a global flag to signal collectLoopImages to stop and to shutdown the jpeg receiver.
+    This operation should set a global flag to signal collectLoopImages to stop and optionally to shutdown the jpeg receiver.
     """
     _logger.info(f'GOT: {message}')
+
     # 1. Set global stop flag
     # 2. Shutdown jpeg receiver
+    context.get_connection('jpeg_receiver_conn').disconnect()
     # 3. Send update message to DCSS
     #    htos_operation_completed stopCollectLoopImages operation_handle normal flag set
 
@@ -254,33 +260,51 @@ def automl_predict_response(message:AutoMLPredictResponse, context:DcssContext):
     """
     This handler is hardcoded to accompany the predictOne operation
     """
-    _logger.info(f'TOP BB SCORE: {message.top_result}')
-    _logger.info(f'TOP BB DIM: {message.top_bb}')
-    _logger.info(f'TOP BB TYPE: {message.top_classification}')
-    return_msg = str(message.top_result) + " " + str(message.top_bb[0]) + " " + str(message.top_bb[1]) + " " + str(message.top_bb[2]) + " " + str(message.top_classification)
-    _logger.info(f'RETURN_MSG: {return_msg}')
 
-    # not working because message has no property called operation_name
     activeOps = context.get_active_operations('predictOne')
     for ao in activeOps:
-        context.get_connection('dcss_conn').send(DcssHtoSOperationCompleted(ao.operation_name, ao.operation_handle, "normal", return_msg))
+        predict_one_msg = ' '.join([str(message.image_key), str(message.top_result), str(message.top_bb[0]), str(message.top_bb[1]), str(message.top_bb[2]), str(message.top_bb[3]), message.top_classification])
+        _logger.info(f'AUTOML: {predict_one_msg}')
+        context.get_connection('dcss_conn').send(DcssHtoSOperationCompleted(ao.operation_name, ao.operation_handle, "normal", predict_one_msg))
 
-@register_message_handler('axissvr_get_request')
-def axis_image_request(message:AxisServerGetRequestMessage, context:DhsContext):
-    _logger.info(message)
-    
-@register_message_handler('axissvr_image_post_request')
-def axis_image_request(message:AxisServerImagePostRequestMessage, context:DhsContext):
-    _logger.debug(message.file)
-        #    for error:
-        #    htos_operation_update collectLoopImages operation_handle LOOP_INFO <index> failed <error_message>
-        #    for success:
-        #    htos_operation_update collectLoopImages operation_handle LOOP_INFO <index> normal tipX tipY pinBaseX fiberWidth loopWidth boxMinX boxMaxX boxMinY boxMaxY loopWidthX isMicroMount
-    return_msg = "LOOP_INFO 1 normal 0.5 0.5 0.4 0.1 0.22 1 2 3 4 5 6"
-    # so I guess this is where we end up if an image arrives on teh jpeg_receiver_port.
     activeOps = context.get_active_operations('collectLoopImages')
     for ao in activeOps:
-        context.get_connection('dcss_conn').send(DcssHtoSOperationUpdate(ao.operation_name,ao.operation_handle, return_msg))
+        # need to increment index for each image we receive
+        index = 1
+        status = 'normal'
+        tipX = message.top_bb[2]
+        tipY = (message.top_bb[3] - message.top_bb[1])/2
+        pinBaseX = 0.111
+        fiberWidth = 0.222
+        loopWidth = (message.top_bb[3] - message.top_bb[1])
+        boxMinX = message.top_bb[0]
+        boxMaxX = message.top_bb[2]
+        boxMinY = message.top_bb[3]
+        boxMaxY = message.top_bb[1]
+        loopWidthX = (message.top_bb[2] - message.top_bb[0])
+        isMicroMount = 0
+        # I would like to format these numbers so they aren't so long.
+        collect_loop_images_msg = ' '.join(map(str,['LOOP INFO', index, status, tipX, tipY, pinBaseX, fiberWidth, loopWidth, boxMinX, boxMaxX, boxMinY, boxMaxY, loopWidthX, isMicroMount]))
+        _logger.info(f'FOR DCSS: {collect_loop_images_msg}')
+        context.get_connection('dcss_conn').send(DcssHtoSOperationUpdate(ao.operation_name,ao.operation_handle,collect_loop_images_msg))
+
+@register_message_handler('jpeg_receiver_image_post_request')
+def axis_image_request(message:JpegReceiverImagePostRequestMessage, context:DhsContext):
+    _logger.debug(message.file)
+    # generate key
+    image_key = ''.join(choice(ascii_uppercase + digits) for i in range(12))
+    # send 
+    context.get_connection('automl_conn').send(AutoMLPredictRequest(image_key, message.file))
+
+    #    for error:
+    #    htos_operation_update collectLoopImages operation_handle LOOP_INFO <index> failed <error_message>
+    #    for success:
+    #    htos_operation_update collectLoopImages operation_handle LOOP_INFO <index> normal tipX tipY pinBaseX fiberWidth loopWidth boxMinX boxMaxX boxMinY boxMaxY loopWidthX isMicroMount
+    #return_msg = "LOOP_INFO 1 normal 0.5 0.5 0.4 0.1 0.22 1 2 3 4 5 6"
+    # so I guess this is where we end up if an image arrives on teh jpeg_receiver_port.
+    #activeOps = context.get_active_operations('collectLoopImages')
+    #for ao in activeOps:
+    #    context.get_connection('dcss_conn').send(DcssHtoSOperationUpdate(ao.operation_name,ao.operation_handle, return_msg))
 
 dhs = Dhs()
 dhs.start()
