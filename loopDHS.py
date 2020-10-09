@@ -272,6 +272,15 @@ def axis_image_request(message:AxisServerGetRequestMessage, context:DhsContext):
 @register_message_handler('axissvr_image_post_request')
 def axis_image_request(message:AxisServerImagePostRequestMessage, context:DhsContext):
     _logger.debug(message.file)
+        #    for error:
+        #    htos_operation_update collectLoopImages operation_handle LOOP_INFO <index> failed <error_message>
+        #    for success:
+        #    htos_operation_update collectLoopImages operation_handle LOOP_INFO <index> normal tipX tipY pinBaseX fiberWidth loopWidth boxMinX boxMaxX boxMinY boxMaxY loopWidthX isMicroMount
+    return_msg = "LOOP_INFO 1 normal 0.5 0.5 0.4 0.1 0.22 1 2 3 4 5 6"
+    # so I guess this is where we end up if an image arrives on teh jpeg_receiver_port.
+    activeOps = context.get_active_operations('collectLoopImages')
+    for ao in activeOps:
+        context.get_connection('dcss_conn').send(DcssHtoSOperationUpdate(ao.operation_name,ao.operation_handle, return_msg))
 
 dhs = Dhs()
 dhs.start()
