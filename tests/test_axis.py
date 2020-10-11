@@ -32,13 +32,8 @@ def dhs_init(message:DhsInit, context:DhsContext):
 
 @register_message_handler('dhs_start')
 def dhs_start(message:DhsStart, context:DhsContext):
-
-    port_number = 5000
-    image_key = '1a2s3d4f5g'
-    filename = 'loop_nylon.jpg'
-    url = 'http://localhost:{}'.format(port_number)
-
-    context.create_connection('axis_conn', 'axis', url, {'heartbeat_path': '/axis-cgi/jpg/image.cgi'})
+    url = 'http://141.211.27.126/axis-cgi/jpg/image.cgi'
+    context.create_connection('axis_conn', 'axis', url)
     context.get_connection('axis_conn').connect()
     time.sleep(3)
 
