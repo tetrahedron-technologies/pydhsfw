@@ -86,6 +86,7 @@ def dhs_init(message:DhsInit, context:DhsContext):
     jpeg_receiver_url = 'http://localhost:' + str(jpeg_receiver_port)
     # merge values from command line and config file:
     context.state = {'DHS': args.dhs_name, 'dcss_url': dcss_url, 'automl_url': automl_url, 'jpeg_receiver_url': jpeg_receiver_url}
+    context.gStopJpegStream = 0
 
 @register_message_handler('dhs_start')
 def dhs_start(message:DhsStart, context:DhsContext):
@@ -167,7 +168,8 @@ def collect_loop_images(message:DcssStoHStartOperation, context:DcssContext):
     DCSS may send a single arg <pinBaseSizeHint>, but I think we can ignore it.
     """
     _logger.info(f'GOT: {message}')
-
+    # clear teh stop flag
+    context.gStopJpegStream = 0
     # 1. Open jpeg_receiver_port
     context.get_connection('jpeg_receiver_conn').connect()
     # 2. Send an operation update message to DCSS to trigger both sample rotation and axis server to send images.
@@ -238,15 +240,14 @@ def stop_collect_loop_images(message:DcssStoHStartOperation, context:DcssContext
     # 1. Set global stop flag
     # HOW? WHERE?
     context.gStopJpegStream = 1
+
     # 2. Shutdown jpeg receiver
     context.get_connection('jpeg_receiver_conn').shutdown()
-    # can we assert that this has heppened before telling DCSS?
+    # can we assert that this has happened before telling DCSS?
 
     # 3. Send update message to DCSS
     #    htos_operation_completed stopCollectLoopImages operation_handle normal flag set
     context.get_connection('dcss_conn').send(DcssHtoSOperationCompleted(message.operation_name,message.operation_handle,'normal','flag set'))
-
-    time.sleep(5)
 
     # if there is an active collectLoopImages operation send a completed message. Not quite working. For some reason loopDHS is always sending 1
     # extra update message after I send this operation completed message.
@@ -282,7 +283,7 @@ def automl_predict_response(message:AutoMLPredictResponse, context:DcssContext):
             predict_one_msg = ' '.join(map(str,[message.image_key, message.top_result, message.top_bb[0], message.top_bb[1], message.top_bb[2], message.top_bb[3], message.top_classification]))
             _logger.info(f'AUTOML: {predict_one_msg}')
             context.get_connection('dcss_conn').send(DcssHtoSOperationCompleted(ao.operation_name, ao.operation_handle, "normal", predict_one_msg))
-        elif ao.operation_name == 'collectLoopImages':
+        elif ao.operation_name == 'collectLoopImages' and not context.gStopJpegStream:
             # We need to increment index for each image we receive during a collectLoopImages operation.
             index = message.image_key
             status = 'normal'
