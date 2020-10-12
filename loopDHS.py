@@ -17,6 +17,13 @@ from pydhsfw.jpeg_receiver import JpegReceiverImagePostRequestMessage
 _logger = logging.getLogger(__name__)
 
 # add DHS-specific class to hold jpeg images in memory and config stuff and other stuff.
+class LoopImageSet():
+    def __init__(self):
+        self.images = []
+
+    def add_image(self, image:bytes):
+        self.images.append(image)
+        return len(self.images)
 
 @register_message_handler('dhs_init')
 def dhs_init(message:DhsInit, context:DhsContext):
@@ -168,31 +175,16 @@ def collect_loop_images(message:DcssStoHStartOperation, context:DcssContext):
     DCSS may send a single arg <pinBaseSizeHint>, but I think we can ignore it.
     """
     _logger.info(f'GOT: {message}')
-    # clear teh stop flag
+    # 1. Instaniate LoopImageSet
+    context.jpegs = LoopImageSet()
+    # 2. Clear the stop flag
     context.gStopJpegStream = 0
-    # 1. Open jpeg_receiver_port
+    # 3. Open jpeg_receiver_port
     context.get_connection('jpeg_receiver_conn').connect()
-    # 2. Send an operation update message to DCSS to trigger both sample rotation and axis server to send images.
+    # 4. Send an operation update message to DCSS to trigger both sample rotation and axis server to send images.
     #    htos_operation_update collectLoopImages operation_handle start_oscillation
     context.get_connection('dcss_conn').send(DcssHtoSOperationUpdate(message.operation_name, message.operation_handle, "start_oscillation"))
 
-    # I'm guessing everything below will happen in the AutoML response handler code:
-    #
-    # 3. As each image arrives forward it to AutoML for loop classification and bounding box determination.
-    # 4. Format an operation update for each image and send to DCSS
-    #    for error:
-    #    htos_operation_update collectLoopImages operation_handle LOOP_INFO <index> failed <error_message>
-    #    for success:
-    #    htos_operation_update collectLoopImages operation_handle LOOP_INFO <index> normal tipX tipY pinBaseX fiberWidth loopWidth boxMinX boxMaxX boxMinY boxMaxY loopWidthX isMicroMount
-    # 5. Listen for some global flag/signal (set by the stopCollectLoopImages operation) that operation should stop processing images
-    #    and then send an operation complete message to DCSS
-    #    for error:
-    #    htos_operation_completed collectLoopImages operation_handle aborted
-    #    for success:
-    #    htos_operation_completed collectLoopImages operation_handle normal done
-    # 6. Close the jpegreceiver
-    # NOT NEEDED. WILL LEAVE PORT OPEN ALWAYS
-        
 @register_dcss_start_operation_handler('getLoopTip')
 def get_loop_tip(message:DcssStoHStartOperation, context:DcssContext):
     """
@@ -238,24 +230,20 @@ def stop_collect_loop_images(message:DcssStoHStartOperation, context:DcssContext
     _logger.info(f'GOT: {message}')
 
     # 1. Set global stop flag
-    # HOW? WHERE?
     context.gStopJpegStream = 1
 
     # 2. Shutdown jpeg receiver
     context.get_connection('jpeg_receiver_conn').shutdown()
     # can we assert that this has happened before telling DCSS?
 
-    # 3. Send update message to DCSS
-    #    htos_operation_completed stopCollectLoopImages operation_handle normal flag set
+    # 3. Send operation completed message to DCSS
     context.get_connection('dcss_conn').send(DcssHtoSOperationCompleted(message.operation_name,message.operation_handle,'normal','flag set'))
 
-    # if there is an active collectLoopImages operation send a completed message. Not quite working. For some reason loopDHS is always sending 1
-    # extra update message after I send this operation completed message.
+    # 4. If there is an active collectLoopImages operation send a completed message.
     activeOps = context.get_active_operations()
     for ao in activeOps:
         if ao.operation_name == 'collectLoopImages':
             context.get_connection('dcss_conn').send(DcssHtoSOperationCompleted('collectLoopImages',ao.operation_handle,'normal','done'))
-
 
 @register_dcss_start_operation_handler('reboxLoopImage')
 def rebox_loop_image(message:DcssStoHStartOperation, context:DcssContext):
@@ -282,10 +270,11 @@ def automl_predict_response(message:AutoMLPredictResponse, context:DcssContext):
         if ao.operation_name == 'predictOne':
             predict_one_msg = ' '.join(map(str,[message.image_key, message.top_result, message.top_bb[0], message.top_bb[1], message.top_bb[2], message.top_bb[3], message.top_classification]))
             _logger.info(f'AUTOML: {predict_one_msg}')
+            # this DcssHtoSOperationCompleted message is supposed to remove teh outstanding operation from the active operations list. NOT WORKING!!!!!!
             context.get_connection('dcss_conn').send(DcssHtoSOperationCompleted(ao.operation_name, ao.operation_handle, "normal", predict_one_msg))
         elif ao.operation_name == 'collectLoopImages' and not context.gStopJpegStream:
             # We need to increment index for each image we receive during a collectLoopImages operation.
-            index = message.image_key
+            index = len(context.jpegs.images)
             status = 'normal'
             tipX = message.top_bb[2]
             tipY = (message.top_bb[3] - message.top_bb[1])/2
@@ -312,9 +301,15 @@ def axis_image_request(message:JpegReceiverImagePostRequestMessage, context:DhsC
     """
     _logger.debug(message.file)
     # we may need to store a set of images from the most recent collectLoopImages for subsequent analysis with reboxLoopImage
-    # generate key. could injcrement here?!?!?!
+
+    n = context.jpegs.add_image(message.file)
+    _logger.info(f'JPEG IMAGE NUMBER: {n}')
+
+
+    # generate unique key. could injcrement here? Not sure AutoML API like single digit integers as image_key values
     image_key = ''.join(choice(ascii_uppercase + digits) for i in range(12))
-    # send 
+    #image_key = n
+    # send
     context.get_connection('automl_conn').send(AutoMLPredictRequest(image_key, message.file))
 
 
