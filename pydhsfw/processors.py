@@ -92,7 +92,7 @@ class MessageQueueWorker(AbortableThread):
                     #Can't wait forever in blocking call, need to enter loop to check for control messages, specifically SystemExit.
                     msg = self._msg_queue.fetch(self._get_blocking_timeout())
                     if msg:
-                        _logger.info(f"Processing message: {msg}")
+                        _logger.debug(f"Processing message: {msg}")
                         self.process_message(msg)
                 except TimeoutError:
                     #This is normal when there are no more mesages in the queue and wait time has ben satisfied. Just ignore it.

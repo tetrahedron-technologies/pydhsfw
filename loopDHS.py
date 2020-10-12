@@ -16,14 +16,21 @@ from pydhsfw.jpeg_receiver import JpegReceiverImagePostRequestMessage
 
 _logger = logging.getLogger(__name__)
 
-# add DHS-specific class to hold jpeg images in memory and config stuff and other stuff.
+# add DHS-specific class to hold a group of jpeg images in memory.
 class LoopImageSet():
     def __init__(self):
         self.images = []
+        self._number_of_images = None
 
     def add_image(self, image:bytes):
+        """Add a jpeg image to the list of images"""
         self.images.append(image)
-        return len(self.images)
+        self._number_of_images = len(self.images)
+
+    @property
+    def number_of_images(self):
+        """Get the number of images in the image list"""
+        return self._number_of_images
 
 @register_message_handler('dhs_init')
 def dhs_init(message:DhsInit, context:DhsContext):
@@ -74,25 +81,29 @@ def dhs_init(message:DhsInit, context:DhsContext):
     conf_file = 'config/' + args.beamline + '.config'
 
     _logger.info('==========================================')
-    _logger.info("Initializing DHS")
-    _logger.info(f"config file: {conf_file}")
+    _logger.info('Initializing DHS')
+    _logger.info(f'config file: {conf_file}')
     with open(conf_file, 'r') as f:
         conf = yaml.safe_load(f)
         dcss_host = dot(conf)['dcss.host']
         dcss_port = dot(conf)['dcss.port']
         automl_host = dot(conf)['loopdhs.automl.host']
         automl_port = dot(conf)['loopdhs.automl.port']
+        axis_host = dot(conf)['loopdhs.axis.host']
+        axis_port = dot(conf)['loopdhs.axis.port']
         jpeg_receiver_port = dot(conf)['loopdhs.jpeg_receiver.port']
-        _logger.info(f"DCSS HOST: {dcss_host} PORT: {dcss_port}")
-        _logger.info(f"AUTOML HOST: {automl_host} PORT: {automl_port}")
-        _logger.info(f"JPEG RECEIVER PORT: {jpeg_receiver_port}")
+        _logger.info(f'DCSS HOST: {dcss_host} PORT: {dcss_port}')
+        _logger.info(f'AUTOML HOST: {automl_host} PORT: {automl_port}')
+        _logger.info(f'JPEG RECEIVER PORT: {jpeg_receiver_port}')
+        _logger.info(f'AXIS HOST: {axis_host} PORT: {axis_port}')
         _logger.info('==========================================')
 
     dcss_url = 'dcss://' + dcss_host + ':' + str(dcss_port)
     automl_url = 'http://' + automl_host + ':' + str(automl_port)
     jpeg_receiver_url = 'http://localhost:' + str(jpeg_receiver_port)
+    axis_url = ''.join(map(str,['http://',axis_host,':',axis_port])) 
     # merge values from command line and config file:
-    context.state = {'DHS': args.dhs_name, 'dcss_url': dcss_url, 'automl_url': automl_url, 'jpeg_receiver_url': jpeg_receiver_url}
+    context.state = {'DHS': args.dhs_name, 'dcss_url': dcss_url, 'automl_url': automl_url, 'jpeg_receiver_url': jpeg_receiver_url, 'axis_url': axis_url}
     context.gStopJpegStream = 0
 
 @register_message_handler('dhs_start')
@@ -100,6 +111,7 @@ def dhs_start(message:DhsStart, context:DhsContext):
     dcss_url = context.state['dcss_url']
     automl_url = context.state['automl_url']
     jpeg_receiver_url = context.state['jpeg_receiver_url']
+    axis_url = context.state['axis_url']
 
     # Connect to DCSS
     context.create_connection('dcss_conn', 'dcss', dcss_url)
@@ -108,6 +120,8 @@ def dhs_start(message:DhsStart, context:DhsContext):
     # Connect to GCP AutoML docker service
     context.create_connection('automl_conn', 'automl', automl_url, {'heartbeat_path': '/v1/models/default'})
     context.get_connection('automl_conn').connect()
+
+    # Connect to an AXIS Video Server
 
     # Open a jpeg receiving port. Not sure this needs to be open all the time.
     # but Giles suggests that this is safe because unexpected data arrivign on jpeg_receiver_url
@@ -121,15 +135,14 @@ def dcss_send_client_type(message:DcssStoCSendClientType, context:Context):
 
 @register_message_handler('stoh_register_operation')
 def dcss_reg_operation(message:DcssStoHRegisterOperation, context:Context):
-    #print(f'Handling message {message}')
-    _logger.info(f"Handling message {message}")
+    _logger.info(f'REGISTER: {message}')
 
 @register_message_handler('stoh_start_operation')
 def dcss_start_operation(message:DcssStoHStartOperation, context:Context):
     _logger.info(f"GOT: {message}")
     op = message.operation_name
     opid = message.operation_handle
-    _logger.info(f"operation={op}, handle={opid}")
+    _logger.info(f"OPERATION: {op}, HANDLE: {opid}")
 
 @register_dcss_start_operation_handler('helloWorld')
 def hello_world_1(message:DcssStoHStartOperation, context:DcssContext):
@@ -175,15 +188,22 @@ def collect_loop_images(message:DcssStoHStartOperation, context:DcssContext):
     DCSS may send a single arg <pinBaseSizeHint>, but I think we can ignore it.
     """
     _logger.info(f'GOT: {message}')
+
     # 1. Instaniate LoopImageSet
+    context.jpegs = None
     context.jpegs = LoopImageSet()
+
     # 2. Clear the stop flag
     context.gStopJpegStream = 0
+    
     # 3. Open jpeg_receiver_port
     context.get_connection('jpeg_receiver_conn').connect()
+
     # 4. Send an operation update message to DCSS to trigger both sample rotation and axis server to send images.
     #    htos_operation_update collectLoopImages operation_handle start_oscillation
     context.get_connection('dcss_conn').send(DcssHtoSOperationUpdate(message.operation_name, message.operation_handle, "start_oscillation"))
+
+
 
 @register_dcss_start_operation_handler('getLoopTip')
 def get_loop_tip(message:DcssStoHStartOperation, context:DcssContext):
@@ -234,7 +254,6 @@ def stop_collect_loop_images(message:DcssStoHStartOperation, context:DcssContext
 
     # 2. Shutdown jpeg receiver
     context.get_connection('jpeg_receiver_conn').shutdown()
-    # can we assert that this has happened before telling DCSS?
 
     # 3. Send operation completed message to DCSS
     context.get_connection('dcss_conn').send(DcssHtoSOperationCompleted(message.operation_name,message.operation_handle,'normal','flag set'))
@@ -256,7 +275,10 @@ def rebox_loop_image(message:DcssStoHStartOperation, context:DcssContext):
     end (double):
     """
     _logger.info(f'GOT: {message}')
-    # need to figure this out.
+    n = context.jpegs.number_of_images
+    _logger.info(f'jpeg list: {n} images')
+    return_msg = ' '.join([str(n),'images in jpeg list'])
+    context.get_connection('dcss_conn').send(DcssHtoSOperationCompleted(message.operation_name,message.operation_handle,'normal', return_msg))
 
 @register_message_handler('automl_predict_response')
 def automl_predict_response(message:AutoMLPredictResponse, context:DcssContext):
@@ -264,17 +286,20 @@ def automl_predict_response(message:AutoMLPredictResponse, context:DcssContext):
     This handler will deal with stuff coming back from AutoML
     """
 
+    # ==============================================================
     activeOps = context.get_active_operations()
     _logger.info(f'Active operations pre-completed={activeOps}')
+    # ==============================================================
+
     for ao in activeOps:
         if ao.operation_name == 'predictOne':
             predict_one_msg = ' '.join(map(str,[message.image_key, message.top_result, message.top_bb[0], message.top_bb[1], message.top_bb[2], message.top_bb[3], message.top_classification]))
             _logger.info(f'AUTOML: {predict_one_msg}')
-            # this DcssHtoSOperationCompleted message is supposed to remove teh outstanding operation from the active operations list. NOT WORKING!!!!!!
+            # this DcssHtoSOperationCompleted message is supposed to remove the outstanding operation from the active operations list. NOT WORKING!!!!!!
             context.get_connection('dcss_conn').send(DcssHtoSOperationCompleted(ao.operation_name, ao.operation_handle, "normal", predict_one_msg))
         elif ao.operation_name == 'collectLoopImages' and not context.gStopJpegStream:
             # We need to increment index for each image we receive during a collectLoopImages operation.
-            index = len(context.jpegs.images)
+            index = context.jpegs.number_of_images
             status = 'normal'
             tipX = message.top_bb[2]
             tipY = (message.top_bb[3] - message.top_bb[1])/2
@@ -292,25 +317,33 @@ def automl_predict_response(message:AutoMLPredictResponse, context:DcssContext):
             _logger.info(f'FOR DCSS: {collect_loop_images_update_msg}')
             context.get_connection('dcss_conn').send(DcssHtoSOperationUpdate(ao.operation_name,ao.operation_handle,collect_loop_images_update_msg))
 
-    #_logger.debug(f'Active operations post-completed={context.get_active_operations(message.operation_name)}')
+    # ==============================================================
+    activeOps = context.get_active_operations()
+    _logger.info(f'Active operations post-completed={activeOps}')
+    # ==============================================================
 
 @register_message_handler('jpeg_receiver_image_post_request')
 def axis_image_request(message:JpegReceiverImagePostRequestMessage, context:DhsContext):
     """
-    This handler is triggered when a new jpeg image arrives from the jpeg_receiver. It is then shuttled off to AutoML
+    This handler is triggered when a new jpeg image arrives from the jpeg_receiver. It is then shuttled off to AutoML.
+
+    This may not be fast enough to keep up with 30fps coming from axis?
     """
     _logger.debug(message.file)
-    # we may need to store a set of images from the most recent collectLoopImages for subsequent analysis with reboxLoopImage
+    # Store a set of images from the most recent collectLoopImages for subsequent analysis with reboxLoopImage
+    activeOps = context.get_active_operations()
+    for ao in activeOps:
+        if ao.operation_name == 'collectLoopImages':
+            context.jpegs.add_image(message.file)
+    #_logger.info(f'JPEG IMAGE NUMBER: {context.jpegs.number_of_images}')
 
-    n = context.jpegs.add_image(message.file)
-    _logger.info(f'JPEG IMAGE NUMBER: {n}')
-
-
-    # generate unique key. could injcrement here? Not sure AutoML API like single digit integers as image_key values
-    image_key = ''.join(choice(ascii_uppercase + digits) for i in range(12))
-    #image_key = n
-    # send
-    context.get_connection('automl_conn').send(AutoMLPredictRequest(image_key, message.file))
+    # only send to AutoML if not in stop state.
+    if not context.gStopJpegStream:
+        # generate unique key. Could increment here? Not sure AutoML API like single digit integers as image_key values though.
+        image_key = ''.join(choice(ascii_uppercase + digits) for i in range(12))
+        #image_key = n
+        # send
+        context.get_connection('automl_conn').send(AutoMLPredictRequest(image_key, message.file))
 
 
 dhs = Dhs()
