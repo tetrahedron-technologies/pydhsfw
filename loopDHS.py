@@ -154,7 +154,7 @@ def dcss_reg_operation(message:DcssStoHRegisterOperation, context:Context):
 
 @register_message_handler('stoh_start_operation')
 def dcss_start_operation(message:DcssStoHStartOperation, context:Context):
-    _logger.info(f"GOT: {message}")
+    _logger.info(f"FROM DCSS: {message}")
     op = message.operation_name
     opid = message.operation_handle
     _logger.info(f"OPERATION: {op}, HANDLE: {opid}")
@@ -213,8 +213,8 @@ def collect_loop_images(message:DcssStoHStartOperation, context:DcssContext):
     
     # 3. Open jpeg_receiver_port
     context.get_connection('jpeg_receiver_conn').connect()
-    # might take some time.
-
+    # might take some time. for now we will just wait a couple seconds.
+    time.sleep(2)
 
     # 4. Send an operation update message to DCSS to trigger both sample rotation and axis server to send images.
     #    htos_operation_update collectLoopImages operation_handle start_oscillation
@@ -264,7 +264,7 @@ def stop_collect_loop_images(message:DcssStoHStartOperation, context:DcssContext
     """
     This operation should set a global flag to signal collectLoopImages to stop and optionally to shutdown the jpeg receiver.
     """
-    _logger.info(f'GOT: {message}')
+    _logger.info(f'FROM DCSS: {message}')
 
     # 1. Set global stop flag
     context.gStopJpegStream = 1
@@ -305,38 +305,40 @@ def automl_predict_response(message:AutoMLPredictResponse, context:DcssContext):
 
     # ==============================================================
     activeOps = context.get_active_operations()
-    _logger.info(f'Active operations pre-completed={activeOps}')
+    _logger.debug(f'Active operations pre-completed={activeOps}')
     # ==============================================================
 
     for ao in activeOps:
         if ao.operation_name == 'predictOne':
             predict_one_msg = ' '.join(map(str,[message.image_key, message.top_result, message.top_bb[0], message.top_bb[1], message.top_bb[2], message.top_bb[3], message.top_classification]))
             _logger.info(f'AUTOML: {predict_one_msg}')
-            # this DcssHtoSOperationCompleted message is supposed to remove the outstanding operation from the active operations list. NOT WORKING!!!!!!
             context.get_connection('dcss_conn').send(DcssHtoSOperationCompleted(ao.operation_name, ao.operation_handle, "normal", predict_one_msg))
         elif ao.operation_name == 'collectLoopImages' and not context.gStopJpegStream:
             # We need to increment index for each image we receive during a collectLoopImages operation.
             index = context.jpegs.number_of_images
             status = 'normal'
-            tipX = message.top_bb[2]
-            tipY = (message.top_bb[3] - message.top_bb[1])/2
-            pinBaseX = 0.111
+            tipX = round(message.top_bb[2],5)
+            tipY = round((message.top_bb[3] - message.top_bb[1])/2,5)
+            pinBaseX = round(0.111,5)
             fiberWidth = 0.222
-            loopWidth = (message.top_bb[3] - message.top_bb[1])
-            boxMinX = message.top_bb[0]
-            boxMaxX = message.top_bb[2]
-            boxMinY = message.top_bb[3]
-            boxMaxY = message.top_bb[1]
-            loopWidthX = (message.top_bb[2] - message.top_bb[0])
-            isMicroMount = 0
-            # I would like to format these numbers so they aren't so long.
+            loopWidth = round((message.top_bb[3] - message.top_bb[1]),5)
+            boxMinX = round(message.top_bb[0],5)
+            boxMaxX = round(message.top_bb[2],5)
+            boxMinY = round(message.top_bb[3],5)
+            boxMaxY = round(message.top_bb[1],5)
+            loopWidthX = round((message.top_bb[2] - message.top_bb[0]),5)
+            if message.top_classification == 'mitegen':
+                isMicroMount = 1
+            else:
+                isMicroMount = 0
+
             collect_loop_images_update_msg = ' '.join(map(str,['LOOP_INFO', index, status, tipX, tipY, pinBaseX, fiberWidth, loopWidth, boxMinX, boxMaxX, boxMinY, boxMaxY, loopWidthX, isMicroMount]))
             _logger.info(f'FOR DCSS: {collect_loop_images_update_msg}')
             context.get_connection('dcss_conn').send(DcssHtoSOperationUpdate(ao.operation_name,ao.operation_handle,collect_loop_images_update_msg))
 
     # ==============================================================
     activeOps = context.get_active_operations()
-    _logger.info(f'Active operations post-completed={activeOps}')
+    _logger.debug(f'Active operations post-completed={activeOps}')
     # ==============================================================
 
 @register_message_handler('jpeg_receiver_image_post_request')
