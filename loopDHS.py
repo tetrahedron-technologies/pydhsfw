@@ -22,12 +22,17 @@ _logger = logging.getLogger(__name__)
 class LoopImageSet():
     def __init__(self):
         self.images = []
+        self.results = []
         self._number_of_images = None
 
     def add_image(self, image:bytes):
         """Add a jpeg image to the list of images"""
         self.images.append(image)
         self._number_of_images = len(self.images)
+
+    def add_results(self, result:list):
+        """Add the AutoML results to a list for use in reboxLoopImage"""
+        self.results.append(result)
 
     @property
     def number_of_images(self):
@@ -287,14 +292,25 @@ def rebox_loop_image(message:DcssStoHStartOperation, context:DcssContext):
     This operation is used to more accurately define the loop bounding box.
 
     Parameters:
-    index (int):
-    start (double):
-    end (double):
+    index (int): which image we want to inspect
+    start (double): X position start. Used for bracket. We will not use this.
+    end (double): X position end. Used for bracket. We will not use this.
+
+    e.g. reboxLoopImage 1.4 43 0.5176850000000001 0.5635610000000001
+
+    Returns:
+    returnIndex
+    resultMinY
+    resultMaxY
+    (resultMaxY - resultMinY)
+
     """
     _logger.info(f'GOT: {message}')
-    n = context.jpegs.number_of_images
-    _logger.info(f'jpeg list: {n} images')
-    return_msg = ' '.join([str(n),'images in jpeg list'])
+    request_img = int(message.operation_args[0])
+    stuff = context.jpegs.results[img+1]
+    _logger.info(f'REQUEST IMAGE: {request_img} RESULTS: {stuff}')
+    index = stuff[1]
+    tipY = stuff[4]
     context.get_connection('dcss_conn').send(DcssHtoSOperationCompleted(message.operation_name,message.operation_handle,'normal', return_msg))
 
 @register_message_handler('automl_predict_response')
@@ -314,7 +330,7 @@ def automl_predict_response(message:AutoMLPredictResponse, context:DcssContext):
             _logger.info(f'AUTOML: {predict_one_msg}')
             context.get_connection('dcss_conn').send(DcssHtoSOperationCompleted(ao.operation_name, ao.operation_handle, "normal", predict_one_msg))
         elif ao.operation_name == 'collectLoopImages' and not context.gStopJpegStream:
-            # We need to increment index for each image we receive during a collectLoopImages operation.
+            # massage AutoML results for consumption by DCSS loopFast operation
             index = context.jpegs.number_of_images
             status = 'normal'
             tipX = round(message.top_bb[2],5)
@@ -333,6 +349,7 @@ def automl_predict_response(message:AutoMLPredictResponse, context:DcssContext):
                 isMicroMount = 0
 
             collect_loop_images_update_msg = ' '.join(map(str,['LOOP_INFO', index, status, tipX, tipY, pinBaseX, fiberWidth, loopWidth, boxMinX, boxMaxX, boxMinY, boxMaxY, loopWidthX, isMicroMount]))
+            context.jpegs.add_results(collect_loop_images_update_msg)
             _logger.info(f'FOR DCSS: {collect_loop_images_update_msg}')
             context.get_connection('dcss_conn').send(DcssHtoSOperationUpdate(ao.operation_name,ao.operation_handle,collect_loop_images_update_msg))
 
@@ -363,7 +380,6 @@ def axis_image_request(message:JpegReceiverImagePostRequestMessage, context:DhsC
         #image_key = n
         # send
         context.get_connection('automl_conn').send(AutoMLPredictRequest(image_key, message.file))
-
 
 dhs = Dhs()
 dhs.start()
