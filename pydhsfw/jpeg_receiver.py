@@ -58,7 +58,7 @@ class JpegReceiverRequestHandler(http.server.BaseHTTPRequestHandler):
         self.end_headers()
 
         request = Request(method='POST', url=self.path, headers=dict(self.headers), data=data)
-        self._request_queue.queque(request)
+        self._request_queue.queue(request)
 
     def log_message(self, format: str, *args: Any) -> None:
         _logger.info("%s - %s" % (self.address_string(), format%args))
