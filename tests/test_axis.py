@@ -13,18 +13,6 @@ from pydhsfw.dhs import Dhs, DhsContext, DhsInit, DhsStart
 
 _logger = logging.getLogger(__name__)
 
-
-@register_message('axis_request')
-class AxisRequest(GetRequestMessage):
-    def __init__(self, path:str, image:bytes):
-        super().__init__('/axis-cgi/jpg/image.cgi')
-
-@register_message('axis_image_response', 'axis')
-class AxisImageResponseMessage(FileResponseMessage):
-    def __init__(self, response):
-        super().__init__(response)
-
-
 @register_message_handler('dhs_init')
 def dhs_init(message:DhsInit, context:DhsContext):
     logformat = "[%(asctime)s] %(levelname)s:%(name)s:%(funcName)s():%(lineno)d - %(message)s"
@@ -32,9 +20,10 @@ def dhs_init(message:DhsInit, context:DhsContext):
 
 @register_message_handler('dhs_start')
 def dhs_start(message:DhsStart, context:DhsContext):
-    url = 'http://141.211.27.126/axis-cgi/jpg/image.cgi'
-    context.create_connection('axis_conn', 'axis', url)
+    url = 'http://141.211.27.126'
+    context.create_connection('axis_conn', 'axis', url, {'heartbeat_path': '/axis-cgi/jpg/image.cgi?resolution=640x360&text=0&clock=0&date=0'})
     context.get_connection('axis_conn').connect()
+    
     time.sleep(3)
 
     _logger.info(message.top_result)
