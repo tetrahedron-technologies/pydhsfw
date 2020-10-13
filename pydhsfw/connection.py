@@ -178,7 +178,7 @@ class ConnectionBase(Connection):
         self._transport.disconnect()
 
     def send(self, msg:MessageOut):
-        self._outgoing_message_queue.(msg)
+        self._outgoing_message_queue.queue(msg)
 
     def shutdown(self):
         self._read_worker.abort()
