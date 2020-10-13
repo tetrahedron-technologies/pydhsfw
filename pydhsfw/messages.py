@@ -112,7 +112,7 @@ T = TypeVar('T')
 class Queue(Generic[T]):
     def __init__(self):
         pass
-    def queque(self, item:T):
+    def queue(self, item:T):
         pass
     def fetch(self, timeout=None)->T:
         pass
@@ -126,7 +126,7 @@ class BlockingQueue(Queue[T]):
         self._deque = deque()
         self._deque_event = Event()
 
-    def queque(self, item:T):
+    def queue(self, item:T):
         #Append message and unblock
         self._deque.append(item)
         self._deque_event.set()
