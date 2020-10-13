@@ -1,4 +1,5 @@
 import coloredlogs
+import verboselogs
 import logging
 import signal
 import sys
@@ -207,11 +208,13 @@ def collect_loop_images(message:DcssStoHStartOperation, context:DcssContext):
     context.jpegs = None
     context.jpegs = LoopImageSet()
 
-    # 2. Clear the stop flag
+    # 2. Clear the stop flag. change to True Flas
     context.gStopJpegStream = 0
     
     # 3. Open jpeg_receiver_port
     context.get_connection('jpeg_receiver_conn').connect()
+    # might take some time.
+
 
     # 4. Send an operation update message to DCSS to trigger both sample rotation and axis server to send images.
     #    htos_operation_update collectLoopImages operation_handle start_oscillation
@@ -267,7 +270,7 @@ def stop_collect_loop_images(message:DcssStoHStartOperation, context:DcssContext
     context.gStopJpegStream = 1
 
     # 2. Shutdown jpeg receiver
-    context.get_connection('jpeg_receiver_conn').shutdown()
+    context.get_connection('jpeg_receiver_conn').disconnect()
 
     # 3. Send operation completed message to DCSS
     context.get_connection('dcss_conn').send(DcssHtoSOperationCompleted(message.operation_name,message.operation_handle,'normal','flag set'))

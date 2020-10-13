@@ -380,7 +380,7 @@ class HttpClientTransport(Transport):
                 request.url = urljoin(self._url, request.url)
                 response = self._send(request)
                 if response.ok:
-                    self._response_queue.queque(response)
+                    self._response_queue.queue(response)
                 else:
                     _logger.warning(f'Bad response {response.status_code}')
 

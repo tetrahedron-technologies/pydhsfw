@@ -107,7 +107,7 @@ class ConnectionReadWorker(AbortableThread):
                         msg = self._msg_factory.create_message(raw_msg)
                         if msg:
                             _logger.debug(f'Received factory created message: {msg}')
-                            self._msg_queue.queque(msg)
+                            self._msg_queue.queue(msg)
 
                 except TimeoutError:
                     #Socket read timed out. This is normal, it just means that no messages have been sent so we can ignore it.
@@ -178,7 +178,7 @@ class ConnectionBase(Connection):
         self._transport.disconnect()
 
     def send(self, msg:MessageOut):
-        self._outgoing_message_queue.queque(msg)
+        self._outgoing_message_queue.queue(msg)
 
     def shutdown(self):
         self._read_worker.abort()
