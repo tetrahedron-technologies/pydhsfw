@@ -40,7 +40,7 @@ class JpegReceiverRequestHandler(http.server.BaseHTTPRequestHandler):
 
     def do_POST(self):
 
-        data_len_hdr = self.headers.get('Content-Length')
+        data_len_hdr = self.headers.get(Headers.CONTENT_LENGTH.value)
         data_len = int(data_len_hdr)
 
         remainingbytes = data_len

@@ -24,6 +24,7 @@ class Headers(Enum):
     DHS_REQUEST_TYPE_ID = 'DHS-Request-Type-Id'
     DHS_RESPONSE_TYPE_ID = 'DHS-Response-Type-Id'
     CONTENT_TYPE = 'Content-Type'
+    CONTENT_LENGTH = 'Content-Length'
 
 class ResponseMessage(MessageIn):
     def __init__(self, response):
@@ -60,6 +61,10 @@ class FileResponseMessage(ResponseMessage):
     @property
     def file(self):
         return self._response.content
+
+    @property 
+    def file_length(self):
+        return int(self._response.headers[Headers.CONTENT_LENGTH.value])
 
 class ServerRequestMessage(MessageIn):
     def __init__(self, request):
