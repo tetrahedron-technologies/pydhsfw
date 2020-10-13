@@ -219,7 +219,7 @@ def collect_loop_images(message:DcssStoHStartOperation, context:DcssContext):
     # 3. Open jpeg_receiver_port
     context.get_connection('jpeg_receiver_conn').connect()
     # might take some time. for now we will just wait a couple seconds.
-    time.sleep(2)
+    #time.sleep(2)
 
     # 4. Send an operation update message to DCSS to trigger both sample rotation and axis server to send images.
     #    htos_operation_update collectLoopImages operation_handle start_oscillation
@@ -307,10 +307,13 @@ def rebox_loop_image(message:DcssStoHStartOperation, context:DcssContext):
     """
     _logger.info(f'GOT: {message}')
     request_img = int(message.operation_args[0])
-    stuff = context.jpegs.results[img+1]
+    stuff = context.jpegs.results[request_img]
     _logger.info(f'REQUEST IMAGE: {request_img} RESULTS: {stuff}')
-    index = stuff[1]
-    tipY = stuff[4]
+    index = stuff.split(' ')[1]
+    tipY = stuff.split(' ')[4]
+    boxMaxY = stuff.split(' ')[11]
+    boxMinY = stuff.split(' ')[10]
+    return_msg = ' '.join([index, boxMinY, boxMaxY, tipY])
     context.get_connection('dcss_conn').send(DcssHtoSOperationCompleted(message.operation_name,message.operation_handle,'normal', return_msg))
 
 @register_message_handler('automl_predict_response')
