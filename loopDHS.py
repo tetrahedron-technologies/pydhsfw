@@ -1,3 +1,4 @@
+import coloredlogs
 import logging
 import signal
 import sys
@@ -69,9 +70,22 @@ def dhs_init(message:DhsInit, context:DhsContext):
 
     args = parser.parse_args(message.args)
 
-    #loglevel = logging.DEBUG
+    # By default the install() function installs a handler on the root logger,
+    # this means that log messages from your code and log messages from the
+    # libraries that you use will all show up on the terminal.
+    #coloredlogs.install(level='DEBUG')
+    
+    # If you don't want to see log messages from libraries, you can pass a
+    # specific logger object to the install() function. In this case only log
+    # messages originating from that logger will show up on the terminal.
+    coloredlogs.install(level='INFO', _logger=_logger)
 
-    #Logging setup. Will be able to change logging level later with config parameters.
+    # Some examples.
+    _logger.debug("this is a debugging message")
+    _logger.info("this is an informational message")
+    _logger.warning("this is a warning message")
+    _logger.error("this is an error message")
+    _logger.critical("this is a critical message")
     logformat = "[%(asctime)s] %(levelname)s:%(name)s:%(funcName)s():%(lineno)d - %(message)s"
     logging.basicConfig(level=loglevel, stream=sys.stdout, format=logformat, datefmt="%Y-%m-%d %H:%M:%S")
     #Update log level for all registered log handlers.
