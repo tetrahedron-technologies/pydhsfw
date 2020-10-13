@@ -1,7 +1,6 @@
-#axis.py
 import logging
 from typing import Any
-from pydhsfw.messages import IncomingMessageQueue, OutgoingMessageQueue, MessageFactory
+from pydhsfw.messages import IncomingMessageQueue, OutgoingMessageQueue, MessageFactory, register_message
 from pydhsfw.connection import ConnectionBase, register_connection
 from pydhsfw.http import HttpClientTransport, MessageResponseReader, MessageRequestWriter, ResponseMessage, GetRequestMessage, FileResponseMessage
 
