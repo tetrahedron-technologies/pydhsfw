@@ -1,3 +1,4 @@
+import os
 import coloredlogs
 import verboselogs
 import logging
@@ -6,6 +7,10 @@ import sys
 import yaml
 import time
 import io
+import glob
+import re
+import cv2
+import math
 from random import choice
 from string import ascii_uppercase, digits
 from dotty_dict import dotty as dot
@@ -336,21 +341,28 @@ def automl_predict_response(message:AutoMLPredictResponse, context:DcssContext):
             # massage AutoML results for consumption by DCSS loopFast operation
             index = context.jpegs.number_of_images
             status = 'normal'
-            tipX = round(message.top_bb[2],5)
-            tipY = round((message.top_bb[3] - message.top_bb[1])/2,5)
-            pinBaseX = round(0.111,5)
+            tipX = round(message.bb_maxX,5)
+            tipY = round((message.bb_maxY - message.bb_minY)/2,5)
+            pinBaseX = 0.111
             fiberWidth = 0.222
-            loopWidth = round((message.top_bb[3] - message.top_bb[1]),5)
-            boxMinX = round(message.top_bb[0],5)
-            boxMaxX = round(message.top_bb[2],5)
-            boxMinY = round(message.top_bb[3],5)
-            boxMaxY = round(message.top_bb[1],5)
-            loopWidthX = round((message.top_bb[2] - message.top_bb[0]),5)
+            loopWidth = round((message.bb_maxY - message.bb_minY),5)
+            boxMinX = round(message.bb_minX,5)
+            boxMaxX = round(message.bb_maxX,5)
+            boxMinY = round(message.bb_minY,5)
+            boxMaxY = round(message.bb_maxY,5)
+            loopWidthX = round((message.bb_maxX - message.bb_minX),5)
             if message.top_classification == 'mitegen':
                 isMicroMount = 1
             else:
                 isMicroMount = 0
+            # draw bb using opencv
+            #draw_bb(str(index),[boxMinX,boxMinY],[boxMaxX,boxMaxY])
 
+            UL = [message.bb_minX,message.bb_minY]
+            LR = [message.bb_maxX,message.bb_maxY]
+            _logger.info(f'UL: {UL} LR: {LR}')
+            draw_bb(str(index),UL,LR)
+            
             collect_loop_images_update_msg = ' '.join(map(str,['LOOP_INFO', index, status, tipX, tipY, pinBaseX, fiberWidth, loopWidth, boxMinX, boxMaxX, boxMinY, boxMaxY, loopWidthX, isMicroMount]))
             context.jpegs.add_results(collect_loop_images_update_msg)
             _logger.info(f'FOR DCSS: {collect_loop_images_update_msg}')
@@ -376,6 +388,8 @@ def axis_image_request(message:JpegReceiverImagePostRequestMessage, context:DhsC
             context.jpegs.add_image(message.file)
     #_logger.info(f'JPEG IMAGE NUMBER: {context.jpegs.number_of_images}')
 
+    # write file to disk
+    saveImage(message.file)
     # only send to AutoML if not in stop state.
     if not context.gStopJpegStream:
         # generate unique key. Could increment here? Not sure AutoML API like single digit integers as image_key values though.
@@ -383,6 +397,69 @@ def axis_image_request(message:JpegReceiverImagePostRequestMessage, context:DhsC
         #image_key = n
         # send
         context.get_connection('automl_conn').send(AutoMLPredictRequest(image_key, message.file))
+
+def saveImage(image:bytes):
+    """
+    Save image to the working directory of the program.
+    """
+    currentImages = glob.glob("JPEGS/*.jpeg")
+    numList = [0]
+    for img in currentImages:
+        i = os.path.splitext(img)[0]
+        try:
+            num = re.findall('[0-9]+$', i)[0]
+            numList.append(int(num))
+        except IndexError:
+            pass
+    numList = sorted(numList)
+    newNum = numList[-1]+1
+    saveName = 'JPEGS/loop_%04d.jpeg' % newNum
+
+    f = open(saveName, 'w+b')
+    f.write(image)
+    f.close()
+
+def cv_size(img):
+   return tuple(img.shape[1::-1])
+
+def draw_bb(fn:str,ul:list,lr:list):
+    """Use OpenCV to draw a bounding box on a jpeg"""
+    filename = ''.join(['JPEGS/loop_',fn.zfill(4),'.jpeg'])
+    image = cv2.imread(filename)
+    s = cv_size(image)
+    w = s[0]
+    h = s[1]
+    _logger.info(f'W: {str(w)} H: {str(h)}')
+
+    # Window name in which image is displayed 
+    #window_name = 'Image'
+
+    # represents the top left corner of rectangle 
+    start_point = (math.floor(ul[0] * w), math.floor(ul[1] * h))
+    _logger.info(f'START: {start_point}')
+
+    # represents the bottom right corner of rectangle 
+    end_point = (math.ceil(lr[0] * w), math.ceil(lr[1] * h))
+    _logger.info(f'END: {end_point}')
+
+    # Red color in BGR 
+    color = (0, 0, 255) 
+
+    # Line thickness of 1 px 
+    thickness = 1
+
+    # Using cv2.rectangle() method 
+    # Draw a rectangle with red line borders of thickness of 1 px 
+    image = cv2.rectangle(image, start_point, end_point, color, thickness)
+
+    outfn = "test_" + os.path.basename(filename)
+    outdir = os.path.dirname(filename)
+    outfile = os.path.join(outdir,"bboxes",outfn)
+    print(outfile)
+
+    cv2.imwrite(outfile,image)
+
+
 
 dhs = Dhs()
 dhs.start()

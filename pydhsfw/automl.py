@@ -47,7 +47,27 @@ class AutoMLPredictResponse(JsonResponseMessage):
 
     @property
     def top_bb(self):
+        """
+        Object bounding box returned from AutoML
+        minY, minX, maxY, maxX
+        """
         return dotty(self.json)['predictions.0.detection_boxes.0']
+
+    @property
+    def bb_minY(self):
+        return dotty(self.json)['predictions.0.detection_boxes.0.0']
+
+    @property
+    def bb_minX(self):
+        return dotty(self.json)['predictions.0.detection_boxes.0.1']
+
+    @property
+    def bb_maxY(self):
+        return dotty(self.json)['predictions.0.detection_boxes.0.2']
+
+    @property
+    def bb_maxX(self):
+        return dotty(self.json)['predictions.0.detection_boxes.0.3']
 
     @property
     def top_classification(self):
