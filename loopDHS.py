@@ -105,7 +105,7 @@ def dhs_init(message:DhsInit, context:DhsContext):
 
     conf_file = 'config/' + args.beamline + '.config'
 
-    _logger.info('==========================================')
+    _logger.info('=============================================')
     _logger.info('Initializing DHS')
     _logger.info(f'config file: {conf_file}')
     with open(conf_file, 'r') as f:
@@ -121,7 +121,7 @@ def dhs_init(message:DhsInit, context:DhsContext):
         _logger.info(f'AUTOML HOST: {automl_host} PORT: {automl_port}')
         _logger.info(f'JPEG RECEIVER PORT: {jpeg_receiver_port}')
         _logger.info(f'AXIS HOST: {axis_host} PORT: {axis_port}')
-        _logger.info('==========================================')
+    _logger.info('=============================================')
 
     dcss_url = 'dcss://' + dcss_host + ':' + str(dcss_port)
     automl_url = 'http://' + automl_host + ':' + str(automl_port)
@@ -130,6 +130,12 @@ def dhs_init(message:DhsInit, context:DhsContext):
     # merge values from command line and config file:
     context.state = {'DHS': args.dhs_name, 'dcss_url': dcss_url, 'automl_url': automl_url, 'jpeg_receiver_url': jpeg_receiver_url, 'axis_url': axis_url}
     context.gStopJpegStream = 0
+    
+    jpeg_save_dir = dot(conf)['loopdhs.image_save_dir']
+    if not os.path.exists(jpeg_save_dir):
+        os.makedirs(''.join([jpeg_save_dir,'bboxes']))
+    else:
+         emptyJpegDir()
 
 @register_message_handler('dhs_start')
 def dhs_start(message:DhsStart, context:DhsContext):
@@ -339,6 +345,7 @@ def automl_predict_response(message:AutoMLPredictResponse, context:DcssContext):
             context.get_connection('dcss_conn').send(DcssHtoSOperationCompleted(ao.operation_name, ao.operation_handle, "normal", predict_one_msg))
         elif ao.operation_name == 'collectLoopImages' and not context.gStopJpegStream:
             # massage AutoML results for consumption by DCSS loopFast operation
+            # this index method is NOT working.
             index = context.jpegs.number_of_images
             status = 'normal'
             tipX = round(message.bb_maxX,5)
@@ -355,14 +362,13 @@ def automl_predict_response(message:AutoMLPredictResponse, context:DcssContext):
                 isMicroMount = 1
             else:
                 isMicroMount = 0
-            # draw bb using opencv
-            #draw_bb(str(index),[boxMinX,boxMinY],[boxMaxX,boxMaxY])
 
+            # Draw the AutoML bounding box
             UL = [message.bb_minX,message.bb_minY]
             LR = [message.bb_maxX,message.bb_maxY]
-            _logger.info(f'UL: {UL} LR: {LR}')
-            draw_bb(str(index),UL,LR)
-            
+            _logger.info(f'INDEX: {index} UL: {UL} LR: {LR}')
+            drawBoundingBox(str(index),UL,LR)
+
             collect_loop_images_update_msg = ' '.join(map(str,['LOOP_INFO', index, status, tipX, tipY, pinBaseX, fiberWidth, loopWidth, boxMinX, boxMaxX, boxMinY, boxMaxY, loopWidthX, isMicroMount]))
             context.jpegs.add_results(collect_loop_images_update_msg)
             _logger.info(f'FOR DCSS: {collect_loop_images_update_msg}')
@@ -380,28 +386,29 @@ def axis_image_request(message:JpegReceiverImagePostRequestMessage, context:DhsC
 
     This may not be fast enough to keep up with 30fps coming from axis?
     """
+
     _logger.debug(message.file)
     # Store a set of images from the most recent collectLoopImages for subsequent analysis with reboxLoopImage
     activeOps = context.get_active_operations()
     for ao in activeOps:
-        if ao.operation_name == 'collectLoopImages':
+        if ao.operation_name == 'collectLoopImages' and not context.gStopJpegStream:
+            # add image to our jpeg list
             context.jpegs.add_image(message.file)
-    #_logger.info(f'JPEG IMAGE NUMBER: {context.jpegs.number_of_images}')
+            # write to disk
+            saveJpeg(message.file)
+            # Send to AutoMLPredictRequest message handler
+            # generate unique key. 
+            image_key = ''.join(choice(ascii_uppercase + digits) for i in range(12))
+            context.get_connection('automl_conn').send(AutoMLPredictRequest(image_key, message.file))
+        else:
+            _logger.info(f'RECEVIED JPEG, BUT NOT DOING ANYTHING WITH IT.')
 
-    # write file to disk
-    saveImage(message.file)
-    # only send to AutoML if not in stop state.
-    if not context.gStopJpegStream:
-        # generate unique key. Could increment here? Not sure AutoML API like single digit integers as image_key values though.
-        image_key = ''.join(choice(ascii_uppercase + digits) for i in range(12))
-        #image_key = n
-        # send
-        context.get_connection('automl_conn').send(AutoMLPredictRequest(image_key, message.file))
+def saveJpeg(image:bytes):
+    """
+    Save an image to the specified directory, and increment the number.
+    e.g. if file_0001.txt exists then teh next file will be file_0002.txt
+    """
 
-def saveImage(image:bytes):
-    """
-    Save image to the working directory of the program.
-    """
     currentImages = glob.glob("JPEGS/*.jpeg")
     numList = [0]
     for img in currentImages:
@@ -419,28 +426,23 @@ def saveImage(image:bytes):
     f.write(image)
     f.close()
 
-def cv_size(img):
-   return tuple(img.shape[1::-1])
-
-def draw_bb(fn:str,ul:list,lr:list):
+def drawBoundingBox(file:str,upper_left_corner:list,lower_right_corner:list):
     """Use OpenCV to draw a bounding box on a jpeg"""
-    filename = ''.join(['JPEGS/loop_',fn.zfill(4),'.jpeg'])
+    filename = ''.join(['JPEGS/loop_',file.zfill(4),'.jpeg'])
     image = cv2.imread(filename)
-    s = cv_size(image)
+    #s = cv_size(image)
+    s = tuple(image.shape[1::-1])
     w = s[0]
     h = s[1]
-    _logger.info(f'W: {str(w)} H: {str(h)}')
+    #_logger.info(f'W: {str(w)} H: {str(h)}')
 
-    # Window name in which image is displayed 
-    #window_name = 'Image'
+    # represents the top left corner of rectangle in pixels.
+    start_point = (math.floor(upper_left_corner[0] * w), math.floor(upper_left_corner[1] * h))
+    #_logger.info(f'START: {start_point}')
 
-    # represents the top left corner of rectangle 
-    start_point = (math.floor(ul[0] * w), math.floor(ul[1] * h))
-    _logger.info(f'START: {start_point}')
-
-    # represents the bottom right corner of rectangle 
-    end_point = (math.ceil(lr[0] * w), math.ceil(lr[1] * h))
-    _logger.info(f'END: {end_point}')
+    # represents the bottom right corner of rectangle in pixels.
+    end_point = (math.ceil(lower_right_corner[0] * w), math.ceil(lower_right_corner[1] * h))
+    #_logger.info(f'END: {end_point}')
 
     # Red color in BGR 
     color = (0, 0, 255) 
@@ -452,14 +454,20 @@ def draw_bb(fn:str,ul:list,lr:list):
     # Draw a rectangle with red line borders of thickness of 1 px 
     image = cv2.rectangle(image, start_point, end_point, color, thickness)
 
-    outfn = "test_" + os.path.basename(filename)
+    outfn = "automl_" + os.path.basename(filename)
     outdir = os.path.dirname(filename)
     outfile = os.path.join(outdir,"bboxes",outfn)
-    print(outfile)
+    _logger.info(f'WRITING: {outfile}')
 
     cv2.imwrite(outfile,image)
 
-
+def emptyJpegDir():
+    files = glob.glob('JPEGS/*.jpeg')
+    for f in files:
+        os.remove(f)
+    files = glob.glob('JPEGS/bboxes/*.jpeg')
+    for f in files:
+        os.remove(f)
 
 dhs = Dhs()
 dhs.start()
