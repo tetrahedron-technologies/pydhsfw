@@ -12,7 +12,7 @@ import re
 import cv2
 import math
 from random import choice
-from string import ascii_uppercase, digits
+#from string import ascii_uppercase, digits
 from dotty_dict import dotty as dot
 
 from pydhsfw.processors import  Context, register_message_handler
@@ -142,14 +142,16 @@ def dhs_init(message:DhsInit, context:DhsContext):
     _logger.success(f'Logging level is set to: {l}')
     _logger.success(f'config file: {conf_file}')
     with open(conf_file, 'r') as f:
-        conf = yaml.safe_load(f)
-        dcss_host = dot(conf)['dcss.host']
-        dcss_port = dot(conf)['dcss.port']
-        automl_host = dot(conf)['loopdhs.automl.host']
-        automl_port = dot(conf)['loopdhs.automl.port']
-        axis_host = dot(conf)['loopdhs.axis.host']
-        axis_port = dot(conf)['loopdhs.axis.port']
-        jpeg_receiver_port = dot(conf)['loopdhs.jpeg_receiver.port']
+        yconf = yaml.safe_load(f)
+        conf = dot(conf)
+        dcss_host = conf['dcss.host']
+        dcss_port = conf['dcss.port']
+        automl_host = conf['loopdhs.automl.host']
+        automl_port = conf['loopdhs.automl.port']
+        axis_host = conf['loopdhs.axis.host']
+        axis_port = conf['loopdhs.axis.port']
+        jpeg_receiver_port = conf['loopdhs.jpeg_receiver.port']
+        jpeg_save_dir = conf['loopdhs.image_save_dir']
         _logger.success(f'DCSS HOST: {dcss_host} PORT: {dcss_port}')
         _logger.success(f'AUTOML HOST: {automl_host} PORT: {automl_port}')
         _logger.success(f'JPEG RECEIVER PORT: {jpeg_receiver_port}')
@@ -161,14 +163,21 @@ def dhs_init(message:DhsInit, context:DhsContext):
     jpeg_receiver_url = 'http://localhost:' + str(jpeg_receiver_port)
     axis_url = ''.join(map(str,['http://',axis_host,':',axis_port])) 
     # merge values from command line and config file:
-    context.state = {'DHS': args.dhs_name, 'dcss_url': dcss_url, 'automl_url': automl_url, 'jpeg_receiver_url': jpeg_receiver_url, 'axis_url': axis_url}
+    context.state = {
+        'DHS': args.dhs_name,
+        'dcss_url': dcss_url,
+        'automl_url': automl_url,
+        'jpeg_receiver_url': jpeg_receiver_url,
+        'axis_url': axis_url,
+        'jpeg_save_dir': jpeg_save_dir
+    }
     context.gStopJpegStream = 0
     
-    jpeg_save_dir = dot(conf)['loopdhs.image_save_dir']
+
     if not os.path.exists(jpeg_save_dir):
         os.makedirs(''.join([jpeg_save_dir,'bboxes']))
     else:
-         emptyJpegDir()
+         empty_jpeg_dir()
 
 @register_message_handler('dhs_start')
 def dhs_start(message:DhsStart, context:DhsContext):
@@ -233,7 +242,7 @@ def predict_one(message:DcssStoHStartOperation, context:DcssContext):
     """
     The operation is for testing AutoML. It reads a single image of a nylon loop from the tests directory and sends it to AutoML.
     """
-    _logger.info(f'GOT: {message}')
+    _logger.info(f'FROM DCSS: {message}')
     activeOps = context.get_active_operations(message.operation_name)
     _logger.info(f'Active operations pre-completed={activeOps}')
     context.get_connection('dcss_conn').send(DcssHtoSOperationUpdate(message.operation_name, message.operation_handle, "about to predict one test image"))
@@ -251,7 +260,7 @@ def collect_loop_images(message:DcssStoHStartOperation, context:DcssContext):
 
     DCSS may send a single arg <pinBaseSizeHint>, but I think we can ignore it.
     """
-    _logger.info(f'GOT: {message}')
+    _logger.info(f'FROM DCSS: {message}')
 
     # 1. Instaniate LoopImageSet
     context.jpegs = None
@@ -269,8 +278,6 @@ def collect_loop_images(message:DcssStoHStartOperation, context:DcssContext):
     #    htos_operation_update collectLoopImages operation_handle start_oscillation
     context.get_connection('dcss_conn').send(DcssHtoSOperationUpdate(message.operation_name, message.operation_handle, "start_oscillation"))
 
-
-
 @register_dcss_start_operation_handler('getLoopTip')
 def get_loop_tip(message:DcssStoHStartOperation, context:DcssContext):
     """
@@ -283,7 +290,7 @@ def get_loop_tip(message:DcssStoHStartOperation, context:DcssContext):
     2. htos_operation_completed getLoopTip operation_handle error TipNotInView +/-
 
     """
-    _logger.info(f'GOT: {message}')
+    _logger.info(f'FROM DCSS: {message}')
     # need to confirm that pinBaseX is the same as PinPos in imgCentering.cc
     #
     # 1. Request single jpeg image from axis video server
@@ -297,7 +304,7 @@ def get_loop_info(message:DcssStoHStartOperation, context:DcssContext):
 
     DCSS may send a single arg pinBaseSizeHint, but I think we can ignore it.
     """
-    _logger.info(f'GOT: {message}')
+    _logger.info(f'FROM DCSS: {message}')
     # 1. Grab single image from Axis Video server
     #    on error:
     #    htos_operation_completed getLoopInfo operation_handle error failed to get image
@@ -328,19 +335,19 @@ def stop_collect_loop_images(message:DcssStoHStartOperation, context:DcssContext
     activeOps = context.get_active_operations()
     for ao in activeOps:
         if ao.operation_name == 'collectLoopImages':
-            context.get_connection('dcss_conn').send(DcssHtoSOperationCompleted('collectLoopImages',ao.operation_handle,'normal','done'))
+            context.get_connection('dcss_conn').send(DcssHtoSOperationCompleted(ao.operation_name,ao.operation_handle,'normal','done'))
 
 @register_dcss_start_operation_handler('reboxLoopImage')
 def rebox_loop_image(message:DcssStoHStartOperation, context:DcssContext):
     """
-    This operation is used to more accurately define the loop bounding box.
+    This operation is used to more accurately define the loop bounding box. I'm not sure of it's use with AutoML loop prediction, but it was important for teh original edge detection AI developed at SSRL.
 
     Parameters:
     index (int): which image we want to inspect
     start (double): X position start. Used for bracket. We will not use this.
     end (double): X position end. Used for bracket. We will not use this.
 
-    e.g. reboxLoopImage 1.4 43 0.5176850000000001 0.5635610000000001
+    e.g. reboxLoopImage 1.4 43 0.517685 0.563561
 
     Returns:
     returnIndex
@@ -349,7 +356,7 @@ def rebox_loop_image(message:DcssStoHStartOperation, context:DcssContext):
     (resultMaxY - resultMinY)
 
     """
-    _logger.info(f'GOT: {message}')
+    _logger.info(f'FROM DCSS: {message}')
     request_img = int(message.operation_args[0])
     stuff = context.jpegs.results[request_img]
     _logger.info(f'REQUEST IMAGE: {request_img} RESULTS: {stuff}')
@@ -379,12 +386,12 @@ def automl_predict_response(message:AutoMLPredictResponse, context:DcssContext):
         elif ao.operation_name == 'collectLoopImages' and not context.gStopJpegStream:
             # massage AutoML results for consumption by DCSS loopFast operation
             # this index method is NOT working.
-            index = context.jpegs.number_of_images
+            index = message.image_key.split(':')[2]
             status = 'normal'
             tipX = round(message.bb_maxX,5)
             tipY = round((message.bb_maxY - message.bb_minY)/2,5)
-            pinBaseX = 0.111
-            fiberWidth = 0.222
+            pinBaseX = 0.111 # will add once we have AutoML model that recognizes pins
+            fiberWidth = 0.222 # not sure we can or need to support this.
             loopWidth = round((message.bb_maxY - message.bb_minY),5)
             boxMinX = round(message.bb_minX,5)
             boxMaxX = round(message.bb_maxX,5)
@@ -395,16 +402,22 @@ def automl_predict_response(message:AutoMLPredictResponse, context:DcssContext):
                 isMicroMount = 1
             else:
                 isMicroMount = 0
+            loopClass = message.top_classification
 
             # Draw the AutoML bounding box
             UL = [message.bb_minX,message.bb_minY]
             LR = [message.bb_maxX,message.bb_maxY]
             _logger.info(f'INDEX: {index} UL: {UL} LR: {LR}')
-            drawBoundingBox(str(index),UL,LR)
+            axisfilename = ''.join(['loop_',str(index).zfill(4),'.jpeg'])
+            file_to_adorn = os.path.join(context.state['jpeg_save_dir'],axisfilename)
+            if os.path.isfile(file_to_adorn):
+                draw_bounding_box(file_to_adorn, UL, LR)
+            else:
+                _logger.debug(f'DID NOT FIND IMAGE: {file_to_adorn}')
 
-            collect_loop_images_update_msg = ' '.join(map(str,['LOOP_INFO', index, status, tipX, tipY, pinBaseX, fiberWidth, loopWidth, boxMinX, boxMaxX, boxMinY, boxMaxY, loopWidthX, isMicroMount]))
+            collect_loop_images_update_msg = ' '.join(map(str,['LOOP_INFO', index, status, tipX, tipY, pinBaseX, fiberWidth, loopWidth, boxMinX, boxMaxX, boxMinY, boxMaxY, loopWidthX, isMicroMount, loopClass]))
             context.jpegs.add_results(collect_loop_images_update_msg)
-            _logger.info(f'FOR DCSS: {collect_loop_images_update_msg}')
+            _logger.info(f'SEND TO DCSS: {collect_loop_images_update_msg}')
             context.get_connection('dcss_conn').send(DcssHtoSOperationUpdate(ao.operation_name,ao.operation_handle,collect_loop_images_update_msg))
 
     # ==============================================================
@@ -421,53 +434,59 @@ def axis_image_request(message:JpegReceiverImagePostRequestMessage, context:DhsC
     """
 
     _logger.spam(message.file)
-    # Store a set of images from the most recent collectLoopImages for subsequent analysis with reboxLoopImage
-    activeOps = context.get_active_operations()
-    for ao in activeOps:
-        if ao.operation_name == 'collectLoopImages' and not context.gStopJpegStream:
-            # add image to our jpeg list
-            context.jpegs.add_image(message.file)
-            # write to disk
-            saveJpeg(message.file)
-            # Send to AutoMLPredictRequest message handler
-            # generate unique key. 
-            image_key = ''.join(choice(ascii_uppercase + digits) for i in range(12))
-            context.get_connection('automl_conn').send(AutoMLPredictRequest(image_key, message.file))
-        else:
-            _logger.info(f'RECEVIED JPEG, BUT NOT DOING ANYTHING WITH IT.')
 
-def saveJpeg(image:bytes):
+    activeOps = context.get_active_operations(operation_name='collectLoopImages')
+    if len(activeOps) > 0 and not context.gStopJpegStream:
+        activeOp = activeOps[0]
+        opName = activeOp.operation_name
+        opHandle = activeOp.operation_handle
+        # Store a set of images from the most recent collectLoopImages for subsequent analysis with reboxLoopImage
+        _logger.debug(f'ADD IMAGE OF: {len(message.file)} BYTES TO JPEG LIST')
+        context.jpegs.add_image(message.file)
+
+        # random 12 character string. not using at the moment.
+        #image_key = ''.join(choice(ascii_uppercase + digits) for i in range(12))
+
+        if not hasattr(activeOp, 'img_idx'):
+            activeOp.img_idx = 1
+        image_key = ':'.join([opName,opHandle,str(activeOp.img_idx)])
+        save_jpeg(message.file, activeOp.img_idx)
+        context.get_connection('automl_conn').send(AutoMLPredictRequest(image_key, message.file))
+        activeOp.img_idx += 1
+    else:
+        _logger.debug(f'RECEVIED JPEG, BUT NOT DOING ANYTHING WITH IT.')
+
+def save_jpeg(image:bytes, index:int=None):
     """
     Save an image to the specified directory, and increment the number.
     e.g. if file_0001.txt exists then teh next file will be file_0002.txt
     """
+    newNum = index
+    if newNum is None:
+        currentImages = glob.glob("JPEGS/*.jpeg")
+        numList = [0]
+        for img in currentImages:
+            i = os.path.splitext(img)[0]
+            try:
+                num = re.findall('[0-9]+$', i)[0]
+                numList.append(int(num))
+            except IndexError:
+                pass
+        numList = sorted(numList)
+        newNum = numList[-1]+1
 
-    currentImages = glob.glob("JPEGS/*.jpeg")
-    numList = [0]
-    for img in currentImages:
-        i = os.path.splitext(img)[0]
-        try:
-            num = re.findall('[0-9]+$', i)[0]
-            numList.append(int(num))
-        except IndexError:
-            pass
-    numList = sorted(numList)
-    newNum = numList[-1]+1
     saveName = 'JPEGS/loop_%04d.jpeg' % newNum
 
     f = open(saveName, 'w+b')
     f.write(image)
     f.close()
 
-def drawBoundingBox(file:str,upper_left_corner:list,lower_right_corner:list):
+def draw_bounding_box(file_to_adorn:str, upper_left_corner:list, lower_right_corner:list):
     """Use OpenCV to draw a bounding box on a jpeg"""
-    filename = ''.join(['JPEGS/loop_',file.zfill(4),'.jpeg'])
-    image = cv2.imread(filename)
-    #s = cv_size(image)
+    image = cv2.imread(file_to_adorn)
     s = tuple(image.shape[1::-1])
     w = s[0]
     h = s[1]
-    #_logger.info(f'W: {str(w)} H: {str(h)}')
 
     # represents the top left corner of rectangle in pixels.
     start_point = (math.floor(upper_left_corner[0] * w), math.floor(upper_left_corner[1] * h))
@@ -487,14 +506,14 @@ def drawBoundingBox(file:str,upper_left_corner:list,lower_right_corner:list):
     # Draw a rectangle with red line borders of thickness of 1 px 
     image = cv2.rectangle(image, start_point, end_point, color, thickness)
 
-    outfn = "automl_" + os.path.basename(filename)
-    outdir = os.path.dirname(filename)
+    outfn = "automl_" + os.path.basename(file_to_adorn)
+    outdir = os.path.dirname(file_to_adorn)
     outfile = os.path.join(outdir,"bboxes",outfn)
-    _logger.info(f'WRITING: {outfile}')
+    _logger.info(f'DREW BOUNDING BOX: {outfile}')
 
     cv2.imwrite(outfile,image)
 
-def emptyJpegDir():
+def empty_jpeg_dir():
     files = glob.glob('JPEGS/*.jpeg')
     for f in files:
         os.remove(f)
