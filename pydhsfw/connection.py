@@ -6,7 +6,8 @@ from pydhsfw.threads import AbortableThread
 from pydhsfw.messages import IncomingMessageQueue, OutgoingMessageQueue, MessageIn, MessageOut, MessageFactory
 from pydhsfw.transport import Transport
 
-_logger = logging.getLogger(__name__)
+#_logger = logging.getLogger(__name__)
+_logger = verboselogs.VerboseLogger(__name__)
 
 class ConnectionMessage(MessageIn):
 
