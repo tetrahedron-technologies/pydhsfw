@@ -107,10 +107,10 @@ class HttpAbortableServer(http.server.HTTPServer):
             with _Selector() as selector:
                 selector.register(self, selectors.EVENT_READ)
 
-                while not self.__shutdown_request:
+                while not self._ab_shutdown_request:
                     ready = selector.select(poll_interval)
                     # bpo-35017: shutdown() called during select(), exit immediately.
-                    if self.__shutdown_request:
+                    if self._ab_shutdown_request:
                         break
                     if ready:
                         self._handle_request_noblock()
