@@ -1,4 +1,6 @@
 import logging
+import coloredlogs
+import verboselogs
 from enum import Enum
 from pydhsfw.threads import AbortableThread
 from pydhsfw.messages import IncomingMessageQueue, OutgoingMessageQueue, MessageIn, MessageOut, MessageFactory
@@ -141,9 +143,9 @@ class ConnectionWriteWorker(AbortableThread):
                     # Blocking call with timeout configured elsewhere. This will timeout to check for control messages, specifically SystemExit.
                     msg = self._msg_queue.fetch(self._get_blocking_timeout())
                     if msg:
-                        _logger.debug(f"Sending message: {msg}")
+                        _logger.spam(f"Sending message: {msg}")
                         buffer = msg.write()
-                        _logger.debug(f"Sending unpacked raw message: {buffer}")
+                        _logger.spam(f"Sending unpacked raw message: {buffer}")
                         self._transport.send(buffer)
 
                 except TimeoutError:

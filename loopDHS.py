@@ -420,7 +420,7 @@ def axis_image_request(message:JpegReceiverImagePostRequestMessage, context:DhsC
     This may not be fast enough to keep up with 30fps coming from axis?
     """
 
-    _logger.debug(message.file)
+    _logger.spam(message.file)
     # Store a set of images from the most recent collectLoopImages for subsequent analysis with reboxLoopImage
     activeOps = context.get_active_operations()
     for ao in activeOps:
