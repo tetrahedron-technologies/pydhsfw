@@ -1055,6 +1055,16 @@ def register_dcss_start_operation_handler(operation_name:str, dispatcher_name:st
     return decorator_register_start_operation_handler
 
 class DcssActiveOperation:
+    ''' Storage class for active operations.
+    
+    Active operations that are currently underway have information stored in this class. It stores the operation name, operation handle, start operation message,
+    and a DHS implementation placeholder property called state that implementer can use to store whatever they need for the duration of the operation.
+
+    This class is created and stored in the active operations list when a dcss stoh_start_operation message is received. 
+    It is removed, along with state allocations mentioned above, when the DHS responds with the htos_operation_completed message.
+    After the call, the active operation and state is no longer available.
+
+    '''
     def __init__(self, operation_name:str, operation_handle:str, start_operation_message:DcssStoHStartOperation):
         self._operation_name = operation_name
         self._operation_handle = operation_handle
@@ -1082,6 +1092,9 @@ class DcssActiveOperation:
         self._operation_state = operation_state
         
 class DcssActiveOperations:
+    ''' Stores a list of active operations that are currently in progress'''
+
+
     def __init__(self):
         self._active_operations = []
 
