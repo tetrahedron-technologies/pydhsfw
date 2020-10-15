@@ -1,7 +1,7 @@
 import os
+import logging
 import coloredlogs
 import verboselogs
-import logging
 import signal
 import sys
 import yaml
@@ -21,7 +21,9 @@ from pydhsfw.dcss import DcssContext, DcssStoCSendClientType, DcssHtoSClientIsHa
 from pydhsfw.automl import AutoMLPredictRequest, AutoMLPredictResponse
 from pydhsfw.jpeg_receiver import JpegReceiverImagePostRequestMessage
 
-_logger = logging.getLogger(__name__)
+#_logger = logging.getLogger(__name__)
+_logger = verboselogs.VerboseLogger('loopDHS.py')
+#_logger.addHandler(logging.StreamHandler())
 
 # add DHS-specific class to hold a group of jpeg images in memory.
 class LoopImageSet():
@@ -40,46 +42,57 @@ class LoopImageSet():
         self.results.append(result)
 
     @property
-    def number_of_images(self):
+    def number_of_images(self) -> int:
         """Get the number of images in the image list"""
         return self._number_of_images
 
 @register_message_handler('dhs_init')
 def dhs_init(message:DhsInit, context:DhsContext):
 
-    loglevel = logging.INFO
-
     parser = message.parser
 
     parser.add_argument(
-        "--version",
-        action="version",
-        version="0.1")
-        #version="pyDHS {ver}".format(ver=__version__))
+        '--version',
+        action='version',
+        version='0.1')
+        #version='pyDHS {ver}'.format(ver=__version__))
     parser.add_argument(
-        dest="beamline",
-        help="Beamline Name (e.g. BL-831)",
-        metavar="Beamline")
+        dest='beamline',
+        help='Beamline Name (e.g. BL-831)',
+        metavar='Beamline')
     parser.add_argument(
-        dest="dhs_name",
-        help="DHS Name (e.g. loop or chain or detector)",
-        metavar="DHS Name")
+        dest='dhs_name',
+        help='DHS Name (e.g. loop or chain or detector)',
+        metavar='DHS Name')
     parser.add_argument(
-        "-v",
-        "--verbose",
-        dest="loglevel",
-        help="set loglevel to INFO",
-        action="store_const",
-        const=logging.INFO)
-    parser.add_argument(
-        "-vv",
-        "--very-verbose",
-        dest="loglevel",
-        help="set loglevel to DEBUG",
-        action="store_const",
-        const=logging.DEBUG)
+        '-v',
+        '--verbose',
+        dest='verbosity',
+        help='set chattiness of logging',
+        action='count',
+        default=0)
+
 
     args = parser.parse_args(message.args)
+
+    # Not sure this is working. arg gets parsed but _logger never changes level. need to 
+    # set a second varable loglevel and pass it to teh coloredlogs installer below.
+    if args.verbosity >= 4:
+        _logger.setLevel(logging.SPAM)
+        loglevel = 5
+    elif args.verbosity >= 3:
+        _logger.setLevel(logging.DEBUG)
+        loglevel = 10
+    elif args.verbosity >= 2:
+        _logger.setLevel(logging.VERBOSE)
+        loglevel = 15
+    elif args.verbosity >= 1:
+        _logger.setLevel(logging.NOTICE)
+        loglevel = 25
+    elif args.verbosity <= 0:
+        _logger.setLevel(logging.WARNING)
+        loglevel = 30
+
 
     # By default the install() function installs a handler on the root logger,
     # this means that log messages from your code and log messages from the
@@ -89,16 +102,34 @@ def dhs_init(message:DhsInit, context:DhsContext):
     # If you don't want to see log messages from libraries, you can pass a
     # specific logger object to the install() function. In this case only log
     # messages originating from that logger will show up on the terminal.
-    coloredlogs.install(level='INFO', _logger=_logger)
+    #coloredlogs.install(level='DEBUG', logger=logger)
 
-    # Some examples.
+
+    coloredlogs.install(level=loglevel,fmt='%(asctime)s,%(msecs)03d %(hostname)s %(name)s [%(funcName)s():%(lineno)d] %(levelname)s %(message)s')
+
+
+    # levels supposed to be availbe with verboselogs module
+    #  5 SPAM
+    # 10 DEBUG
+    # 15 VERBOSE
+    # 20 INFO
+    # 25 NOTICE
+    # 30 WARNING
+    # 35 SUCCESS
+    # 40 ERROR
+    # 50 CRITICAL
+    _logger.spam("this is a spam message")
     _logger.debug("this is a debugging message")
+    _logger.verbose("this is a verbose message")
     _logger.info("this is an informational message")
+    _logger.notice("this is a notice message")
     _logger.warning("this is a warning message")
+    _logger.success("this is a success message")
     _logger.error("this is an error message")
     _logger.critical("this is a critical message")
-    logformat = "[%(asctime)s] %(levelname)s:%(name)s:%(funcName)s():%(lineno)d - %(message)s"
-    logging.basicConfig(level=loglevel, stream=sys.stdout, format=logformat, datefmt="%Y-%m-%d %H:%M:%S")
+
+   # logformat = "[%(asctime)s] %(levelname)s:%(name)s:%(funcName)s():%(lineno)d - %(message)s"
+   # logging.basicConfig(level='INFO', stream=sys.stdout, format=logformat, datefmt="%Y-%m-%d %H:%M:%S")
     #Update log level for all registered log handlers.
     #for handler in logging.root.handlers:
     #    handler.setLevel(loglevel)
