@@ -143,7 +143,7 @@ def dhs_init(message:DhsInit, context:DhsContext):
     _logger.success(f'config file: {conf_file}')
     with open(conf_file, 'r') as f:
         yconf = yaml.safe_load(f)
-        conf = dot(conf)
+        conf = dot(yconf)
         dcss_host = conf['dcss.host']
         dcss_port = conf['dcss.port']
         automl_host = conf['loopdhs.automl.host']
