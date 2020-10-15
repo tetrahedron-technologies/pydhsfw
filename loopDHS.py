@@ -432,7 +432,7 @@ def axis_image_request(message:JpegReceiverImagePostRequestMessage, context:DhsC
     for ao in activeOps:
         if ao.operation_name == 'collectLoopImages' and not context.gStopJpegStream:
             # Store a set of images from the most recent collectLoopImages for subsequent analysis with reboxLoopImage
-            _logger.debug(f'ADD IMAGE TO JPEG LIST: {message.get_type_id()}')
+            _logger.debug(f'ADD IMAGE TO JPEG LIST: {len(message.file)}')
             context.jpegs.add_image(message.file)
             # write to disk
             saveJpeg(message.file)
