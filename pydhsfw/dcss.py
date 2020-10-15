@@ -1,4 +1,5 @@
 import logging
+from typing import Any
 from inspect import isfunction, signature, getsourcelines, getmodule
 from pydhsfw.messages import IncomingMessageQueue, OutgoingMessageQueue, MessageIn, MessageOut, MessageFactory, register_message
 from pydhsfw.transport import MessageStreamReader, MessageStreamWriter, StreamReader, StreamWriter
@@ -1053,35 +1054,75 @@ def register_dcss_start_operation_handler(operation_name:str, dispatcher_name:st
 
     return decorator_register_start_operation_handler
 
+class DcssActiveOperation:
+    ''' Storage class for active operations.
+    
+    Active operations that are currently underway have information stored in this class. It stores the operation name, operation handle, start operation message,
+    and a DHS implementation placeholder property called state that implementer can use to store whatever they need for the duration of the operation.
+
+    This class is created and stored in the active operations list when a dcss stoh_start_operation message is received. 
+    It is removed, along with state allocations mentioned above, when the DHS responds with the htos_operation_completed message.
+    After the call, the active operation and state is no longer available.
+
+    '''
+    def __init__(self, operation_name:str, operation_handle:str, start_operation_message:DcssStoHStartOperation):
+        self._operation_name = operation_name
+        self._operation_handle = operation_handle
+        self._start_operation_message = start_operation_message
+        self._operation_state = None
+
+    @property
+    def operation_name(self):
+        return self._operation_name
+
+    @property
+    def operation_handle(self):
+        return self._operation_handle
+
+    @property
+    def start_operation_message(self):
+        return self._start_operation_message
+
+    @property
+    def operation_state(self):
+        return self.operation_state
+
+    @operation_state.setter
+    def operation_state(self, operation_state:Any):
+        self._operation_state = operation_state
+        
 class DcssActiveOperations:
+    ''' Stores a list of active operations that are currently in progress'''
+
+
     def __init__(self):
         self._active_operations = []
 
-    def add_operation(self, message:DcssStoHStartOperation):
+    def add_operation(self, operation:DcssActiveOperation):
         # replace existing operation if there is one.
-        self.remove_operation(message)
-        self._active_operations.append(message)
+        self.remove_operation(operation)
+        self._active_operations.append(operation)
 
     def get_operations(self, operation_name:str=None, operation_handle=None):
-        return list(filter(lambda m: (not operation_name or operation_name == m.operation_name) 
-            and (not operation_handle or operation_handle == m.operation_handle), self._active_operations))
+        return list(filter(lambda op: (not operation_name or operation_name == op.operation_name) 
+            and (not operation_handle or operation_handle == op.operation_handle), self._active_operations))
 
-    def remove_operation(self, message:DcssStoHStartOperation):
-        msgs = self.get_operations(message.operation_name, message.operation_handle)
-        for msg in msgs:
-            while msg in self._active_operations:
-                self._active_operations.remove(msg)
+    def remove_operation(self, operation:DcssActiveOperation):
+        ops = self.get_operations(operation.operation_name, operation.operation_handle)
+        for op in ops:
+            while op in self._active_operations:
+                self._active_operations.remove(op)
 
-    def remove_operations(self, messages:list):
-        for m in messages:
-            self.remove_operation(m)
+    def remove_operations(self, operations:list):
+        for op in operations:
+            self.remove_operation(op)
 
 class DcssContext(Context):
     def __init__(self, active_operations:DcssActiveOperations):
         super().__init__()
         self._active_operations = active_operations
 
-    def get_active_operations(self, operation_name:str=None, operation_handle=None)->DcssStoHStartOperation:
+    def get_active_operations(self, operation_name:str=None, operation_handle=None)->DcssActiveOperation:
         ''' Retrieve active operations that match the name and/or handle.
         
          operation_name - Get all active operations that match that name. None acts as a wildcard.
@@ -1106,8 +1147,8 @@ class DcssOutgoingMessageQueue(OutgoingMessageQueue):
 
         #Special handling for operation completed messages
         if isinstance(message, DcssHtoSOperationCompleted):
-            msgs = self._active_operations.get_operations(message._split_msg[1], message._split_msg[2])
-            self._active_operations.remove_operations(msgs)
+            ops = self._active_operations.get_operations(message._split_msg[1], message._split_msg[2])
+            self._active_operations.remove_operations(ops)
 
 class DcssMessageQueueDispatcher(MessageQueueDispatcher):
     def __init__(self, name:str, incoming_message_queue:IncomingMessageQueue, context:Context, active_operations:DcssActiveOperations, config:dict={}):
@@ -1130,7 +1171,7 @@ class DcssMessageQueueDispatcher(MessageQueueDispatcher):
         if isinstance(message, DcssStoHStartOperation):
             handler = self._operation_handler_map.get(message.operation_name)
             if isfunction(handler):
-                self._active_operations.add_operation(message)
+                self._active_operations.add_operation(DcssActiveOperation(message.operation_name, message.operation_handle, message))
                 handler(message, self._context)
 
     def process_message_now(self, message:MessageIn):
