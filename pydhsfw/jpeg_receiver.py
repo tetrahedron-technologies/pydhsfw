@@ -1,6 +1,7 @@
 import threading
 import logging
 import time
+import selectors
 import http.server
 from http import HTTPStatus
 from functools import partial
@@ -72,12 +73,62 @@ class JpegReceiverRequestHandler(http.server.BaseHTTPRequestHandler):
         self.end_headers()
         return True    
 
+# Need special handling for disconnecting then connecting for the HTTPServer class. Needed to derive from
+# and override some methods.
+if hasattr(selectors, 'PollSelector'):
+    _Selector = selectors.PollSelector
+else:
+    _Selector = selectors.SelectSelector
+
 class HttpAbortableServer(http.server.HTTPServer):
     def __init__(self, server_address, RequestHandlerClass, bind_and_activate=True):
         super().__init__(server_address, RequestHandlerClass, bind_and_activate)
+        self._ab_is_shut_down = threading.Event()
+        self._ab_shutdown_request = False
 
+    # We would like to tell the server to shutdown, but then wait for it in another area.
+    # The default implementation is to trigger the shutdown and wait for it in the same call.
     def shutdown_trigger(self):
-        self.__shutdown_request = True
+        self._ab_shutdown_request = True
+
+    def serve_forever(self, poll_interval=0.5):
+        """Handle one request at a time until shutdown.
+
+        Polls for shutdown every poll_interval seconds. Ignores
+        self.timeout. If you need to do periodic tasks, do them in
+        another thread.
+        """
+        self._ab_is_shut_down.clear()
+        try:
+            # XXX: Consider using another file descriptor or connecting to the
+            # socket to wake this up instead of polling. Polling reduces our
+            # responsiveness to a shutdown request and wastes cpu at all other
+            # times.
+            with _Selector() as selector:
+                selector.register(self, selectors.EVENT_READ)
+
+                while not self._ab_shutdown_request:
+                    ready = selector.select(poll_interval)
+                    # bpo-35017: shutdown() called during select(), exit immediately.
+                    if self._ab_shutdown_request:
+                        break
+                    if ready:
+                        self._handle_request_noblock()
+
+                    self.service_actions()
+        finally:
+            self._ab_shutdown_request = False
+            self._ab_is_shut_down.set()
+
+    def shutdown(self):
+        """Stops the serve_forever loop.
+
+        Blocks until the loop has finished. This must be called while
+        serve_forever() is running in another thread, or it will
+        deadlock.
+        """
+        self._ab_shutdown_request = True
+        self._ab_is_shut_down.wait()
 
 class JpegReceiverTransportConnectionWorker(AbortableThread):
 
