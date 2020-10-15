@@ -142,15 +142,16 @@ def dhs_init(message:DhsInit, context:DhsContext):
     _logger.success(f'Logging level is set to: {l}')
     _logger.success(f'config file: {conf_file}')
     with open(conf_file, 'r') as f:
-        conf = yaml.safe_load(f)
-        dcss_host = dot(conf)['dcss.host']
-        dcss_port = dot(conf)['dcss.port']
-        automl_host = dot(conf)['loopdhs.automl.host']
-        automl_port = dot(conf)['loopdhs.automl.port']
-        axis_host = dot(conf)['loopdhs.axis.host']
-        axis_port = dot(conf)['loopdhs.axis.port']
-        jpeg_receiver_port = dot(conf)['loopdhs.jpeg_receiver.port']
-        jpeg_save_dir = dot(conf)['loopdhs.image_save_dir']
+        yconf = yaml.safe_load(f)
+        conf = dot(conf)
+        dcss_host = conf['dcss.host']
+        dcss_port = conf['dcss.port']
+        automl_host = conf['loopdhs.automl.host']
+        automl_port = conf['loopdhs.automl.port']
+        axis_host = conf['loopdhs.axis.host']
+        axis_port = conf['loopdhs.axis.port']
+        jpeg_receiver_port = conf['loopdhs.jpeg_receiver.port']
+        jpeg_save_dir = conf['loopdhs.image_save_dir']
         _logger.success(f'DCSS HOST: {dcss_host} PORT: {dcss_port}')
         _logger.success(f'AUTOML HOST: {automl_host} PORT: {automl_port}')
         _logger.success(f'JPEG RECEIVER PORT: {jpeg_receiver_port}')
