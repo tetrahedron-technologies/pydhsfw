@@ -84,7 +84,7 @@ class HttpAbortableServer(http.server.HTTPServer):
     def __init__(self, server_address, RequestHandlerClass, bind_and_activate=True):
         super().__init__(server_address, RequestHandlerClass, bind_and_activate)
         self._ab_is_shut_down = threading.Event()
-        self._ab__shutdown_request = False
+        self._ab_shutdown_request = False
 
     # We would like to tell the server to shutdown, but then wait for it in another area.
     # The default implementation is to trigger the shutdown and wait for it in the same call.
