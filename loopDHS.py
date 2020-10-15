@@ -105,7 +105,7 @@ def dhs_init(message:DhsInit, context:DhsContext):
     #coloredlogs.install(level='DEBUG', logger=logger)
 
 
-    coloredlogs.install(level=loglevel,fmt='%(asctime)s,%(msecs)03d %(hostname)s %(name)s [%(funcName)s():%(lineno)d] %(levelname)s %(message)s')
+    coloredlogs.install(level=loglevel,fmt='%(asctime)s,%(msecs)03d %(hostname)s %(name)s-[%(funcName)s():%(lineno)d] %(levelname)s %(message)s')
 
 
     # levels supposed to be availbe with verboselogs module
@@ -118,15 +118,15 @@ def dhs_init(message:DhsInit, context:DhsContext):
     # 35 SUCCESS
     # 40 ERROR
     # 50 CRITICAL
-    _logger.spam("this is a spam message")
-    _logger.debug("this is a debugging message")
-    _logger.verbose("this is a verbose message")
-    _logger.info("this is an informational message")
-    _logger.notice("this is a notice message")
-    _logger.warning("this is a warning message")
-    _logger.success("this is a success message")
-    _logger.error("this is an error message")
-    _logger.critical("this is a critical message")
+    # _logger.spam("this is a spam message")
+    # _logger.debug("this is a debugging message")
+    # _logger.verbose("this is a verbose message")
+    # _logger.info("this is an informational message")
+    # _logger.notice("this is a notice message")
+    # _logger.warning("this is a warning message")
+    # _logger.success("this is a success message")
+    # _logger.error("this is an error message")
+    # _logger.critical("this is a critical message")
 
    # logformat = "[%(asctime)s] %(levelname)s:%(name)s:%(funcName)s():%(lineno)d - %(message)s"
    # logging.basicConfig(level='INFO', stream=sys.stdout, format=logformat, datefmt="%Y-%m-%d %H:%M:%S")
@@ -136,9 +136,11 @@ def dhs_init(message:DhsInit, context:DhsContext):
 
     conf_file = 'config/' + args.beamline + '.config'
 
-    _logger.info('=============================================')
-    _logger.info('Initializing DHS')
-    _logger.info(f'config file: {conf_file}')
+    _logger.success('=============================================')
+    _logger.success('Initializing Loop DHS')
+    l = logging.getLevelName(_logger.getEffectiveLevel())
+    _logger.success(f'Logging level is set to: {l}')
+    _logger.success(f'config file: {conf_file}')
     with open(conf_file, 'r') as f:
         conf = yaml.safe_load(f)
         dcss_host = dot(conf)['dcss.host']
@@ -148,11 +150,11 @@ def dhs_init(message:DhsInit, context:DhsContext):
         axis_host = dot(conf)['loopdhs.axis.host']
         axis_port = dot(conf)['loopdhs.axis.port']
         jpeg_receiver_port = dot(conf)['loopdhs.jpeg_receiver.port']
-        _logger.info(f'DCSS HOST: {dcss_host} PORT: {dcss_port}')
-        _logger.info(f'AUTOML HOST: {automl_host} PORT: {automl_port}')
-        _logger.info(f'JPEG RECEIVER PORT: {jpeg_receiver_port}')
-        _logger.info(f'AXIS HOST: {axis_host} PORT: {axis_port}')
-    _logger.info('=============================================')
+        _logger.success(f'DCSS HOST: {dcss_host} PORT: {dcss_port}')
+        _logger.success(f'AUTOML HOST: {automl_host} PORT: {automl_port}')
+        _logger.success(f'JPEG RECEIVER PORT: {jpeg_receiver_port}')
+        _logger.success(f'AXIS HOST: {axis_host} PORT: {axis_port}')
+    _logger.success('=============================================')
 
     dcss_url = 'dcss://' + dcss_host + ':' + str(dcss_port)
     automl_url = 'http://' + automl_host + ':' + str(automl_port)
