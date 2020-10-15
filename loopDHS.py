@@ -168,7 +168,8 @@ def dhs_init(message:DhsInit, context:DhsContext):
     if not os.path.exists(jpeg_save_dir):
         os.makedirs(''.join([jpeg_save_dir,'bboxes']))
     else:
-         emptyJpegDir()
+         empty_jpeg_dir
+        ()
 
 @register_message_handler('dhs_start')
 def dhs_start(message:DhsStart, context:DhsContext):
@@ -403,7 +404,7 @@ def automl_predict_response(message:AutoMLPredictResponse, context:DcssContext):
             UL = [message.bb_minX,message.bb_minY]
             LR = [message.bb_maxX,message.bb_maxY]
             _logger.info(f'INDEX: {index} UL: {UL} LR: {LR}')
-            drawBoundingBox(str(index),UL,LR)
+            draw_bounding_box(str(index),UL,LR)
 
             collect_loop_images_update_msg = ' '.join(map(str,['LOOP_INFO', index, status, tipX, tipY, pinBaseX, fiberWidth, loopWidth, boxMinX, boxMaxX, boxMinY, boxMaxY, loopWidthX, isMicroMount]))
             context.jpegs.add_results(collect_loop_images_update_msg)
@@ -435,7 +436,7 @@ def axis_image_request(message:JpegReceiverImagePostRequestMessage, context:DhsC
             _logger.debug(f'ADD IMAGE TO JPEG LIST: {len(message.file)}')
             context.jpegs.add_image(message.file)
             # write to disk
-            saveJpeg(message.file)
+            save_jpeg(message.file)
             # Send to AutoMLPredictRequest message handler
             # generate unique key. I need to use this key to keep track of images in automl_predict_response
             image_key = ''.join(choice(ascii_uppercase + digits) for i in range(12))
@@ -444,7 +445,7 @@ def axis_image_request(message:JpegReceiverImagePostRequestMessage, context:DhsC
         else:
             _logger.debug(f'RECEVIED JPEG, BUT NOT DOING ANYTHING WITH IT.')
 
-def saveJpeg(image:bytes):
+def save_jpeg(image:bytes):
     """
     Save an image to the specified directory, and increment the number.
     e.g. if file_0001.txt exists then teh next file will be file_0002.txt
@@ -467,7 +468,7 @@ def saveJpeg(image:bytes):
     f.write(image)
     f.close()
 
-def drawBoundingBox(file:str,upper_left_corner:list,lower_right_corner:list):
+def draw_bounding_box(file:str,upper_left_corner:list,lower_right_corner:list):
     """Use OpenCV to draw a bounding box on a jpeg"""
     filename = ''.join(['JPEGS/loop_',file.zfill(4),'.jpeg'])
     image = cv2.imread(filename)
@@ -502,7 +503,7 @@ def drawBoundingBox(file:str,upper_left_corner:list,lower_right_corner:list):
 
     cv2.imwrite(outfile,image)
 
-def emptyJpegDir():
+def empty_jpeg_dir():
     files = glob.glob('JPEGS/*.jpeg')
     for f in files:
         os.remove(f)
