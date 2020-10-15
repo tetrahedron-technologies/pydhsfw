@@ -150,6 +150,7 @@ def dhs_init(message:DhsInit, context:DhsContext):
         axis_host = dot(conf)['loopdhs.axis.host']
         axis_port = dot(conf)['loopdhs.axis.port']
         jpeg_receiver_port = dot(conf)['loopdhs.jpeg_receiver.port']
+        jpeg_save_dir = dot(conf)['loopdhs.image_save_dir']
         _logger.success(f'DCSS HOST: {dcss_host} PORT: {dcss_port}')
         _logger.success(f'AUTOML HOST: {automl_host} PORT: {automl_port}')
         _logger.success(f'JPEG RECEIVER PORT: {jpeg_receiver_port}')
@@ -161,10 +162,17 @@ def dhs_init(message:DhsInit, context:DhsContext):
     jpeg_receiver_url = 'http://localhost:' + str(jpeg_receiver_port)
     axis_url = ''.join(map(str,['http://',axis_host,':',axis_port])) 
     # merge values from command line and config file:
-    context.state = {'DHS': args.dhs_name, 'dcss_url': dcss_url, 'automl_url': automl_url, 'jpeg_receiver_url': jpeg_receiver_url, 'axis_url': axis_url}
+    context.state = {
+        'DHS': args.dhs_name,
+        'dcss_url': dcss_url,
+        'automl_url': automl_url,
+        'jpeg_receiver_url': jpeg_receiver_url,
+        'axis_url': axis_url,
+        'jpeg_save_dir': jpeg_save_dir
+    }
     context.gStopJpegStream = 0
     
-    jpeg_save_dir = dot(conf)['loopdhs.image_save_dir']
+
     if not os.path.exists(jpeg_save_dir):
         os.makedirs(''.join([jpeg_save_dir,'bboxes']))
     else:
@@ -369,11 +377,6 @@ def automl_predict_response(message:AutoMLPredictResponse, context:DcssContext):
     _logger.debug(f'Active operations pre-completed={activeOps}')
     # ==============================================================
 
-    # if context.image_key != message.image_key:
-    #     _logger.debug(f'context image key: {context.image_key}')
-    #     _logger.debug(f'message image key: {message.image_key}')
-    #     return
-
     for ao in activeOps:
         if ao.operation_name == 'predictOne':
             predict_one_msg = ' '.join(map(str,[message.image_key, message.top_result, message.top_bb[0], message.top_bb[1], message.top_bb[2], message.top_bb[3], message.top_classification]))
@@ -403,8 +406,12 @@ def automl_predict_response(message:AutoMLPredictResponse, context:DcssContext):
             UL = [message.bb_minX,message.bb_minY]
             LR = [message.bb_maxX,message.bb_maxY]
             _logger.info(f'INDEX: {index} UL: {UL} LR: {LR}')
-            if context.state.
-            draw_bounding_box(str(index),UL,LR)
+            axisfilename = ''.join(['loop_',str(index).zfill(4),'.jpeg'])
+            file_to_adorn = os.path.join(context.state['jpeg_save_dir'],axisfilename)
+            if os.path.isfile(file_to_adorn):
+                draw_bounding_box(file_to_adorn, UL, LR)
+            else:
+                _logger.debug(f'DID NOT FIND IMAGE: {file_to_adorn}')
 
             collect_loop_images_update_msg = ' '.join(map(str,['LOOP_INFO', index, status, tipX, tipY, pinBaseX, fiberWidth, loopWidth, boxMinX, boxMaxX, boxMinY, boxMaxY, loopWidthX, isMicroMount]))
             context.jpegs.add_results(collect_loop_images_update_msg)
@@ -472,15 +479,12 @@ def save_jpeg(image:bytes, index:int=None):
     f.write(image)
     f.close()
 
-def draw_bounding_box(file:str,upper_left_corner:list,lower_right_corner:list):
+def draw_bounding_box(file_to_adorn:str, upper_left_corner:list, lower_right_corner:list):
     """Use OpenCV to draw a bounding box on a jpeg"""
-    filename = ''.join(['JPEGS/loop_',file.zfill(4),'.jpeg'])
-    image = cv2.imread(filename)
-    #s = cv_size(image)
+    image = cv2.imread(file_to_adorn)
     s = tuple(image.shape[1::-1])
     w = s[0]
     h = s[1]
-    #_logger.info(f'W: {str(w)} H: {str(h)}')
 
     # represents the top left corner of rectangle in pixels.
     start_point = (math.floor(upper_left_corner[0] * w), math.floor(upper_left_corner[1] * h))
@@ -500,8 +504,8 @@ def draw_bounding_box(file:str,upper_left_corner:list,lower_right_corner:list):
     # Draw a rectangle with red line borders of thickness of 1 px 
     image = cv2.rectangle(image, start_point, end_point, color, thickness)
 
-    outfn = "automl_" + os.path.basename(filename)
-    outdir = os.path.dirname(filename)
+    outfn = "automl_" + os.path.basename(file_to_adorn)
+    outdir = os.path.dirname(file_to_adorn)
     outfile = os.path.join(outdir,"bboxes",outfn)
     _logger.info(f'WRITING: {outfile}')
 
