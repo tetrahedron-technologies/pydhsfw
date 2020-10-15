@@ -20,6 +20,9 @@ class AutoMLPredictRequest(PostJsonRequestMessage):
             'instances': [
                 {'image_bytes': {'b64': str(encoded_image)},
                 'key': key}
+            ],
+            'params': [
+                {'max_bounding_box_count': '10'}
             ]
         }
 
@@ -33,14 +36,38 @@ class AutoMLPredictResponse(JsonResponseMessage):
         super().__init__(response)
 
     @property
+    def image_key(self):
+        return dotty(self.json)['predictions.0.key']
+
+    @property
     def top_result(self):
        # might want to do some sort of filtering here?
        # only accept if score if better than 90% or something?
         return dotty(self.json)['predictions.0.detection_scores.0']
-    
+
     @property
     def top_bb(self):
+        """
+        Object bounding box returned from AutoML
+        minY, minX, maxY, maxX
+        """
         return dotty(self.json)['predictions.0.detection_boxes.0']
+
+    @property
+    def bb_minY(self):
+        return dotty(self.json)['predictions.0.detection_boxes.0.0']
+
+    @property
+    def bb_minX(self):
+        return dotty(self.json)['predictions.0.detection_boxes.0.1']
+
+    @property
+    def bb_maxY(self):
+        return dotty(self.json)['predictions.0.detection_boxes.0.2']
+
+    @property
+    def bb_maxX(self):
+        return dotty(self.json)['predictions.0.detection_boxes.0.3']
 
     @property
     def top_classification(self):

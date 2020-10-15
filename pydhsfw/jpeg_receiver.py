@@ -61,7 +61,7 @@ class JpegReceiverRequestHandler(http.server.BaseHTTPRequestHandler):
         self._request_queue.queue(request)
 
     def log_message(self, format: str, *args: Any) -> None:
-        _logger.info("%s - %s" % (self.address_string(), format%args))
+        _logger.debug("%s - %s" % (self.address_string(), format%args))
     
     def log_error(self, format: str, *args: Any) -> None:
         _logger.error("%s - %s" % (self.address_string(), format%args))
@@ -183,7 +183,7 @@ class JpegReceiverServerTransport(Transport):
         except Exception:
             #Connection is lost because the socket was closed, probably from the other side.
             #Block the socket event and queue a reconnect message.
-            _logger.excpetion(None)
+            _logger.exception(None)
             raise
             #self.reconnect()
 
