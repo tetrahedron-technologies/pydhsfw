@@ -12,7 +12,7 @@ import re
 import cv2
 import math
 from random import choice
-from string import ascii_uppercase, digits
+#from string import ascii_uppercase, digits
 from dotty_dict import dotty as dot
 
 from pydhsfw.processors import  Context, register_message_handler
@@ -168,8 +168,7 @@ def dhs_init(message:DhsInit, context:DhsContext):
     if not os.path.exists(jpeg_save_dir):
         os.makedirs(''.join([jpeg_save_dir,'bboxes']))
     else:
-         empty_jpeg_dir
-        ()
+         empty_jpeg_dir()
 
 @register_message_handler('dhs_start')
 def dhs_start(message:DhsStart, context:DhsContext):
@@ -370,10 +369,10 @@ def automl_predict_response(message:AutoMLPredictResponse, context:DcssContext):
     _logger.debug(f'Active operations pre-completed={activeOps}')
     # ==============================================================
 
-    if context.image_key != message.image_key:
-        _logger.debug(f'context image key: {context.image_key}')
-        _logger.debug(f'message image key: {message.image_key}')
-        return
+    # if context.image_key != message.image_key:
+    #     _logger.debug(f'context image key: {context.image_key}')
+    #     _logger.debug(f'message image key: {message.image_key}')
+    #     return
 
     for ao in activeOps:
         if ao.operation_name == 'predictOne':
@@ -383,7 +382,7 @@ def automl_predict_response(message:AutoMLPredictResponse, context:DcssContext):
         elif ao.operation_name == 'collectLoopImages' and not context.gStopJpegStream:
             # massage AutoML results for consumption by DCSS loopFast operation
             # this index method is NOT working.
-            index = context.jpegs.number_of_images 
+            index = message.image_key.split(':')[2]
             status = 'normal'
             tipX = round(message.bb_maxX,5)
             tipY = round((message.bb_maxY - message.bb_minY)/2,5)
@@ -404,6 +403,7 @@ def automl_predict_response(message:AutoMLPredictResponse, context:DcssContext):
             UL = [message.bb_minX,message.bb_minY]
             LR = [message.bb_maxX,message.bb_maxY]
             _logger.info(f'INDEX: {index} UL: {UL} LR: {LR}')
+            if context.state.
             draw_bounding_box(str(index),UL,LR)
 
             collect_loop_images_update_msg = ' '.join(map(str,['LOOP_INFO', index, status, tipX, tipY, pinBaseX, fiberWidth, loopWidth, boxMinX, boxMaxX, boxMinY, boxMaxY, loopWidthX, isMicroMount]))
@@ -425,43 +425,47 @@ def axis_image_request(message:JpegReceiverImagePostRequestMessage, context:DhsC
     """
 
     _logger.spam(message.file)
-    # not sure this is needed
-    #if gStopJpegStream:
-    #    return
 
-    activeOps = context.get_active_operations()
-    for ao in activeOps:
-        if ao.operation_name == 'collectLoopImages' and not context.gStopJpegStream:
-            # Store a set of images from the most recent collectLoopImages for subsequent analysis with reboxLoopImage
-            _logger.debug(f'ADD IMAGE TO JPEG LIST: {len(message.file)}')
-            context.jpegs.add_image(message.file)
-            # write to disk
-            save_jpeg(message.file)
-            # Send to AutoMLPredictRequest message handler
-            # generate unique key. I need to use this key to keep track of images in automl_predict_response
-            image_key = ''.join(choice(ascii_uppercase + digits) for i in range(12))
-            context.image_key = image_key
-            context.get_connection('automl_conn').send(AutoMLPredictRequest(image_key, message.file))
-        else:
-            _logger.debug(f'RECEVIED JPEG, BUT NOT DOING ANYTHING WITH IT.')
+    activeOps = context.get_active_operations(operation_name='collectLoopImages')
+    if len(activeOps) > 0 and not context.gStopJpegStream:
+        activeOp = activeOps[0]
+        opName = activeOp.operation_name
+        opHandle = activeOp.operation_handle
+        # Store a set of images from the most recent collectLoopImages for subsequent analysis with reboxLoopImage
+        _logger.debug(f'ADD IMAGE TO JPEG LIST: {len(message.file)}')
+        context.jpegs.add_image(message.file)
 
-def save_jpeg(image:bytes):
+        # random 12 character string. not using at the moment.
+        #image_key = ''.join(choice(ascii_uppercase + digits) for i in range(12))
+
+        if not hasattr(activeOp, 'img_idx'):
+            activeOp.img_idx = 1
+        image_key = ':'.join([opName,opHandle,str(activeOp.img_idx)])
+        save_jpeg(message.file, activeOp.img_idx)
+        context.get_connection('automl_conn').send(AutoMLPredictRequest(image_key, message.file))
+        activeOp.img_idx += 1
+    else:
+        _logger.debug(f'RECEVIED JPEG, BUT NOT DOING ANYTHING WITH IT.')
+
+def save_jpeg(image:bytes, index:int=None):
     """
     Save an image to the specified directory, and increment the number.
     e.g. if file_0001.txt exists then teh next file will be file_0002.txt
     """
+    newNum = index
+    if newNum is None:
+        currentImages = glob.glob("JPEGS/*.jpeg")
+        numList = [0]
+        for img in currentImages:
+            i = os.path.splitext(img)[0]
+            try:
+                num = re.findall('[0-9]+$', i)[0]
+                numList.append(int(num))
+            except IndexError:
+                pass
+        numList = sorted(numList)
+        newNum = numList[-1]+1
 
-    currentImages = glob.glob("JPEGS/*.jpeg")
-    numList = [0]
-    for img in currentImages:
-        i = os.path.splitext(img)[0]
-        try:
-            num = re.findall('[0-9]+$', i)[0]
-            numList.append(int(num))
-        except IndexError:
-            pass
-    numList = sorted(numList)
-    newNum = numList[-1]+1
     saveName = 'JPEGS/loop_%04d.jpeg' % newNum
 
     f = open(saveName, 'w+b')
