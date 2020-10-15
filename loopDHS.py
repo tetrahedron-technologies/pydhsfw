@@ -401,6 +401,7 @@ def automl_predict_response(message:AutoMLPredictResponse, context:DcssContext):
                 isMicroMount = 1
             else:
                 isMicroMount = 0
+            loopClass = message.top_classification
 
             # Draw the AutoML bounding box
             UL = [message.bb_minX,message.bb_minY]
@@ -413,7 +414,7 @@ def automl_predict_response(message:AutoMLPredictResponse, context:DcssContext):
             else:
                 _logger.debug(f'DID NOT FIND IMAGE: {file_to_adorn}')
 
-            collect_loop_images_update_msg = ' '.join(map(str,['LOOP_INFO', index, status, tipX, tipY, pinBaseX, fiberWidth, loopWidth, boxMinX, boxMaxX, boxMinY, boxMaxY, loopWidthX, isMicroMount]))
+            collect_loop_images_update_msg = ' '.join(map(str,['LOOP_INFO', index, status, tipX, tipY, pinBaseX, fiberWidth, loopWidth, boxMinX, boxMaxX, boxMinY, boxMaxY, loopWidthX, isMicroMount, loopClass]))
             context.jpegs.add_results(collect_loop_images_update_msg)
             _logger.info(f'SEND TO DCSS: {collect_loop_images_update_msg}')
             context.get_connection('dcss_conn').send(DcssHtoSOperationUpdate(ao.operation_name,ao.operation_handle,collect_loop_images_update_msg))
@@ -439,7 +440,7 @@ def axis_image_request(message:JpegReceiverImagePostRequestMessage, context:DhsC
         opName = activeOp.operation_name
         opHandle = activeOp.operation_handle
         # Store a set of images from the most recent collectLoopImages for subsequent analysis with reboxLoopImage
-        _logger.debug(f'ADD IMAGE TO JPEG LIST: {len(message.file)}')
+        _logger.debug(f'ADD IMAGE OF: {len(message.file)} BYTES TO JPEG LIST')
         context.jpegs.add_image(message.file)
 
         # random 12 character string. not using at the moment.
@@ -507,7 +508,7 @@ def draw_bounding_box(file_to_adorn:str, upper_left_corner:list, lower_right_cor
     outfn = "automl_" + os.path.basename(file_to_adorn)
     outdir = os.path.dirname(file_to_adorn)
     outfile = os.path.join(outdir,"bboxes",outfn)
-    _logger.info(f'WRITING: {outfile}')
+    _logger.info(f'DREW BOUNDING BOX: {outfile}')
 
     cv2.imwrite(outfile,image)
 
