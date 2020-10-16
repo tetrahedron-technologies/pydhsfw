@@ -183,7 +183,7 @@ def dhs_init(message:DhsInit, context:DhsContext):
     if not os.path.exists(jpeg_save_dir):
         os.makedirs(''.join([jpeg_save_dir,'bboxes']))
     else:
-         empty_jpeg_dir()
+         empty_jpeg_dir(context.state['jpeg_save_dir'])
 
 @register_message_handler('dhs_start')
 def dhs_start(message:DhsStart, context:DhsContext):
@@ -549,11 +549,12 @@ def draw_bounding_box(file_to_adorn:str, upper_left_corner:list, lower_right_cor
 
     cv2.imwrite(outfile,image)
 
-def empty_jpeg_dir():
-    files = glob.glob('JPEGS/*.jpeg')
+def empty_jpeg_dir(directory:str):
+
+    files = glob.glob(''.join([directory,'*.jpeg']))
     for f in files:
         os.remove(f)
-    files = glob.glob('JPEGS/bboxes/*.jpeg')
+    files = glob.glob(''.join([directory,'bboxes/*.jpeg']))
     for f in files:
         os.remove(f)
 
