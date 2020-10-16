@@ -11,6 +11,9 @@ import glob
 import re
 import cv2
 import math
+import matplotlib
+matplotlib.use('Qt5Agg')
+from matplotlib import pyplot as plt
 from random import choice
 #from string import ascii_uppercase, digits
 from dotty_dict import dotty as dot
@@ -38,7 +41,10 @@ class LoopImageSet():
         self._number_of_images = len(self.images)
 
     def add_results(self, result:list):
-        """Add the AutoML results to a list for use in reboxLoopImage"""
+        """
+        Add the AutoML results to a list for use in reboxLoopImage
+        loop_info stored as python list so this is a list of lists.
+        """
         self.results.append(result)
 
     @property
@@ -169,7 +175,7 @@ def dhs_init(message:DhsInit, context:DhsContext):
         'automl_url': automl_url,
         'jpeg_receiver_url': jpeg_receiver_url,
         'axis_url': axis_url,
-        'jpeg_save_dir': jpeg_save_dir
+        'jpeg_save_dir': jpeg_save_dir,
     }
     context.gStopJpegStream = 0
     
@@ -263,7 +269,6 @@ def collect_loop_images(message:DcssStoHStartOperation, context:DcssContext):
     _logger.info(f'FROM DCSS: {message}')
 
     # 1. Instaniate LoopImageSet
-    context.jpegs = None
     context.jpegs = LoopImageSet()
 
     # 2. Clear the stop flag. change to True Flas
@@ -335,7 +340,35 @@ def stop_collect_loop_images(message:DcssStoHStartOperation, context:DcssContext
     activeOps = context.get_active_operations()
     for ao in activeOps:
         if ao.operation_name == 'collectLoopImages':
+            write_results()
+            plot_results()
+            # remove old list thingee. Not sure this is correect way to do this.
+            context.jpegs = None
+            # tell DCSS we're done.
             context.get_connection('dcss_conn').send(DcssHtoSOperationCompleted(ao.operation_name,ao.operation_handle,'normal','done'))
+
+def write_results():
+    """Writes out current contents of the jpeg list"""
+    timestr = time.strftime("%Y%m%d-%H%M%S")
+    fn = ''.join(['results_',timestr,'.txt'])
+    results_file = os.path.join(context.state['jpeg_save_dir'],fn)
+    with open(results_file, 'w') as f:
+        for item in context.jpegs.results:
+            f.write('%s\n' % item)
+
+def plot_results():
+    """Makes a simple plot of image index vs loopWidth"""
+    i = [e[1] for e in context.jpegs.results]
+    _logger.spam(f'PLOT INDICES: {i}')
+    loopWidths = [e[7] for e in context.jpegs.results]
+    _logger.spam(f'PLOT LOOP WIDTHS: {loopWidths}')
+    plt.plot(i,loopWidths)
+    plt.xlabel('image index')
+    plt.ylabel('loop width')
+    plt.title(' '.join(['loopWidth',timestr]))
+    fn = ''.join(['plot_loop_widths_',timestr,'.png'])
+    results_plot = os.path.join(context.state['jpeg_save_dir'],fn)
+    plt.savefig(results_plot)
 
 @register_dcss_start_operation_handler('reboxLoopImage')
 def rebox_loop_image(message:DcssStoHStartOperation, context:DcssContext):
@@ -360,10 +393,10 @@ def rebox_loop_image(message:DcssStoHStartOperation, context:DcssContext):
     request_img = int(message.operation_args[0])
     stuff = context.jpegs.results[request_img]
     _logger.info(f'REQUEST IMAGE: {request_img} RESULTS: {stuff}')
-    index = stuff.split(' ')[1]
-    tipY = stuff.split(' ')[4]
-    boxMaxY = stuff.split(' ')[11]
-    boxMinY = stuff.split(' ')[10]
+    index = stuff[1]
+    tipY = stuff[4]
+    boxMaxY = stuff[11]
+    boxMinY = stuff[10]
     return_msg = ' '.join([index, boxMinY, boxMaxY, tipY])
     context.get_connection('dcss_conn').send(DcssHtoSOperationCompleted(message.operation_name,message.operation_handle,'normal', return_msg))
 
@@ -404,6 +437,8 @@ def automl_predict_response(message:AutoMLPredictResponse, context:DcssContext):
                 isMicroMount = 0
             loopClass = message.top_classification
 
+            loop_info = ['LOOP_INFO', index, status, tipX, tipY, pinBaseX, fiberWidth, loopWidth, boxMinX, boxMaxX, boxMinY, boxMaxY, loopWidthX, isMicroMount, loopClass]
+
             # Draw the AutoML bounding box
             UL = [message.bb_minX,message.bb_minY]
             LR = [message.bb_maxX,message.bb_maxY]
@@ -415,8 +450,9 @@ def automl_predict_response(message:AutoMLPredictResponse, context:DcssContext):
             else:
                 _logger.debug(f'DID NOT FIND IMAGE: {file_to_adorn}')
 
-            collect_loop_images_update_msg = ' '.join(map(str,['LOOP_INFO', index, status, tipX, tipY, pinBaseX, fiberWidth, loopWidth, boxMinX, boxMaxX, boxMinY, boxMaxY, loopWidthX, isMicroMount, loopClass]))
-            context.jpegs.add_results(collect_loop_images_update_msg)
+            # transmorgrify into space seperated list for Tcl.
+            collect_loop_images_update_msg = ' '.join(map(str,loop_info))
+            context.jpegs.add_results(loop_info)
             _logger.info(f'SEND TO DCSS: {collect_loop_images_update_msg}')
             context.get_connection('dcss_conn').send(DcssHtoSOperationUpdate(ao.operation_name,ao.operation_handle,collect_loop_images_update_msg))
 
