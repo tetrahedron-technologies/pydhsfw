@@ -19,6 +19,7 @@ class DhsContext(DcssContext):
         self._conn_mgr = connection_mgr
         self._incoming_msg_queue = incoming_message_queue
         self._state = None
+        self._config = None
 
     def create_connection(self, connection_name:str, scheme:str, url:str, config:dict={})->Connection:
 
@@ -38,9 +39,25 @@ class DhsContext(DcssContext):
         return self._conn_mgr.get_connection(connection_name)
 
     @property
+    def config(self)->Any:
+        """
+        This property should be set by the DHS author in the dhs_init message handler. It is intended to store DHS specific configuration information.
+        It can be any type of object to include a dictionary or a unique class.
+        """
+        return self._config
+
+    @config.setter
+    def config(self, config):
+        """
+        The state property setter
+        """
+        self._config = config
+
+    @property
     def state(self)->Any:
         """
-        The state property getter
+        This property should be set by the DHS author in the dhs_init message handler. It is intended to store DHS specific state information.
+        It can be any type of object to include a dictionary or a unique class.
         """
         return self._state
 
@@ -50,7 +67,6 @@ class DhsContext(DcssContext):
         The state property setter
         """
         self._state = state
-
 
 @register_message('dhs_init')
 class DhsInit(MessageIn):
