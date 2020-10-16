@@ -1,4 +1,5 @@
 import os
+import platform
 import logging
 import coloredlogs
 import verboselogs
@@ -12,7 +13,6 @@ import re
 import cv2
 import math
 import matplotlib
-#matplotlib.use('Qt5Agg')
 from matplotlib import pyplot as plt
 from random import choice
 #from string import ascii_uppercase, digits
@@ -28,6 +28,10 @@ from pydhsfw.jpeg_receiver import JpegReceiverImagePostRequestMessage
 #_logger = logging.getLogger(__name__)
 _logger = verboselogs.VerboseLogger('loopDHS.py')
 #_logger.addHandler(logging.StreamHandler())
+
+# Mac OS does not like Tkinter (TkAgg backend) so must use QtAgg
+if platform.system() == 'Darwin':
+    matplotlib.use('Qt5Agg')
 
 # add DHS-specific class to hold a group of jpeg images in memory.
 class LoopImageSet():
@@ -72,6 +76,10 @@ class LoopDHSConfig(Dotty):
     @property
     def axis_url(self):
         return 'http://' + str(self['loopdhs.axis.host']) + ':' + str(self['loopdhs.axis.port'])
+
+    @property
+    def save_images(self):
+        return self['loopdhs.save_image_files']
 
     @property
     def jpeg_save_dir(self):
@@ -207,28 +215,28 @@ def dhs_init(message:DhsInit, context:DhsContext):
     conf_file = 'config/' + args.beamline + '.config'
 
     _logger.success('=============================================')
-    _logger.success('Initializing Loop DHS')
-    l = logging.getLevelName(_logger.getEffectiveLevel())
-    _logger.success(f'Logging level is set to: {l}')
+    _logger.success(f'Initializing DHS')
+    loglevel_name = logging.getLevelName(_logger.getEffectiveLevel())
+    _logger.success(f'Logging level is set to: {loglevel_name}')
     _logger.success(f'config file: {conf_file}')
     with open(conf_file, 'r') as f:
         yconf = yaml.safe_load(f)
         context.config = LoopDHSConfig(yconf)
-    
     context.config['DHS'] = args.dhs_name
-
+    _logger.success(f'Initializing {context.config["DHS"]}')
     _logger.success(f'DCSS HOST: {context.config["dcss.host"]} PORT: {context.config["dcss.port"]}')
-#    _logger.success(f'AUTOML HOST: {automl_host} PORT: {automl_port}')
-#    _logger.success(f'JPEG RECEIVER PORT: {jpeg_receiver_port}')
-#    _logger.success(f'AXIS HOST: {axis_host} PORT: {axis_port}')
+    _logger.success(f'AUTOML HOST: {context.config["loopdhs.automl.host"]} PORT: {context.config["loopdhs.automl.port"]}')
+    _logger.success(f'JPEG RECEIVER PORT: {context.config["loopdhs.jpeg_receiver.port"]}')
+    _logger.success(f'AXIS HOST: {context.config["loopdhs.axis.host"]} PORT: {context.config["loopdhs.axis.port"]}')
     _logger.success('=============================================')
 
     context.state = LoopDHSState()
 
-    if not os.path.exists(context.config.jpeg_save_dir):
-        os.makedirs(''.join([context.config.jpeg_save_dir,'bboxes']))
-    else:
-         empty_jpeg_dir(context.config.jpeg_save_dir)
+    if context.config.save_images:
+        if not os.path.exists(context.config.jpeg_save_dir):
+            os.makedirs(''.join([context.config.jpeg_save_dir,'bboxes']))
+        else:
+            empty_jpeg_dir(context.config.jpeg_save_dir)
 
 @register_message_handler('dhs_start')
 def dhs_start(message:DhsStart, context:DhsContext):
@@ -309,20 +317,16 @@ def collect_loop_images(message:DcssStoHStartOperation, context:DcssContext):
     """
     _logger.info(f'FROM DCSS: {message}')
 
-
-    # 1. Instaniate LoopImageSet
+    # 1. Instaniate CollectLoopImageState.
     context.get_active_operations(operation_name=message.operation_name, operation_handle=message.operation_handle)[0].state = CollectLoopImageState()
 
-    # 2. Clear the stop flag. change to True
+    # 2. Set image collection flag.
     context.state.collect_images = True
     
-    # 3. Open jpeg_receiver_port
+    # 3. Open the JPRG receiver port.
     context.get_connection('jpeg_receiver_conn').connect()
-    # might take some time. for now we will just wait a couple seconds.
-    #time.sleep(2)
 
     # 4. Send an operation update message to DCSS to trigger both sample rotation and axis server to send images.
-    #    htos_operation_update collectLoopImages operation_handle start_oscillation
     context.get_connection('dcss_conn').send(DcssHtoSOperationUpdate(message.operation_name, message.operation_handle, "start_oscillation"))
 
 @register_dcss_start_operation_handler('getLoopTip')
@@ -369,10 +373,10 @@ def stop_collect_loop_images(message:DcssStoHStartOperation, context:DcssContext
     """
     _logger.info(f'FROM DCSS: {message}')
 
-    # 1. Set global stop flag
+    # 1. Set image collection to False.
     context.state.collect_images = False
 
-    # 2. Shutdown jpeg receiver
+    # 2. Shutdown JPEG receiver port.
     context.get_connection('jpeg_receiver_conn').disconnect()
 
     # 3. Send operation completed message to DCSS
@@ -382,11 +386,10 @@ def stop_collect_loop_images(message:DcssStoHStartOperation, context:DcssContext
     activeOps = context.get_active_operations()
     for ao in activeOps:
         if ao.operation_name == 'collectLoopImages':
-            write_results(context.config.jpeg_save_dir, ao.state.loop_images)
-            plot_results(context.config.jpeg_save_dir, ao.state.loop_images)
+            if context.config.save_images:
+                write_results(context.config.jpeg_save_dir, ao.state.loop_images)
+                plot_results(context.config.jpeg_save_dir, ao.state.loop_images)
             context.state.rebox_images = ao.state.loop_images
-            # remove old list thingee. Not sure this is correct way to do this.
-            # tell DCSS we're done.
             context.get_connection('dcss_conn').send(DcssHtoSOperationCompleted(ao.operation_name,ao.operation_handle,'normal','done'))
 
 def write_results(jpeg_dir:str, images:LoopImageSet):
@@ -507,9 +510,8 @@ def automl_predict_response(message:AutoMLPredictResponse, context:DcssContext):
 @register_message_handler('jpeg_receiver_image_post_request')
 def axis_image_request(message:JpegReceiverImagePostRequestMessage, context:DhsContext):
     """
-    This handler is triggered when a new jpeg image arrives from the jpeg_receiver. It is then shuttled off to AutoML.
-
-    This may not be fast enough to keep up with 30fps coming from axis?
+    This handler is triggered when a new JPEG image arrives on the jpeg receiver port.
+    It is then shuttled off to AutoML.
     """
 
     _logger.spam(message.file)
@@ -520,18 +522,16 @@ def axis_image_request(message:JpegReceiverImagePostRequestMessage, context:DhsC
         opName = activeOp.operation_name
         opHandle = activeOp.operation_handle
         # Store a set of images from the most recent collectLoopImages for subsequent analysis with reboxLoopImage
-        _logger.debug(f'ADD IMAGE OF: {len(message.file)} BYTES TO JPEG LIST')
+        _logger.debug(f'ADD {len(message.file)} BYTE IMAGE TO JPEG LIST')
         activeOp.state.loop_images.add_image(message.file)
 
-        # random 12 character string. not using at the moment.
-        #image_key = ''.join(choice(ascii_uppercase + digits) for i in range(12))
-
         image_key = ':'.join([opName,opHandle,str(activeOp.state.image_index)])
-        save_jpeg(message.file, activeOp.state.image_index)
+        if context.config.save_images:
+            save_jpeg(message.file, activeOp.state.image_index)
         context.get_connection('automl_conn').send(AutoMLPredictRequest(image_key, message.file))
         activeOp.state.image_index += 1
     else:
-        _logger.debug(f'RECEVIED JPEG, BUT NOT DOING ANYTHING WITH IT.')
+        _logger.warning(f'RECEVIED JPEG, BUT NOT DOING ANYTHING WITH IT.')
 
 def save_jpeg(image:bytes, index:int=None):
     """
@@ -557,6 +557,7 @@ def save_jpeg(image:bytes, index:int=None):
     f = open(saveName, 'w+b')
     f.write(image)
     f.close()
+    _logger.info(f'SAVED JPEG IMAGE FILE: {saveName}')
 
 def draw_bounding_box(file_to_adorn:str, upper_left_corner:list, lower_right_corner:list):
     """Use OpenCV to draw a bounding box on a jpeg"""
