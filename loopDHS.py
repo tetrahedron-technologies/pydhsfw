@@ -24,6 +24,7 @@ from pydhsfw.dhs import Dhs, DhsInit, DhsStart, DhsContext
 from pydhsfw.dcss import DcssContext, DcssStoCSendClientType, DcssHtoSClientIsHardware, DcssStoHRegisterOperation, DcssStoHStartOperation, DcssHtoSOperationUpdate, DcssHtoSOperationCompleted, register_dcss_start_operation_handler
 from pydhsfw.automl import AutoMLPredictRequest, AutoMLPredictResponse
 from pydhsfw.jpeg_receiver import JpegReceiverImagePostRequestMessage
+from pydhsfw.axis import AxisImageRequestMessage, AxisImageResponseMessage
 
 #_logger = logging.getLogger(__name__)
 _logger = verboselogs.VerboseLogger('loopDHS.py')
@@ -76,6 +77,10 @@ class LoopDHSConfig(Dotty):
     @property
     def axis_url(self):
         return 'http://' + str(self['loopdhs.axis.host']) + ':' + str(self['loopdhs.axis.port'])
+
+    @property
+    def axis_camera(self):
+        return self['loopdhs.axis.camera']
 
     @property
     def save_images(self):
@@ -250,6 +255,8 @@ def dhs_start(message:DhsStart, context:DhsContext):
     context.get_connection('automl_conn').connect()
 
     # Connect to an AXIS Video Server
+    context.create_connection('axis_conn', 'axis', context.config.axis_url)
+    context.get_connection('axis_conn').connect()
 
     # Open a jpeg receiving port. Not sure this needs to be open all the time.
     # but Giles suggests that this is safe because unexpected data arriving on jpeg_receiver_url
@@ -317,7 +324,7 @@ def collect_loop_images(message:DcssStoHStartOperation, context:DcssContext):
     """
     _logger.info(f'FROM DCSS: {message}')
 
-    # 1. Instaniate CollectLoopImageState.
+    # 1. Instantiate CollectLoopImageState.
     context.get_active_operations(operation_name=message.operation_name, operation_handle=message.operation_handle)[0].state = CollectLoopImageState()
 
     # 2. Set image collection flag.
@@ -344,9 +351,10 @@ def get_loop_tip(message:DcssStoHStartOperation, context:DcssContext):
     _logger.info(f'FROM DCSS: {message}')
     # need to confirm that pinBaseX is the same as PinPos in imgCentering.cc
     #
-    # 1. Request single jpeg image from axis video server
-    # 2. Send to AutoML
-    # 3. Format results and send results bacxk to DCSS
+    # 1. Request single jpeg image from axis video server. takes camera as arg.
+    cam = str(context.config.axis_camera)
+    context.get_connection('axis_conn').send(AxisImageRequestMessage(''.join(['camera=',cam])))
+ 
 
 @register_dcss_start_operation_handler('getLoopInfo')
 def get_loop_info(message:DcssStoHStartOperation, context:DcssContext):
@@ -356,8 +364,9 @@ def get_loop_info(message:DcssStoHStartOperation, context:DcssContext):
     DCSS may send a single arg pinBaseSizeHint, but I think we can ignore it.
     """
     _logger.info(f'FROM DCSS: {message}')
-    # 1. Grab single image from Axis Video server
-    #    on error:
+    # 1. Request single jpeg image from axis video server. takes camera as arg.
+    cam = str(context.config.axis_camera)
+    context.get_connection('axis_conn').send(AxisImageRequestMessage(''.join(['camera=',cam])))
     #    htos_operation_completed getLoopInfo operation_handle error failed to get image
     # 2. Send to AutoML
     # 3. Format AutoML results and send info back to DCSS
@@ -449,7 +458,7 @@ def rebox_loop_image(message:DcssStoHStartOperation, context:DcssContext):
 @register_message_handler('automl_predict_response')
 def automl_predict_response(message:AutoMLPredictResponse, context:DcssContext):
     """
-    This handler will deal with stuff coming back from AutoML
+    This handler will deal with stuff coming back from AutoML.
     """
 
     # ==============================================================
@@ -457,44 +466,60 @@ def automl_predict_response(message:AutoMLPredictResponse, context:DcssContext):
     _logger.debug(f'Active operations pre-completed={activeOps}')
     # ==============================================================
 
+    # parse all the information from the response message
+    tipX = round(message.bb_maxX,5)
+    tipY = round((message.bb_maxY - message.bb_minY)/2,5)
+    pinBaseX = 0.111 # will add once we have AutoML model that recognizes pins
+    fiberWidth = 0.222 # not sure we can or need to support this.
+    loopWidth = round((message.bb_maxY - message.bb_minY),5)
+    boxMinX = round(message.bb_minX,5)
+    boxMaxX = round(message.bb_maxX,5)
+    boxMinY = round(message.bb_minY,5)
+    boxMaxY = round(message.bb_maxY,5)
+    loopWidthX = round((message.bb_maxX - message.bb_minX),5)
+    if message.top_classification == 'mitegen':
+        isMicroMount = 1
+    else:
+        isMicroMount = 0
+    loopClass = message.top_classification
+
+
     for ao in activeOps:
         if ao.operation_name == 'predictOne':
             predict_one_msg = ' '.join(map(str,[message.image_key, message.top_result, message.top_bb[0], message.top_bb[1], message.top_bb[2], message.top_bb[3], message.top_classification]))
             _logger.info(f'AUTOML: {predict_one_msg}')
-            context.get_connection('dcss_conn').send(DcssHtoSOperationCompleted(ao.operation_name, ao.operation_handle, "normal", predict_one_msg))
+            status = 'normal'
+            context.get_connection('dcss_conn').send(DcssHtoSOperationCompleted(ao.operation_name, ao.operation_handle, status, predict_one_msg))
+        elif ao.operation_name == 'getLoopTip':
+            status = 'normal'
+            loop_tip_info = [tipX, tipY]
+            # transmorgrify into space seperated list for Tcl.
+            get_loop_tip_complete_msg = ' '.join(map(str,loop_tip_info))
+            _logger.info(f'SEND TO DCSS: {get_loop_tip_complete_msg}')
+            context.get_connection('dcss_conn').send(DcssHtoSOperationCompleted(ao.operation_name,ao.operation_handle, status, get_loop_tip_complete_msg))
+        elif ao.operation_name == 'getLoopInfo':
+            status = 'normal'
+            loop_info = [tipX, tipY, pinBaseX, fiberWidth, loopWidth, boxMinX, boxMaxX, boxMinY, boxMaxY, loopWidthX, isMicroMount]
+            # transmorgrify into space seperated list for Tcl.
+            get_loop_info_complete_msg = ' '.join(map(str,loop_info))
+            _logger.info(f'SEND TO DCSS: {get_loop_info_complete_msg}')
+            context.get_connection('dcss_conn').send(DcssHtoSOperationCompleted(ao.operation_name,ao.operation_handle, status, get_loop_info_complete_msg))
         elif ao.operation_name == 'collectLoopImages' and context.state.collect_images:
-            # massage AutoML results for consumption by DCSS loopFast operation
-            # this index method is NOT working.
             index = message.image_key.split(':')[2]
             status = 'normal'
-            tipX = round(message.bb_maxX,5)
-            tipY = round((message.bb_maxY - message.bb_minY)/2,5)
-            pinBaseX = 0.111 # will add once we have AutoML model that recognizes pins
-            fiberWidth = 0.222 # not sure we can or need to support this.
-            loopWidth = round((message.bb_maxY - message.bb_minY),5)
-            boxMinX = round(message.bb_minX,5)
-            boxMaxX = round(message.bb_maxX,5)
-            boxMinY = round(message.bb_minY,5)
-            boxMaxY = round(message.bb_maxY,5)
-            loopWidthX = round((message.bb_maxX - message.bb_minX),5)
-            if message.top_classification == 'mitegen':
-                isMicroMount = 1
-            else:
-                isMicroMount = 0
-            loopClass = message.top_classification
-
             loop_info = ['LOOP_INFO', index, status, tipX, tipY, pinBaseX, fiberWidth, loopWidth, boxMinX, boxMaxX, boxMinY, boxMaxY, loopWidthX, isMicroMount, loopClass]
 
             # Draw the AutoML bounding box
-            UL = [message.bb_minX,message.bb_minY]
-            LR = [message.bb_maxX,message.bb_maxY]
-            _logger.info(f'INDEX: {index} UL: {UL} LR: {LR}')
-            axisfilename = ''.join(['loop_',str(index).zfill(4),'.jpeg'])
-            file_to_adorn = os.path.join(context.config.jpeg_save_dir, axisfilename)
-            if os.path.isfile(file_to_adorn):
-                draw_bounding_box(file_to_adorn, UL, LR)
-            else:
-                _logger.debug(f'DID NOT FIND IMAGE: {file_to_adorn}')
+            if context.config.save_images:
+                UL = [message.bb_minX,message.bb_minY]
+                LR = [message.bb_maxX,message.bb_maxY]
+                _logger.info(f'INDEX: {index} UL: {UL} LR: {LR}')
+                axisfilename = ''.join(['loop_',str(index).zfill(4),'.jpeg'])
+                file_to_adorn = os.path.join(context.config.jpeg_save_dir, axisfilename)
+                if os.path.isfile(file_to_adorn):
+                    draw_bounding_box(file_to_adorn, UL, LR)
+                else:
+                    _logger.debug(f'DID NOT FIND IMAGE: {file_to_adorn}')
 
             # transmorgrify into space seperated list for Tcl.
             collect_loop_images_update_msg = ' '.join(map(str,loop_info))
@@ -508,7 +533,7 @@ def automl_predict_response(message:AutoMLPredictResponse, context:DcssContext):
     # ==============================================================
 
 @register_message_handler('jpeg_receiver_image_post_request')
-def axis_image_request(message:JpegReceiverImagePostRequestMessage, context:DhsContext):
+def jpeg_receiver_image_post_request(message:JpegReceiverImagePostRequestMessage, context:DhsContext):
     """
     This handler is triggered when a new JPEG image arrives on the jpeg receiver port.
     It is then shuttled off to AutoML.
@@ -532,6 +557,26 @@ def axis_image_request(message:JpegReceiverImagePostRequestMessage, context:DhsC
         activeOp.state.image_index += 1
     else:
         _logger.warning(f'RECEVIED JPEG, BUT NOT DOING ANYTHING WITH IT.')
+
+@register_message_handler('axis_image_response')
+def axis_image_response(message:AxisImageResponseMessage, context:DhsContext):
+    """
+    This message handler will be used for both getLoopTip and getLoopInfo operations
+    It will process a single JPEG image received from an AXIS video server.
+    """
+    _logger.debug(f'RECEIVED {message.file_length} BYTE IMAGE')
+    activeOps = context.get_active_operations()
+    for ao in activeOps:
+        if ao.operation_name == 'getLoopTip' or 'getLoopInfo':
+            #activeOps = context.get_active_operations(operation_name='getLoopTip')
+            #if len(activeOps) > 0:
+            #activeOp = activeOps[0]
+            opName = ao.operation_name
+            opHandle = ao.operation_handle
+            image_key = ':'.join([opName,opHandle])
+            context.get_connection('automl_conn').send(AutoMLPredictRequest(image_key, message.file))
+        else:
+            _logger.warning(f'RECEVIED JPEG, BUT NOT DOING ANYTHING WITH IT.')
 
 def save_jpeg(image:bytes, index:int=None):
     """

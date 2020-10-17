@@ -8,8 +8,8 @@ _logger = logging.getLogger(__name__)
 
 @register_message('axis_image_request')
 class AxisImageRequestMessage(GetRequestMessage):
-    def __init__(self):
-        super().__init__('/axis-cgi/jpg/image.cgi')
+    def __init__(self, camera:str):
+        super().__init__('/axis-cgi/jpg/image.cgi',camera)
 
 @register_message('axis_image_response', 'axis')
 class AxisImageResponseMessage(FileResponseMessage):
