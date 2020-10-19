@@ -35,12 +35,17 @@ class AutoMLPredictResponse(JsonResponseMessage):
     def __init__(self, response):
         super().__init__(response)
 
+    def get_score(self,n:int)->float:
+        """Returns the AutoML inference score for the Nth object in a sorted results list"""
+        #_logger.info(f'AutoMLPredictResponse function called with {n}')
+        return dotty(self.json)[f'predictions.0.detection_scores.{n}']
+
     @property
     def image_key(self):
         return dotty(self.json)['predictions.0.key']
 
     @property
-    def top_result(self):
+    def top_score(self):
        # might want to do some sort of filtering here?
        # only accept if score if better than 90% or something?
         return dotty(self.json)['predictions.0.detection_scores.0']
@@ -50,6 +55,17 @@ class AutoMLPredictResponse(JsonResponseMessage):
         """
         Object bounding box returned from AutoML
         minY, minX, maxY, maxX
+
+        origin in upper left corner of image.
+
+        (0,0)----------------------> (1,0) X-axis
+        |
+        |
+        |
+        |
+        v
+        (0,1) Y-axis
+
         """
         return dotty(self.json)['predictions.0.detection_boxes.0']
 
