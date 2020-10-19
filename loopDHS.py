@@ -392,14 +392,14 @@ def stop_collect_loop_images(message:DcssStoHStartOperation, context:DcssContext
     context.get_connection('dcss_conn').send(DcssHtoSOperationCompleted(message.operation_name,message.operation_handle,'normal','flag set'))
 
     # 4. If there is an active collectLoopImages operation send a completed message.
-    activeOps = context.get_active_operations()
-    for ao in activeOps:
-        if ao.operation_name == 'collectLoopImages':
-            if context.config.save_images:
-                write_results(context.config.jpeg_save_dir, ao.state.loop_images)
-                plot_results(context.config.jpeg_save_dir, ao.state.loop_images)
-            context.state.rebox_images = ao.state.loop_images
-            context.get_connection('dcss_conn').send(DcssHtoSOperationCompleted(ao.operation_name,ao.operation_handle,'normal','done'))
+    # activeOps = context.get_active_operations()
+    # for ao in activeOps:
+    #     if ao.operation_name == 'collectLoopImages':
+    #         if context.config.save_images:
+    #             write_results(context.config.jpeg_save_dir, ao.state.loop_images)
+    #             plot_results(context.config.jpeg_save_dir, ao.state.loop_images)
+    #         context.state.rebox_images = ao.state.loop_images
+    #         context.get_connection('dcss_conn').send(DcssHtoSOperationCompleted(ao.operation_name,ao.operation_handle,'normal','done'))
 
 def write_results(jpeg_dir:str, images:LoopImageSet):
     """Writes out current contents of the jpeg list"""
@@ -517,27 +517,35 @@ def automl_predict_response(message:AutoMLPredictResponse, context:DcssContext):
             msg = ' '.join(map(str,result))
             _logger.info(f'SEND TO DCSS: {msg}')
             context.get_connection('dcss_conn').send(DcssHtoSOperationCompleted(ao.operation_name, ao.operation_handle, status, msg))
-        elif ao.operation_name == 'collectLoopImages' and context.state.collect_images:
-            index = message.image_key.split(':')[2]
-            result = ['LOOP_INFO', index, status, tipX, tipY, pinBaseX, fiberWidth, loopWidth, boxMinX, boxMaxX, boxMinY, boxMaxY, loopWidthX, isMicroMount, loopClass, loopScore]
-            msg = ' '.join(map(str,result))
-            ao.state.loop_images.add_results(result)
+        elif ao.operation_name == 'collectLoopImages':
+            if context.state.collect_images:
+                index = message.image_key.split(':')[2]
+                result = ['LOOP_INFO', index, status, tipX, tipY, pinBaseX, fiberWidth, loopWidth, boxMinX, boxMaxX, boxMinY, boxMaxY, loopWidthX, isMicroMount, loopClass, loopScore]
+                msg = ' '.join(map(str,result))
+                ao.state.loop_images.add_results(result)
 
-            # Draw the AutoML bounding box
-            if context.config.save_images:
-                upper_left = [message.bb_minX,message.bb_minY]
-                lower_right = [message.bb_maxX,message.bb_maxY]
-                tip = [tipX, tipY]
-                _logger.info(f'DRAW BOUNDING BOX FOR IMAGE: {index} UL: {upper_left} LR: {lower_right} TIP: {tip}')
-                axisfilename = ''.join(['loop_',str(index).zfill(4),'.jpeg'])
-                file_to_adorn = os.path.join(context.config.jpeg_save_dir, axisfilename)
-                if os.path.isfile(file_to_adorn):
-                    draw_bounding_box(file_to_adorn, upper_left, lower_right, tip)
-                else:
-                    _logger.warning(f'DID NOT FIND IMAGE: {file_to_adorn}')
-            
-            _logger.info(f'SEND UPDATE TO DCSS: {msg}')
-            context.get_connection('dcss_conn').send(DcssHtoSOperationUpdate(ao.operation_name, ao.operation_handle, msg))
+                # Draw the AutoML bounding box
+                if context.config.save_images:
+                    upper_left = [message.bb_minX,message.bb_minY]
+                    lower_right = [message.bb_maxX,message.bb_maxY]
+                    tip = [tipX, tipY]
+                    _logger.info(f'DRAW BOUNDING BOX FOR IMAGE: {index} UL: {upper_left} LR: {lower_right} TIP: {tip}')
+                    axisfilename = ''.join(['loop_',str(index).zfill(4),'.jpeg'])
+                    file_to_adorn = os.path.join(context.config.jpeg_save_dir, axisfilename)
+                    if os.path.isfile(file_to_adorn):
+                        draw_bounding_box(file_to_adorn, upper_left, lower_right, tip)
+                    else:
+                        _logger.warning(f'DID NOT FIND IMAGE: {file_to_adorn}')
+                
+                _logger.info(f'SEND UPDATE TO DCSS: {msg}')
+                context.get_connection('dcss_conn').send(DcssHtoSOperationUpdate(ao.operation_name, ao.operation_handle, msg))
+            elif not context.state.collect_images:
+                if context.config.save_images:
+                    write_results(context.config.jpeg_save_dir, ao.state.loop_images)
+                    plot_results(context.config.jpeg_save_dir, ao.state.loop_images)
+                context.state.rebox_images = ao.state.loop_images
+                context.get_connection('dcss_conn').send(DcssHtoSOperationCompleted(ao.operation_name, ao.operation_handle,'normal','done'))
+
 
     # ==============================================================
     activeOps = context.get_active_operations()
