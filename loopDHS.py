@@ -522,21 +522,22 @@ def automl_predict_response(message:AutoMLPredictResponse, context:DcssContext):
             result = ['LOOP_INFO', index, status, tipX, tipY, pinBaseX, fiberWidth, loopWidth, boxMinX, boxMaxX, boxMinY, boxMaxY, loopWidthX, isMicroMount, loopClass, loopScore]
             msg = ' '.join(map(str,result))
             ao.state.loop_images.add_results(result)
-            _logger.info(f'SEND UPDATE TO DCSS: {msg}')
-            context.get_connection('dcss_conn').send(DcssHtoSOperationUpdate(ao.operation_name, ao.operation_handle, msg))
 
             # Draw the AutoML bounding box
             if context.config.save_images:
                 upper_left = [message.bb_minX,message.bb_minY]
                 lower_right = [message.bb_maxX,message.bb_maxY]
                 tip = [tipX, tipY]
-                _logger.info(f'INDEX: {index} UL: {upper_left} LR: {lower_right} TIP: {tip}')
+                _logger.info(f'DRAW BOUNDING BOX FOR IMAGE: {index} UL: {upper_left} LR: {lower_right} TIP: {tip}')
                 axisfilename = ''.join(['loop_',str(index).zfill(4),'.jpeg'])
                 file_to_adorn = os.path.join(context.config.jpeg_save_dir, axisfilename)
                 if os.path.isfile(file_to_adorn):
                     draw_bounding_box(file_to_adorn, upper_left, lower_right, tip)
                 else:
                     _logger.warning(f'DID NOT FIND IMAGE: {file_to_adorn}')
+            
+            _logger.info(f'SEND UPDATE TO DCSS: {msg}')
+            context.get_connection('dcss_conn').send(DcssHtoSOperationUpdate(ao.operation_name, ao.operation_handle, msg))
 
     # ==============================================================
     activeOps = context.get_active_operations()
@@ -625,7 +626,7 @@ def draw_bounding_box(file_to_adorn:str, upper_left_corner:list, lower_right_cor
     tipY_frac = tip[1]
     tipX = round(tipX_frac * w)
     tipY = round(tipY_frac * h)
-    crosshair_size = round(0.2 * h)
+    crosshair_size = round(0.1 * h)
     # represents the top left corner of rectangle in pixels.
     start_point = (math.floor(upper_left_corner[0] * w), math.floor(upper_left_corner[1] * h))
     #_logger.info(f'START: {start_point}')
