@@ -536,7 +536,7 @@ def automl_predict_response(message:AutoMLPredictResponse, context:DcssContext):
                 _logger.info(f'SEND OPERATION UPDATE TO DCSS: {msg}')
                 context.get_connection('dcss_conn').send(DcssHtoSOperationUpdate(ao.operation_name, ao.operation_handle, msg))
 
-                # Draw the AutoML bounding box
+                # Draw the AutoML bounding box if we are saving files to disk.
                 if context.config.save_images:
                     upper_left = [message.bb_minX,message.bb_minY]
                     lower_right = [message.bb_maxX,message.bb_maxY]
@@ -550,9 +550,8 @@ def automl_predict_response(message:AutoMLPredictResponse, context:DcssContext):
                         _logger.warning(f'DID NOT FIND IMAGE: {file_to_adorn}')
 
                 sent = ao.state.image_index
-                _logger.debug(f'=================================================sent: {sent}')
                 received = ao.state.automl_responses_received
-                _logger.debug(f'=================================================received: {received}')
+                _logger.debug(f'SENT: {sent} RECEIVED: {received}' )
             elif ao.state.automl_responses_received == ao.state.image_index:
                 if context.config.save_images:
                     write_results(context.config.jpeg_save_dir, ao.state.loop_images)
