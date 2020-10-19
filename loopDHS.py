@@ -115,6 +115,7 @@ class CollectLoopImageState():
     def __init__(self):
         self._loop_images = LoopImageSet()
         self._image_index = 0
+        self._automl_responses_received = 0
 
     @property
     def loop_images(self):
@@ -128,6 +129,13 @@ class CollectLoopImageState():
     def image_index(self, idx:int):
         self._image_index = idx
 
+    @property
+    def automl_responses_received(self)->int:
+        return self._automl_responses_received
+
+    @automl_responses_received.setter
+    def automl_responses_received(self, idx:int):
+        self._automl_responses_received = idx
 
 @register_message_handler('dhs_init')
 def dhs_init(message:DhsInit, context:DhsContext):
@@ -538,8 +546,14 @@ def automl_predict_response(message:AutoMLPredictResponse, context:DcssContext):
                         draw_bounding_box(file_to_adorn, upper_left, lower_right, tip)
                     else:
                         _logger.warning(f'DID NOT FIND IMAGE: {file_to_adorn}')
-
-            elif not context.state.collect_images:
+            # still not waiting for all AutoML responses!!!
+            # Can we check to make sure there are no outstanding AutoML responses?
+            # Maybe compare number sent to number received?
+            sent = ao.state.image_index
+            # increment our received counter
+            ao.state.automl_responses_received += 1
+            received = ao.state.automl_responses_received
+            elif not context.state.collect_images and received == sent:
                 if context.config.save_images:
                     write_results(context.config.jpeg_save_dir, ao.state.loop_images)
                     plot_results(context.config.jpeg_save_dir, ao.state.loop_images)
