@@ -550,6 +550,7 @@ def automl_predict_response(message:AutoMLPredictResponse, context:DcssContext):
                 # Can we check to make sure there are no outstanding AutoML responses?
                 # Maybe compare number sent to number received?
                 sent = ao.state.image_index
+                _logger.debug(f'=================================================sent: {sent}')
                 # increment our received counter
                 ao.state.automl_responses_received += 1
                 received = ao.state.automl_responses_received
