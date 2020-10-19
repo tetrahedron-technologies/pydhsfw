@@ -1085,7 +1085,7 @@ class DcssActiveOperation:
 
     @property
     def operation_state(self):
-        return self.operation_state
+        return self._operation_state
 
     @operation_state.setter
     def operation_state(self, operation_state:Any):

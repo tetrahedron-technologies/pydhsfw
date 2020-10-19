@@ -24,6 +24,7 @@ from pydhsfw.dhs import Dhs, DhsInit, DhsStart, DhsContext
 from pydhsfw.dcss import DcssContext, DcssStoCSendClientType, DcssHtoSClientIsHardware, DcssStoHRegisterOperation, DcssStoHStartOperation, DcssHtoSOperationUpdate, DcssHtoSOperationCompleted, register_dcss_start_operation_handler
 from pydhsfw.automl import AutoMLPredictRequest, AutoMLPredictResponse
 from pydhsfw.jpeg_receiver import JpegReceiverImagePostRequestMessage
+from pydhsfw.axis import AxisImageRequestMessage, AxisImageResponseMessage
 
 #_logger = logging.getLogger(__name__)
 _logger = verboselogs.VerboseLogger('loopDHS.py')
@@ -76,6 +77,10 @@ class LoopDHSConfig(Dotty):
     @property
     def axis_url(self):
         return 'http://' + str(self['loopdhs.axis.host']) + ':' + str(self['loopdhs.axis.port'])
+
+    @property
+    def axis_camera(self):
+        return self['loopdhs.axis.camera']
 
     @property
     def save_images(self):
@@ -250,6 +255,8 @@ def dhs_start(message:DhsStart, context:DhsContext):
     context.get_connection('automl_conn').connect()
 
     # Connect to an AXIS Video Server
+    context.create_connection('axis_conn', 'axis', context.config.axis_url)
+    context.get_connection('axis_conn').connect()
 
     # Open a jpeg receiving port. Not sure this needs to be open all the time.
     # but Giles suggests that this is safe because unexpected data arriving on jpeg_receiver_url
@@ -317,7 +324,7 @@ def collect_loop_images(message:DcssStoHStartOperation, context:DcssContext):
     """
     _logger.info(f'FROM DCSS: {message}')
 
-    # 1. Instaniate CollectLoopImageState.
+    # 1. Instantiate CollectLoopImageState.
     context.get_active_operations(operation_name=message.operation_name, operation_handle=message.operation_handle)[0].state = CollectLoopImageState()
 
     # 2. Set image collection flag.
@@ -344,9 +351,10 @@ def get_loop_tip(message:DcssStoHStartOperation, context:DcssContext):
     _logger.info(f'FROM DCSS: {message}')
     # need to confirm that pinBaseX is the same as PinPos in imgCentering.cc
     #
-    # 1. Request single jpeg image from axis video server
-    # 2. Send to AutoML
-    # 3. Format results and send results bacxk to DCSS
+    # 1. Request single jpeg image from axis video server. takes camera as arg.
+    cam = str(context.config.axis_camera)
+    context.get_connection('axis_conn').send(AxisImageRequestMessage(''.join(['camera=',cam])))
+ 
 
 @register_dcss_start_operation_handler('getLoopInfo')
 def get_loop_info(message:DcssStoHStartOperation, context:DcssContext):
@@ -356,8 +364,9 @@ def get_loop_info(message:DcssStoHStartOperation, context:DcssContext):
     DCSS may send a single arg pinBaseSizeHint, but I think we can ignore it.
     """
     _logger.info(f'FROM DCSS: {message}')
-    # 1. Grab single image from Axis Video server
-    #    on error:
+    # 1. Request single jpeg image from axis video server. takes camera as arg.
+    cam = str(context.config.axis_camera)
+    context.get_connection('axis_conn').send(AxisImageRequestMessage(''.join(['camera=',cam])))
     #    htos_operation_completed getLoopInfo operation_handle error failed to get image
     # 2. Send to AutoML
     # 3. Format AutoML results and send info back to DCSS
@@ -432,24 +441,26 @@ def rebox_loop_image(message:DcssStoHStartOperation, context:DcssContext):
     returnIndex
     resultMinY
     resultMaxY
-    (resultMaxY - resultMinY)
+    (resultMaxY - resultMinY) <--- loopWidth
 
     """
     _logger.info(f'FROM DCSS: {message}')
-    request_img = int(message.operation_args[0])
-    stuff = context.state.rebox_images.results[request_img]
-    _logger.info(f'REQUEST IMAGE: {request_img} RESULTS: {stuff}')
-    index = stuff[1]
-    tipY = stuff[4]
-    boxMaxY = stuff[11]
-    boxMinY = stuff[10]
-    return_msg = ' '.join([index, boxMinY, boxMaxY, tipY])
+    rebox_image = int(message.operation_args[0])
+    previous_results = context.state.rebox_images.results[rebox_image]
+    _logger.info(f'REQUEST REBOX OF IMAGE: {rebox_image} RESULTS: {previous_results}')
+    index = previous_results[1]
+    loopWidth = previous_results[7]
+    boxMinY = previous_results[10]
+    boxMaxY = previous_results[11]
+    results = [index, boxMinY, boxMaxY, loopWidth]
+    # transmorgrify into space-seperated list for Tcl.
+    return_msg = ' '.join(map(str,results))
     context.get_connection('dcss_conn').send(DcssHtoSOperationCompleted(message.operation_name,message.operation_handle,'normal', return_msg))
 
 @register_message_handler('automl_predict_response')
 def automl_predict_response(message:AutoMLPredictResponse, context:DcssContext):
     """
-    This handler will deal with stuff coming back from AutoML
+    This handler will process inference results from AutoML.
     """
 
     # ==============================================================
@@ -457,50 +468,76 @@ def automl_predict_response(message:AutoMLPredictResponse, context:DcssContext):
     _logger.debug(f'Active operations pre-completed={activeOps}')
     # ==============================================================
 
+    # so we can do some sort of results filtering here I suppose.
+    if message.get_score(0) < 0.50:
+        _logger.warning(f'TOP AUTOML SCORE IS BELOW 0.50 THRESHOLD: {message.get_score(0)}')
+        status = 'failed'
+        result = ['no loop detected']
+    else:
+        status = 'normal'
+        result = []
+
+    # for i in range(5):
+    #     score = message.get_score(i)
+    #     _logger.debug(f'INFERENCE RESULT #{i} HAS SCORE: {score}')
+
+    # do the maths on AutoML response values
+    tipX = round(message.bb_maxX, 5)
+    # this is not ideal, but for now the best I can come up with is by adding minY to 1/2 the loopWidth
+    tipY = round(message.bb_minY + ((message.bb_maxY - message.bb_minY)/2), 5)
+    pinBaseX = 0.111 # will add once we have AutoML model that recognizes pins
+    fiberWidth = 0.222 # not sure we can or need to support this.
+    loopWidth = round((message.bb_maxY - message.bb_minY), 5)
+    boxMinX = round(message.bb_minX, 5)
+    boxMaxX = round(message.bb_maxX, 5)
+    boxMinY = round(message.bb_minY, 5)
+    boxMaxY = round(message.bb_maxY, 5)
+    # need to double check that this is correct, and what it is used for.
+    loopWidthX = round((message.bb_maxX - message.bb_minX), 5)
+    if message.top_classification == 'mitegen':
+        isMicroMount = 1
+    else:
+        isMicroMount = 0
+    loopClass = message.top_classification
+    loopScore = round(message.top_score, 5)
+
     for ao in activeOps:
         if ao.operation_name == 'predictOne':
-            predict_one_msg = ' '.join(map(str,[message.image_key, message.top_result, message.top_bb[0], message.top_bb[1], message.top_bb[2], message.top_bb[3], message.top_classification]))
-            _logger.info(f'AUTOML: {predict_one_msg}')
-            context.get_connection('dcss_conn').send(DcssHtoSOperationCompleted(ao.operation_name, ao.operation_handle, "normal", predict_one_msg))
+            result = [message.image_key, message.top_score, message.top_bb, message.top_classification, message.top_score]
+            msg = ' '.join(map(str,result))
+            _logger.info(f'SEND TO DCSS: {msg}')
+            context.get_connection('dcss_conn').send(DcssHtoSOperationCompleted(ao.operation_name, ao.operation_handle, status, msg))
+        elif ao.operation_name == 'getLoopTip':
+            result = [tipX, tipY]
+            msg = ' '.join(map(str,result))
+            _logger.info(f'SEND TO DCSS: {msg}')
+            context.get_connection('dcss_conn').send(DcssHtoSOperationCompleted(ao.operation_name, ao.operation_handle, status, msg))
+        elif ao.operation_name == 'getLoopInfo':
+            result = [tipX, tipY, pinBaseX, fiberWidth, loopWidth, boxMinX, boxMaxX, boxMinY, boxMaxY, loopWidthX, isMicroMount]
+            msg = ' '.join(map(str,result))
+            _logger.info(f'SEND TO DCSS: {msg}')
+            context.get_connection('dcss_conn').send(DcssHtoSOperationCompleted(ao.operation_name, ao.operation_handle, status, msg))
         elif ao.operation_name == 'collectLoopImages' and context.state.collect_images:
-            # massage AutoML results for consumption by DCSS loopFast operation
-            # this index method is NOT working.
             index = message.image_key.split(':')[2]
-            status = 'normal'
-            tipX = round(message.bb_maxX,5)
-            tipY = round((message.bb_maxY - message.bb_minY)/2,5)
-            pinBaseX = 0.111 # will add once we have AutoML model that recognizes pins
-            fiberWidth = 0.222 # not sure we can or need to support this.
-            loopWidth = round((message.bb_maxY - message.bb_minY),5)
-            boxMinX = round(message.bb_minX,5)
-            boxMaxX = round(message.bb_maxX,5)
-            boxMinY = round(message.bb_minY,5)
-            boxMaxY = round(message.bb_maxY,5)
-            loopWidthX = round((message.bb_maxX - message.bb_minX),5)
-            if message.top_classification == 'mitegen':
-                isMicroMount = 1
-            else:
-                isMicroMount = 0
-            loopClass = message.top_classification
-
-            loop_info = ['LOOP_INFO', index, status, tipX, tipY, pinBaseX, fiberWidth, loopWidth, boxMinX, boxMaxX, boxMinY, boxMaxY, loopWidthX, isMicroMount, loopClass]
+            result = ['LOOP_INFO', index, status, tipX, tipY, pinBaseX, fiberWidth, loopWidth, boxMinX, boxMaxX, boxMinY, boxMaxY, loopWidthX, isMicroMount, loopClass, loopScore]
+            msg = ' '.join(map(str,result))
+            ao.state.loop_images.add_results(result)
 
             # Draw the AutoML bounding box
-            UL = [message.bb_minX,message.bb_minY]
-            LR = [message.bb_maxX,message.bb_maxY]
-            _logger.info(f'INDEX: {index} UL: {UL} LR: {LR}')
-            axisfilename = ''.join(['loop_',str(index).zfill(4),'.jpeg'])
-            file_to_adorn = os.path.join(context.config.jpeg_save_dir, axisfilename)
-            if os.path.isfile(file_to_adorn):
-                draw_bounding_box(file_to_adorn, UL, LR)
-            else:
-                _logger.debug(f'DID NOT FIND IMAGE: {file_to_adorn}')
-
-            # transmorgrify into space seperated list for Tcl.
-            collect_loop_images_update_msg = ' '.join(map(str,loop_info))
-            ao.state.loop_images.add_results(loop_info)
-            _logger.info(f'SEND TO DCSS: {collect_loop_images_update_msg}')
-            context.get_connection('dcss_conn').send(DcssHtoSOperationUpdate(ao.operation_name,ao.operation_handle,collect_loop_images_update_msg))
+            if context.config.save_images:
+                upper_left = [message.bb_minX,message.bb_minY]
+                lower_right = [message.bb_maxX,message.bb_maxY]
+                tip = [tipX, tipY]
+                _logger.info(f'DRAW BOUNDING BOX FOR IMAGE: {index} UL: {upper_left} LR: {lower_right} TIP: {tip}')
+                axisfilename = ''.join(['loop_',str(index).zfill(4),'.jpeg'])
+                file_to_adorn = os.path.join(context.config.jpeg_save_dir, axisfilename)
+                if os.path.isfile(file_to_adorn):
+                    draw_bounding_box(file_to_adorn, upper_left, lower_right, tip)
+                else:
+                    _logger.warning(f'DID NOT FIND IMAGE: {file_to_adorn}')
+            
+            _logger.info(f'SEND UPDATE TO DCSS: {msg}')
+            context.get_connection('dcss_conn').send(DcssHtoSOperationUpdate(ao.operation_name, ao.operation_handle, msg))
 
     # ==============================================================
     activeOps = context.get_active_operations()
@@ -508,7 +545,7 @@ def automl_predict_response(message:AutoMLPredictResponse, context:DcssContext):
     # ==============================================================
 
 @register_message_handler('jpeg_receiver_image_post_request')
-def axis_image_request(message:JpegReceiverImagePostRequestMessage, context:DhsContext):
+def jpeg_receiver_image_post_request(message:JpegReceiverImagePostRequestMessage, context:DhsContext):
     """
     This handler is triggered when a new JPEG image arrives on the jpeg receiver port.
     It is then shuttled off to AutoML.
@@ -532,6 +569,26 @@ def axis_image_request(message:JpegReceiverImagePostRequestMessage, context:DhsC
         activeOp.state.image_index += 1
     else:
         _logger.warning(f'RECEVIED JPEG, BUT NOT DOING ANYTHING WITH IT.')
+
+@register_message_handler('axis_image_response')
+def axis_image_response(message:AxisImageResponseMessage, context:DhsContext):
+    """
+    This message handler will be used for both getLoopTip and getLoopInfo operations
+    It will process a single JPEG image received from an AXIS video server.
+    """
+    _logger.debug(f'RECEIVED {message.file_length} BYTE IMAGE FROM AXIS VIDEO SERVER.')
+    activeOps = context.get_active_operations()
+    for ao in activeOps:
+        if ao.operation_name == 'getLoopTip' or 'getLoopInfo':
+            #activeOps = context.get_active_operations(operation_name='getLoopTip')
+            #if len(activeOps) > 0:
+            #activeOp = activeOps[0]
+            opName = ao.operation_name
+            opHandle = ao.operation_handle
+            image_key = ':'.join([opName,opHandle])
+            context.get_connection('automl_conn').send(AutoMLPredictRequest(image_key, message.file))
+        else:
+            _logger.warning(f'RECEVIED JPEG, BUT NOT DOING ANYTHING WITH IT.')
 
 def save_jpeg(image:bytes, index:int=None):
     """
@@ -559,13 +616,17 @@ def save_jpeg(image:bytes, index:int=None):
     f.close()
     _logger.info(f'SAVED JPEG IMAGE FILE: {saveName}')
 
-def draw_bounding_box(file_to_adorn:str, upper_left_corner:list, lower_right_corner:list):
+def draw_bounding_box(file_to_adorn:str, upper_left_corner:list, lower_right_corner:list, tip:list):
     """Use OpenCV to draw a bounding box on a jpeg"""
     image = cv2.imread(file_to_adorn)
     s = tuple(image.shape[1::-1])
     w = s[0]
     h = s[1]
-
+    tipX_frac = tip[0]
+    tipY_frac = tip[1]
+    tipX = round(tipX_frac * w)
+    tipY = round(tipY_frac * h)
+    crosshair_size = round(0.1 * h)
     # represents the top left corner of rectangle in pixels.
     start_point = (math.floor(upper_left_corner[0] * w), math.floor(upper_left_corner[1] * h))
     #_logger.info(f'START: {start_point}')
@@ -575,14 +636,17 @@ def draw_bounding_box(file_to_adorn:str, upper_left_corner:list, lower_right_cor
     #_logger.info(f'END: {end_point}')
 
     # Red color in BGR 
-    color = (0, 0, 255) 
+    color = (0, 0, 255)
+    xhair_color = (0, 255, 0)
 
     # Line thickness of 1 px 
     thickness = 1
 
-    # Using cv2.rectangle() method 
-    # Draw a rectangle with red line borders of thickness of 1 px 
     image = cv2.rectangle(image, start_point, end_point, color, thickness)
+    cross_hair_horz = [(tipX - crosshair_size, tipY),(tipX + crosshair_size, tipY)]
+    cross_hair_vert = [(tipX, tipY - crosshair_size),(tipX, tipY + crosshair_size)]
+    image = cv2.line(image,cross_hair_horz[0],cross_hair_horz[1],xhair_color,thickness)
+    image = cv2.line(image,cross_hair_vert[0],cross_hair_vert[1],xhair_color,thickness)
 
     outfn = "automl_" + os.path.basename(file_to_adorn)
     outdir = os.path.dirname(file_to_adorn)
