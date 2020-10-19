@@ -526,7 +526,9 @@ def automl_predict_response(message:AutoMLPredictResponse, context:DcssContext):
             _logger.info(f'SEND TO DCSS: {msg}')
             context.get_connection('dcss_conn').send(DcssHtoSOperationCompleted(ao.operation_name, ao.operation_handle, status, msg))
         elif ao.operation_name == 'collectLoopImages':
-            if context.state.collect_images:
+            # increment automl responses received
+            ao.state.automl_responses_received += 1
+            if ao.state.automl_responses_received < ao.state.image_index:
                 index = message.image_key.split(':')[2]
                 result = ['LOOP_INFO', index, status, tipX, tipY, pinBaseX, fiberWidth, loopWidth, boxMinX, boxMaxX, boxMinY, boxMaxY, loopWidthX, isMicroMount, loopClass, loopScore]
                 msg = ' '.join(map(str,result))
@@ -546,21 +548,20 @@ def automl_predict_response(message:AutoMLPredictResponse, context:DcssContext):
                         draw_bounding_box(file_to_adorn, upper_left, lower_right, tip)
                     else:
                         _logger.warning(f'DID NOT FIND IMAGE: {file_to_adorn}')
-                # still not waiting for all AutoML responses!!!
-                # Can we check to make sure there are no outstanding AutoML responses?
-                # Maybe compare number sent to number received?
+
                 sent = ao.state.image_index
                 _logger.debug(f'=================================================sent: {sent}')
-                # increment our received counter
-                ao.state.automl_responses_received += 1
                 received = ao.state.automl_responses_received
-            elif not context.state.collect_images and received == sent:
+                _logger.debug(f'=================================================received: {received}')
+            elif ao.state.automl_responses_received == ao.state.image_index:
                 if context.config.save_images:
                     write_results(context.config.jpeg_save_dir, ao.state.loop_images)
                     plot_results(context.config.jpeg_save_dir, ao.state.loop_images)
                 context.state.rebox_images = ao.state.loop_images
                 _logger.info('SEND OPERATION COMPLETE TO DCSS')
                 context.get_connection('dcss_conn').send(DcssHtoSOperationCompleted(ao.operation_name, ao.operation_handle,'normal','done'))
+            else:
+                _logger.info(f'GOT HERE SENT: {ao.state.image_index} RECEIVED {ao.state.automl_responses_received}')
 
 
     # ==============================================================
