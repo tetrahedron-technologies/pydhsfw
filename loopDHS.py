@@ -523,6 +523,8 @@ def automl_predict_response(message:AutoMLPredictResponse, context:DcssContext):
                 result = ['LOOP_INFO', index, status, tipX, tipY, pinBaseX, fiberWidth, loopWidth, boxMinX, boxMaxX, boxMinY, boxMaxY, loopWidthX, isMicroMount, loopClass, loopScore]
                 msg = ' '.join(map(str,result))
                 ao.state.loop_images.add_results(result)
+                _logger.info(f'SEND OPERATION UPDATE TO DCSS: {msg}')
+                context.get_connection('dcss_conn').send(DcssHtoSOperationUpdate(ao.operation_name, ao.operation_handle, msg))
 
                 # Draw the AutoML bounding box
                 if context.config.save_images:
@@ -536,14 +538,13 @@ def automl_predict_response(message:AutoMLPredictResponse, context:DcssContext):
                         draw_bounding_box(file_to_adorn, upper_left, lower_right, tip)
                     else:
                         _logger.warning(f'DID NOT FIND IMAGE: {file_to_adorn}')
-                
-                _logger.info(f'SEND UPDATE TO DCSS: {msg}')
-                context.get_connection('dcss_conn').send(DcssHtoSOperationUpdate(ao.operation_name, ao.operation_handle, msg))
+
             elif not context.state.collect_images:
                 if context.config.save_images:
                     write_results(context.config.jpeg_save_dir, ao.state.loop_images)
                     plot_results(context.config.jpeg_save_dir, ao.state.loop_images)
                 context.state.rebox_images = ao.state.loop_images
+                _logger.info('SEND OPERATION COMPLETE TO DCSS')
                 context.get_connection('dcss_conn').send(DcssHtoSOperationCompleted(ao.operation_name, ao.operation_handle,'normal','done'))
 
 
