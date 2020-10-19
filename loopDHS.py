@@ -564,7 +564,7 @@ def axis_image_response(message:AxisImageResponseMessage, context:DhsContext):
     This message handler will be used for both getLoopTip and getLoopInfo operations
     It will process a single JPEG image received from an AXIS video server.
     """
-    _logger.debug(f'RECEIVED {message.file_length} BYTE IMAGE')
+    _logger.debug(f'RECEIVED {message.file_length} BYTE IMAGE FROM AXIS VIDEO SERVER.')
     activeOps = context.get_active_operations()
     for ao in activeOps:
         if ao.operation_name == 'getLoopTip' or 'getLoopInfo':
