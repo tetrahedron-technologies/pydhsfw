@@ -546,13 +546,13 @@ def automl_predict_response(message:AutoMLPredictResponse, context:DcssContext):
                         draw_bounding_box(file_to_adorn, upper_left, lower_right, tip)
                     else:
                         _logger.warning(f'DID NOT FIND IMAGE: {file_to_adorn}')
-            # still not waiting for all AutoML responses!!!
-            # Can we check to make sure there are no outstanding AutoML responses?
-            # Maybe compare number sent to number received?
-            sent = ao.state.image_index
-            # increment our received counter
-            ao.state.automl_responses_received += 1
-            received = ao.state.automl_responses_received
+                # still not waiting for all AutoML responses!!!
+                # Can we check to make sure there are no outstanding AutoML responses?
+                # Maybe compare number sent to number received?
+                sent = ao.state.image_index
+                # increment our received counter
+                ao.state.automl_responses_received += 1
+                received = ao.state.automl_responses_received
             elif not context.state.collect_images and received == sent:
                 if context.config.save_images:
                     write_results(context.config.jpeg_save_dir, ao.state.loop_images)
