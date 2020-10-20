@@ -25,7 +25,7 @@ setup(
     ],
     install_requires=[
         'PyYAML',
-        'dotty-dict'
+        'dotty-dict',
         'coloredlogs',
         'verboselogs',
         'opencv-python',
