@@ -528,7 +528,11 @@ def automl_predict_response(message:AutoMLPredictResponse, context:DcssContext):
         elif ao.operation_name == 'collectLoopImages':
             # increment automl responses received
             ao.state.automl_responses_received += 1
+            received = ao.state.automl_responses_received
+
             if ao.state.automl_responses_received < ao.state.image_index:
+                sent = ao.state.image_index
+                _logger.debug(f'SENT: {sent} RECEIVED: {received}' )
                 index = message.image_key.split(':')[2]
                 result = ['LOOP_INFO', index, status, tipX, tipY, pinBaseX, fiberWidth, loopWidth, boxMinX, boxMaxX, boxMinY, boxMaxY, loopWidthX, isMicroMount, loopClass, loopScore]
                 msg = ' '.join(map(str,result))
@@ -549,10 +553,10 @@ def automl_predict_response(message:AutoMLPredictResponse, context:DcssContext):
                     else:
                         _logger.warning(f'DID NOT FIND IMAGE: {file_to_adorn}')
 
+            # unfortunately, I think we can still have received == sent if automl is very fast.
+            elif ao.state.automl_responses_received == ao.state.image_index and not ao.state.collect_images:
                 sent = ao.state.image_index
-                received = ao.state.automl_responses_received
                 _logger.debug(f'SENT: {sent} RECEIVED: {received}' )
-            elif ao.state.automl_responses_received == ao.state.image_index:
                 if context.config.save_images:
                     write_results(context.config.jpeg_save_dir, ao.state.loop_images)
                     plot_results(context.config.jpeg_save_dir, ao.state.loop_images)
