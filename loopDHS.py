@@ -554,7 +554,7 @@ def automl_predict_response(message:AutoMLPredictResponse, context:DcssContext):
                         _logger.warning(f'DID NOT FIND IMAGE: {file_to_adorn}')
 
             # unfortunately, I think we can still have received == sent if automl is very fast.
-            elif ao.state.automl_responses_received == ao.state.image_index and not ao.state.collect_images:
+            elif ao.state.automl_responses_received == ao.state.image_index and not context.state.collect_images:
                 sent = ao.state.image_index
                 _logger.debug(f'SENT: {sent} RECEIVED: {received}' )
                 if context.config.save_images:
