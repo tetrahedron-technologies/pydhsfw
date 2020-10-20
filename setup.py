@@ -32,5 +32,6 @@ setup(
         'matplotlib',
         'requests',
         'PyQt5'
-    ]
+    ],
+    scripts=['bin/loopDHS']
 )
