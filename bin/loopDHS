@@ -16,7 +16,7 @@ import math
 import matplotlib
 # Mac OS does not like Tkinter (TkAgg backend) so must use QtAgg
 if platform.system() == 'Darwin':
-    matplotlib.use('Qt5Agg')
+    matplotlib.use('Agg')
 from matplotlib import pyplot as plt
 from random import choice
 from dotty_dict.dotty_dict import Dotty

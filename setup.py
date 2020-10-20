@@ -29,8 +29,7 @@ setup(
         'verboselogs',
         'opencv-python-headless',
         'matplotlib',
-        'requests',
-        'PyQt5'
+        'requests'
     ],
     scripts=['bin/loopDHS']
 )
