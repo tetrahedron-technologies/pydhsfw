@@ -28,7 +28,7 @@ setup(
         'dotty-dict',
         'coloredlogs',
         'verboselogs',
-        'opencv-python',
+        'opencv-python-headless',
         'matplotlib',
         'requests',
         'PyQt5'

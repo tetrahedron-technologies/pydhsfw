@@ -14,9 +14,11 @@ import re
 import cv2
 import math
 import matplotlib
+# Mac OS does not like Tkinter (TkAgg backend) so must use QtAgg
+if platform.system() == 'Darwin':
+    matplotlib.use('Qt5Agg')
 from matplotlib import pyplot as plt
 from random import choice
-#from string import ascii_uppercase, digits
 from dotty_dict.dotty_dict import Dotty
 from dotty_dict import dotty as dot
 
@@ -31,10 +33,7 @@ from pydhsfw.axis import AxisImageRequestMessage, AxisImageResponseMessage
 _logger = verboselogs.VerboseLogger('loopDHS')
 #_logger.addHandler(logging.StreamHandler())
 
-# Mac OS does not like Tkinter (TkAgg backend) so must use QtAgg
-if platform.system() == 'Darwin':
-    _logger.success(f'DETECTED Mac OS {platform.system()}')
-    matplotlib.use('Qt5Agg')
+
 
 # add DHS-specific class to hold a group of jpeg images in memory.
 class LoopImageSet():
