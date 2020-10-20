@@ -14,8 +14,17 @@ setup(
     long_description=readme,
     author='Giles Mullen',
     author_email='gcmullen@sbcglobal.net',
-    #url='https://github.com/gcmullen/pydhsfw',
+    url='https://github.com/tetrahedron-technologies/pydhsfw',
     license=license,
     packages=find_packages(exclude=('tests', 'docs')),
-    install_requires=['PyYAML', 'dotty-dict']
+    python_requires='>=3.6',
+    classifiers=[
+        'Programming Language :: Python :: 3',
+        'License :: OSI Approved :: MIT License',
+        'Operating System :: OS Independent',
+    ],
+    install_requires=[
+        'PyYAML',
+        'dotty-dict'
+    ]
 )
