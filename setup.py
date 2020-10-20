@@ -26,5 +26,11 @@ setup(
     install_requires=[
         'PyYAML',
         'dotty-dict'
+        'coloredlogs',
+        'verboselogs',
+        'opencv-python',
+        'matplotlib',
+        'requests',
+        'PyQt5'
     ]
 )
