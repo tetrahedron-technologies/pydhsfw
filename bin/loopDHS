@@ -146,21 +146,22 @@ def dhs_init(message:DhsInit, context:DhsContext):
     parser.add_argument(
         '--version',
         action='version',
-        version='0.1')
+        version='loopDHS version 0.1')
         #version='pyDHS {ver}'.format(ver=__version__))
     parser.add_argument(
         dest='beamline',
-        help='Beamline Name (e.g. BL-831)',
+        help='Beamline Name (e.g. BL-831 or SIM831). This determines which beamline-specific config file to load from config directory.',
         metavar='Beamline')
     parser.add_argument(
         dest='dhs_name',
-        help='DHS Name (e.g. loop or chain or detector)',
-        metavar='DHS Name')
+        help='Optional alternate DHS Name (e.g. what dcss is expecting this DHS to be named). If omitted then this value is set to be the name of this script.',
+        metavar='DHS Name',
+        nargs='?',
+        default=os.path.basename(__file__))
     parser.add_argument(
         '-v',
-        '--verbose',
         dest='verbosity',
-        help='set chattiness of logging',
+        help='Sets the chattiness of logging (none to -vvvv)',
         action='count',
         default=0)
 
@@ -237,7 +238,7 @@ def dhs_init(message:DhsInit, context:DhsContext):
         yconf = yaml.safe_load(f)
         context.config = LoopDHSConfig(yconf)
     context.config['DHS'] = args.dhs_name
-    _logger.success(f'Initializing {context.config["DHS"]}')
+    _logger.success(f'Initializing: {context.config["DHS"]}')
     _logger.success(f'DCSS HOST: {context.config["dcss.host"]} PORT: {context.config["dcss.port"]}')
     _logger.success(f'AUTOML HOST: {context.config["loopdhs.automl.host"]} PORT: {context.config["loopdhs.automl.port"]}')
     _logger.success(f'JPEG RECEIVER PORT: {context.config["loopdhs.jpeg_receiver.port"]}')
