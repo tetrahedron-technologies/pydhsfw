@@ -247,7 +247,7 @@ class TcpipClientTransportConnectionWorker(AbortableThread):
                 self._stream_reader.socket = None
                 self._stream_writer.socket = None
                 if sock:
-                    sock.shutdown(socket.SHUT_RDWR)
+                    #sock.shutdown(socket.SHUT_RDWR)
                     sock.close()
                 self._set_state(TransportState.DISCONNECTED)
             else:
