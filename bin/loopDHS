@@ -512,7 +512,7 @@ def automl_predict_response(message:AutoMLPredictResponse, context:DcssContext):
         elif ao.operation_name == 'getLoopInfo':
             if status == 'normal':
                 result = [tipX, tipY, pinBaseX, fiberWidth, loopWidth, boxMinX, boxMaxX, boxMinY, boxMaxY, loopWidthX, isMicroMount]
-            elif: status == 'failed':
+            elif status == 'failed':
                 pass
             msg = ' '.join(map(str,result))
             _logger.info(f'SEND TO DCSS: {msg}')
