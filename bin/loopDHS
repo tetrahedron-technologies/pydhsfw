@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 import os
 import platform
 import logging
@@ -14,8 +15,6 @@ import cv2
 import math
 import matplotlib
 from matplotlib import pyplot as plt
-from random import choice
-#from string import ascii_uppercase, digits
 from dotty_dict.dotty_dict import Dotty
 from dotty_dict import dotty as dot
 
@@ -27,22 +26,23 @@ from pydhsfw.jpeg_receiver import JpegReceiverImagePostRequestMessage
 from pydhsfw.axis import AxisImageRequestMessage, AxisImageResponseMessage
 
 #_logger = logging.getLogger(__name__)
-_logger = verboselogs.VerboseLogger('loopDHS.py')
+_logger = verboselogs.VerboseLogger('loopDHS')
 #_logger.addHandler(logging.StreamHandler())
 
 # Mac OS does not like Tkinter (TkAgg backend) so must use QtAgg
+# or just Agg if no GUI is required. i.e. just writing plots out to a png file.
 if platform.system() == 'Darwin':
-    matplotlib.use('Qt5Agg')
+    matplotlib.use('Agg')
 
-# add DHS-specific class to hold a group of jpeg images in memory.
 class LoopImageSet():
+    """Class to hold the last set of JPEG images acquired via collectLoopImages operation."""
     def __init__(self):
         self.images = []
         self.results = []
         self._number_of_images = None
 
     def add_image(self, image:bytes):
-        """Add a jpeg image to the list of images"""
+        """Add a jpeg image to the list of images."""
         self.images.append(image)
         self._number_of_images = len(self.images)
 
@@ -59,6 +59,7 @@ class LoopImageSet():
         return self._number_of_images
 
 class LoopDHSConfig(Dotty):
+    """Class to wrap DHS configuration stuff."""
     def __init__(self, conf_dict:dict):
         super().__init__(conf_dict)
 
@@ -91,6 +92,7 @@ class LoopDHSConfig(Dotty):
         return self['loopdhs.image_save_dir']
 
 class LoopDHSState():
+    """Class to hold DHS state info."""
     def __init__(self):
         self._rebox_images = None
         self._collect_images = False
@@ -112,6 +114,7 @@ class LoopDHSState():
         self._collect_images = collect
 
 class CollectLoopImageState():
+    """Class to store state and objects for a single collectLoopImages operation."""
     def __init__(self):
         self._loop_images = LoopImageSet()
         self._image_index = 0
@@ -145,24 +148,24 @@ def dhs_init(message:DhsInit, context:DhsContext):
     parser.add_argument(
         '--version',
         action='version',
-        version='0.1')
+        version='loopDHS version 0.1')
         #version='pyDHS {ver}'.format(ver=__version__))
     parser.add_argument(
         dest='beamline',
-        help='Beamline Name (e.g. BL-831)',
+        help='Beamline Name (e.g. BL-831 or SIM831). This determines which beamline-specific config file to load from config directory.',
         metavar='Beamline')
     parser.add_argument(
         dest='dhs_name',
-        help='DHS Name (e.g. loop or chain or detector)',
-        metavar='DHS Name')
+        help='Optional alternate DHS Name (e.g. what dcss is expecting this DHS to be named). If omitted then this value is set to be the name of this script.',
+        metavar='DHS Name',
+        nargs='?',
+        default=os.path.basename(__file__))
     parser.add_argument(
         '-v',
-        '--verbose',
         dest='verbosity',
-        help='set chattiness of logging',
+        help='Sets the chattiness of logging (none to -vvvv)',
         action='count',
         default=0)
-
 
     args = parser.parse_args(message.args)
 
@@ -184,7 +187,6 @@ def dhs_init(message:DhsInit, context:DhsContext):
         _logger.setLevel(logging.WARNING)
         loglevel = 30
 
-
     # By default the install() function installs a handler on the root logger,
     # this means that log messages from your code and log messages from the
     # libraries that you use will all show up on the terminal.
@@ -195,11 +197,9 @@ def dhs_init(message:DhsInit, context:DhsContext):
     # messages originating from that logger will show up on the terminal.
     #coloredlogs.install(level='DEBUG', logger=logger)
 
+    coloredlogs.install(level=loglevel,fmt='%(asctime)s,%(msecs)03d %(hostname)s %(name)s[%(funcName)s():%(lineno)d] %(levelname)s %(message)s')
 
-    coloredlogs.install(level=loglevel,fmt='%(asctime)s,%(msecs)03d %(hostname)s %(name)s-[%(funcName)s():%(lineno)d] %(levelname)s %(message)s')
-
-
-    # levels supposed to be availbe with verboselogs module
+    # LOG LEVELS AVAILABLE IN verboselogs module
     #  5 SPAM
     # 10 DEBUG
     # 15 VERBOSE
@@ -209,6 +209,8 @@ def dhs_init(message:DhsInit, context:DhsContext):
     # 35 SUCCESS
     # 40 ERROR
     # 50 CRITICAL
+
+    # EXAMPLES
     # _logger.spam("this is a spam message")
     # _logger.debug("this is a debugging message")
     # _logger.verbose("this is a verbose message")
@@ -218,12 +220,6 @@ def dhs_init(message:DhsInit, context:DhsContext):
     # _logger.success("this is a success message")
     # _logger.error("this is an error message")
     # _logger.critical("this is a critical message")
-
-   # logformat = "[%(asctime)s] %(levelname)s:%(name)s:%(funcName)s():%(lineno)d - %(message)s"
-   # logging.basicConfig(level='INFO', stream=sys.stdout, format=logformat, datefmt="%Y-%m-%d %H:%M:%S")
-    #Update log level for all registered log handlers.
-    #for handler in logging.root.handlers:
-    #    handler.setLevel(loglevel)
 
     conf_file = 'config/' + args.beamline + '.config'
 
@@ -236,7 +232,7 @@ def dhs_init(message:DhsInit, context:DhsContext):
         yconf = yaml.safe_load(f)
         context.config = LoopDHSConfig(yconf)
     context.config['DHS'] = args.dhs_name
-    _logger.success(f'Initializing {context.config["DHS"]}')
+    _logger.success(f'Initializing: {context.config["DHS"]}')
     _logger.success(f'DCSS HOST: {context.config["dcss.host"]} PORT: {context.config["dcss.port"]}')
     _logger.success(f'AUTOML HOST: {context.config["loopdhs.automl.host"]} PORT: {context.config["loopdhs.automl.port"]}')
     _logger.success(f'JPEG RECEIVER PORT: {context.config["loopdhs.jpeg_receiver.port"]}')
@@ -398,16 +394,6 @@ def stop_collect_loop_images(message:DcssStoHStartOperation, context:DcssContext
 
     # 3. Send operation completed message to DCSS
     context.get_connection('dcss_conn').send(DcssHtoSOperationCompleted(message.operation_name,message.operation_handle,'normal','flag set'))
-
-    # 4. If there is an active collectLoopImages operation send a completed message.
-    # activeOps = context.get_active_operations()
-    # for ao in activeOps:
-    #     if ao.operation_name == 'collectLoopImages':
-    #         if context.config.save_images:
-    #             write_results(context.config.jpeg_save_dir, ao.state.loop_images)
-    #             plot_results(context.config.jpeg_save_dir, ao.state.loop_images)
-    #         context.state.rebox_images = ao.state.loop_images
-    #         context.get_connection('dcss_conn').send(DcssHtoSOperationCompleted(ao.operation_name,ao.operation_handle,'normal','done'))
 
 def write_results(jpeg_dir:str, images:LoopImageSet):
     """Writes out current contents of the jpeg list"""
@@ -698,3 +684,4 @@ sigs = {}
 if __name__ == '__main__':
     sigs = {signal.SIGINT, signal.SIGTERM}
 dhs.wait(sigs)
+
