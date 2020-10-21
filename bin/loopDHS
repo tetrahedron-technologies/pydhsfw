@@ -2,6 +2,7 @@
 import os
 import platform
 import logging
+from logging.handlers import RotatingFileHandler
 import coloredlogs
 import verboselogs
 import signal
@@ -17,6 +18,7 @@ import matplotlib
 from matplotlib import pyplot as plt
 from dotty_dict.dotty_dict import Dotty
 from dotty_dict import dotty as dot
+from datetime import datetime
 
 from pydhsfw.processors import  Context, register_message_handler
 from pydhsfw.dhs import Dhs, DhsInit, DhsStart, DhsContext
@@ -25,9 +27,16 @@ from pydhsfw.automl import AutoMLPredictRequest, AutoMLPredictResponse
 from pydhsfw.jpeg_receiver import JpegReceiverImagePostRequestMessage
 from pydhsfw.axis import AxisImageRequestMessage, AxisImageResponseMessage
 
-#_logger = logging.getLogger(__name__)
+# logging setup
+verboselogs.install()
 _logger = verboselogs.VerboseLogger('loopDHS')
-#_logger.addHandler(logging.StreamHandler())
+logdir = 'logs'
+logfile = os.path.join(logdir,os.path.basename(__file__) + '.log')
+handler = logging.handlers.RotatingFileHandler(logfile, maxBytes=100000, backupCount=5)
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+handler.setFormatter(formatter)
+_logger.addHandler(handler)
+
 
 # Mac OS does not like Tkinter (TkAgg backend) so must use QtAgg
 # or just Agg if no GUI is required. i.e. just writing plots out to a png file.
@@ -225,9 +234,11 @@ def dhs_init(message:DhsInit, context:DhsContext):
 
     _logger.success('=============================================')
     _logger.success(f'Initializing DHS')
+    _logger.success(f'Start Time: {datetime.now()}')
     loglevel_name = logging.getLevelName(_logger.getEffectiveLevel())
-    _logger.success(f'Logging level is set to: {loglevel_name}')
-    _logger.success(f'config file: {conf_file}')
+    _logger.success(f'Logging level: {loglevel_name}')
+    _logger.success(f'Log File: {logfile}')
+    _logger.success(f'Config file: {conf_file}')
     with open(conf_file, 'r') as f:
         yconf = yaml.safe_load(f)
         context.config = LoopDHSConfig(yconf)
