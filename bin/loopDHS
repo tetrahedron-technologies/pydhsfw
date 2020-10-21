@@ -466,7 +466,7 @@ def automl_predict_response(message:AutoMLPredictResponse, context:DcssContext):
     if message.get_score(0) < 0.50:
         _logger.warning(f'TOP AUTOML SCORE IS BELOW 0.50 THRESHOLD: {message.get_score(0)}')
         status = 'failed'
-        result = ['no loop detected']
+        result = ['no loop detected, AutoML score: ', message.get_score(0)]
     else:
         status = 'normal'
         result = []
@@ -502,12 +502,18 @@ def automl_predict_response(message:AutoMLPredictResponse, context:DcssContext):
             _logger.info(f'SEND TO DCSS: {msg}')
             context.get_connection('dcss_conn').send(DcssHtoSOperationCompleted(ao.operation_name, ao.operation_handle, status, msg))
         elif ao.operation_name == 'getLoopTip':
-            result = [tipX, tipY]
+            if status == 'normal':
+                result = [tipX, tipY]
+            elif status == 'failed':
+                pass
             msg = ' '.join(map(str,result))
             _logger.info(f'SEND TO DCSS: {msg}')
             context.get_connection('dcss_conn').send(DcssHtoSOperationCompleted(ao.operation_name, ao.operation_handle, status, msg))
         elif ao.operation_name == 'getLoopInfo':
-            result = [tipX, tipY, pinBaseX, fiberWidth, loopWidth, boxMinX, boxMaxX, boxMinY, boxMaxY, loopWidthX, isMicroMount]
+            if status == 'normal':
+                result = [tipX, tipY, pinBaseX, fiberWidth, loopWidth, boxMinX, boxMaxX, boxMinY, boxMaxY, loopWidthX, isMicroMount]
+            elif: status == 'failed':
+                pass
             msg = ' '.join(map(str,result))
             _logger.info(f'SEND TO DCSS: {msg}')
             context.get_connection('dcss_conn').send(DcssHtoSOperationCompleted(ao.operation_name, ao.operation_handle, status, msg))
@@ -516,6 +522,7 @@ def automl_predict_response(message:AutoMLPredictResponse, context:DcssContext):
             ao.state.automl_responses_received += 1
             received = ao.state.automl_responses_received
 
+            # Here for creating and sending update messages
             if ao.state.automl_responses_received < ao.state.image_index:
                 sent = ao.state.image_index
                 _logger.debug(f'SENT: {sent} RECEIVED: {received}' )
@@ -539,7 +546,7 @@ def automl_predict_response(message:AutoMLPredictResponse, context:DcssContext):
                     else:
                         _logger.warning(f'DID NOT FIND IMAGE: {file_to_adorn}')
 
-            # unfortunately, I think we can still have received == sent if automl is very fast.
+            # Here for sending the final operation completed message.
             elif ao.state.automl_responses_received == ao.state.image_index and not context.state.collect_images:
                 sent = ao.state.image_index
                 _logger.debug(f'SENT: {sent} RECEIVED: {received}' )
@@ -550,7 +557,7 @@ def automl_predict_response(message:AutoMLPredictResponse, context:DcssContext):
                 _logger.info('SEND OPERATION COMPLETE TO DCSS')
                 context.get_connection('dcss_conn').send(DcssHtoSOperationCompleted(ao.operation_name, ao.operation_handle,'normal','done'))
             else:
-                _logger.info(f'GOT HERE SENT: {ao.state.image_index} RECEIVED {ao.state.automl_responses_received}')
+                _logger.critical(f'GOT HERE SENT: {ao.state.image_index} RECEIVED {ao.state.automl_responses_received} huh?')
 
 
     # ==============================================================
