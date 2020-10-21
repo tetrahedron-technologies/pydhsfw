@@ -185,6 +185,3 @@ class TransportStream(Transport):
             #Block the socket event and queue a reconnect message.
             _logger.warning('Connection lost, attempting to reconnect')
             self.reconnect()
-
-    
-    

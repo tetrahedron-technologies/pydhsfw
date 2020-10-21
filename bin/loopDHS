@@ -15,7 +15,6 @@ import cv2
 import math
 import matplotlib
 from matplotlib import pyplot as plt
-from random import choice
 from dotty_dict.dotty_dict import Dotty
 from dotty_dict import dotty as dot
 
