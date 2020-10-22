@@ -247,8 +247,12 @@ class TcpipClientTransportConnectionWorker(AbortableThread):
                 self._stream_reader.socket = None
                 self._stream_writer.socket = None
                 if sock:
-                    #sock.shutdown(socket.SHUT_RDWR)
-                    sock.close()
+                    try:
+                        sock.shutdown(socket.SHUT_RDWR)
+                    except:
+                        _logger.warning('No socket available to shutdown')
+                    finally:
+                        sock.close()
                 self._set_state(TransportState.DISCONNECTED)
             else:
                 _logger.debug("Not connected, ignoring disconnect request")
