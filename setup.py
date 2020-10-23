@@ -1,35 +1,23 @@
-from setuptools import setup, find_packages
+# -*- coding: utf-8 -*-
+"""
+    Setup file for pydhsfw.
+    Use setup.cfg to configure your project.
 
-with open('README.rst') as f:
-    readme = f.read()
+    This file was generated with PyScaffold 3.2.3.
+    PyScaffold helps you to put up the scaffold of your new Python project.
+    Learn more under: https://pyscaffold.org/
+"""
+import sys
 
-with open('LICENSE') as f:
-    license = f.read()
+from pkg_resources import VersionConflict, require
+from setuptools import setup
 
-setup(
-    name='pydhsfw',
-    version='0.1.0',
-    description='Distributed Hardware Server Framework written in Python',
-    long_description=readme,
-    author='Giles Mullen',
-    author_email='gcmullen@sbcglobal.net',
-    url='https://github.com/tetrahedron-technologies/pydhsfw',
-    license=license,
-    packages=find_packages(exclude=('tests', 'docs')),
-    python_requires='>=3.6',
-    classifiers=[
-        'Programming Language :: Python :: 3',
-        'License :: OSI Approved :: MIT License',
-        'Operating System :: OS Independent',
-    ],
-    install_requires=[
-        'PyYAML',
-        'dotty-dict',
-        'coloredlogs',
-        'verboselogs',
-        'opencv-python-headless',
-        'matplotlib',
-        'requests'
-    ],
-    scripts=['bin/loopDHS']
-)
+try:
+    require('setuptools>=38.3')
+except VersionConflict:
+    print("Error: version of setuptools is too old (<38.3)!")
+    sys.exit(1)
+
+
+if __name__ == "__main__":
+    setup(use_pyscaffold=True)
