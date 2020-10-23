@@ -27,9 +27,6 @@ setup(
         'dotty-dict',
         'coloredlogs',
         'verboselogs',
-        'opencv-python-headless',
-        'matplotlib',
         'requests'
-    ],
-    scripts=['bin/loopDHS']
+    ]
 )
