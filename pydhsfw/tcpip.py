@@ -249,8 +249,12 @@ class TcpipClientTransportConnectionWorker(AbortableThread):
                 if sock:
                     try:
                         sock.shutdown(socket.SHUT_RDWR)
-                    except:
-                        _logger.warning('No socket available to shutdown')
+                    except OSError as e:
+                        if e.errno == socket.SHUT_RDWR:
+                            _logger.warning(f'No socket available to shutdown: {e}')
+                            _logger.warning('Continue on to close the socket')
+                        else:
+                            raise
                     finally:
                         sock.close()
                 self._set_state(TransportState.DISCONNECTED)
