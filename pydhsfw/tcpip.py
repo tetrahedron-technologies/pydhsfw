@@ -254,6 +254,7 @@ class TcpipClientTransportConnectionWorker(AbortableThread):
                             _logger.warning(f'No socket available to shutdown: {e}')
                             _logger.warning('Continue on to close the socket')
                         else:
+                            _logger.error(f'WHY AM I HERE: {e}')
                             raise
                     finally:
                         sock.close()
