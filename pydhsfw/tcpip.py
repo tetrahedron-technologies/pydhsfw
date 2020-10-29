@@ -252,6 +252,8 @@ class TcpipClientTransportConnectionWorker(AbortableThread):
                     except OSError as e:
                         if e.errno == socket.SHUT_RDWR:
                             _logger.warning(f'No socket available to shutdown: {e}')
+                            _logger.warning(f'No socket available to shutdown: {e.errno}')
+                            _logger.warning(f'No socket available to shutdown: {e.strerror}')
                             _logger.warning('Continue on to close the socket')
                         else:
                             _logger.error(f'WHY AM I HERE: {e}')
