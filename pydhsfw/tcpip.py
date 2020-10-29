@@ -257,6 +257,8 @@ class TcpipClientTransportConnectionWorker(AbortableThread):
                             _logger.warning('Continue on to close the socket')
                         else:
                             _logger.error(f'WHY AM I HERE: {e}')
+                            _logger.error(f'WHY AM I HERE: {e.errno}')
+                            _logger.error(f'WHY AM I HERE: {e.strerror}')
                             raise
                     finally:
                         sock.close()
