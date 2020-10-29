@@ -2,6 +2,7 @@
 import os
 import platform
 import logging
+from logging.handlers import RotatingFileHandler
 import coloredlogs
 import verboselogs
 import signal
@@ -17,6 +18,7 @@ import matplotlib
 from matplotlib import pyplot as plt
 from dotty_dict.dotty_dict import Dotty
 from dotty_dict import dotty as dot
+from datetime import datetime
 
 from pydhsfw.processors import  Context, register_message_handler
 from pydhsfw.dhs import Dhs, DhsInit, DhsStart, DhsContext
@@ -25,9 +27,16 @@ from pydhsfw.automl import AutoMLPredictRequest, AutoMLPredictResponse
 from pydhsfw.jpeg_receiver import JpegReceiverImagePostRequestMessage
 from pydhsfw.axis import AxisImageRequestMessage, AxisImageResponseMessage
 
-#_logger = logging.getLogger(__name__)
+# logging setup
+verboselogs.install()
 _logger = verboselogs.VerboseLogger('loopDHS')
-#_logger.addHandler(logging.StreamHandler())
+logdir = 'logs'
+logfile = os.path.join(logdir,os.path.basename(__file__) + '.log')
+handler = logging.handlers.RotatingFileHandler(logfile, maxBytes=100000, backupCount=5)
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+handler.setFormatter(formatter)
+_logger.addHandler(handler)
+
 
 # Mac OS does not like Tkinter (TkAgg backend) so must use QtAgg
 # or just Agg if no GUI is required. i.e. just writing plots out to a png file.
@@ -225,9 +234,11 @@ def dhs_init(message:DhsInit, context:DhsContext):
 
     _logger.success('=============================================')
     _logger.success(f'Initializing DHS')
+    _logger.success(f'Start Time: {datetime.now()}')
     loglevel_name = logging.getLevelName(_logger.getEffectiveLevel())
-    _logger.success(f'Logging level is set to: {loglevel_name}')
-    _logger.success(f'config file: {conf_file}')
+    _logger.success(f'Logging level: {loglevel_name}')
+    _logger.success(f'Log File: {logfile}')
+    _logger.success(f'Config file: {conf_file}')
     with open(conf_file, 'r') as f:
         yconf = yaml.safe_load(f)
         context.config = LoopDHSConfig(yconf)
@@ -462,11 +473,11 @@ def automl_predict_response(message:AutoMLPredictResponse, context:DcssContext):
     _logger.debug(f'Active operations pre-completed={activeOps}')
     # ==============================================================
 
-    # so we can do some sort of results filtering here I suppose.
+    # AutoML results filtering.
     if message.get_score(0) < 0.50:
         _logger.warning(f'TOP AUTOML SCORE IS BELOW 0.50 THRESHOLD: {message.get_score(0)}')
         status = 'failed'
-        result = ['no loop detected']
+        result = ['no loop detected, AutoML score: ', message.get_score(0)]
     else:
         status = 'normal'
         result = []
@@ -475,11 +486,11 @@ def automl_predict_response(message:AutoMLPredictResponse, context:DcssContext):
     #     score = message.get_score(i)
     #     _logger.debug(f'INFERENCE RESULT #{i} HAS SCORE: {score}')
 
-    # do the maths on AutoML response values
+    # Do the maths on AutoML response values.
     tipX = round(message.bb_maxX, 5)
-    # this is not ideal, but for now the best I can come up with is by adding minY to 1/2 the loopWidth
+    # This is not ideal, but for now the best I can come up with is to add minY to 1/2 the loopWidth
     tipY = round(message.bb_minY + ((message.bb_maxY - message.bb_minY)/2), 5)
-    pinBaseX = 0.111 # will add once we have AutoML model that recognizes pins
+    pinBaseX = 0.111 # needed for loopFast_checkInitPosition
     fiberWidth = 0.222 # not sure we can or need to support this.
     loopWidth = round((message.bb_maxY - message.bb_minY), 5)
     boxMinX = round(message.bb_minX, 5)
@@ -502,24 +513,37 @@ def automl_predict_response(message:AutoMLPredictResponse, context:DcssContext):
             _logger.info(f'SEND TO DCSS: {msg}')
             context.get_connection('dcss_conn').send(DcssHtoSOperationCompleted(ao.operation_name, ao.operation_handle, status, msg))
         elif ao.operation_name == 'getLoopTip':
-            result = [tipX, tipY]
+            if status == 'normal':
+                result = [tipX, tipY]
+            elif status == 'failed':
+                pass
             msg = ' '.join(map(str,result))
             _logger.info(f'SEND TO DCSS: {msg}')
             context.get_connection('dcss_conn').send(DcssHtoSOperationCompleted(ao.operation_name, ao.operation_handle, status, msg))
         elif ao.operation_name == 'getLoopInfo':
-            result = [tipX, tipY, pinBaseX, fiberWidth, loopWidth, boxMinX, boxMaxX, boxMinY, boxMaxY, loopWidthX, isMicroMount]
+            if status == 'normal':
+                result = [tipX, tipY, pinBaseX, fiberWidth, loopWidth, boxMinX, boxMaxX, boxMinY, boxMaxY, loopWidthX, isMicroMount]
+            elif status == 'failed':
+                pass
             msg = ' '.join(map(str,result))
             _logger.info(f'SEND TO DCSS: {msg}')
             context.get_connection('dcss_conn').send(DcssHtoSOperationCompleted(ao.operation_name, ao.operation_handle, status, msg))
         elif ao.operation_name == 'collectLoopImages':
-            # increment automl responses received
+            # I don't think we need to change the contents of the return message when AutoML fails.
+            # It should be sufficient to set status as "failed", loopFast will raise error if no results
+            # have "normal" status. This allow some percentage of the loop info to be "failed", but as long
+            # as some are "normal" then loopFast might be able to determine edge/face etc.
+
+            # Increment AutoML responses received.
             ao.state.automl_responses_received += 1
             received = ao.state.automl_responses_received
 
+            # Here for creating and sending update messages.
             if ao.state.automl_responses_received < ao.state.image_index:
                 sent = ao.state.image_index
                 _logger.debug(f'SENT: {sent} RECEIVED: {received}' )
                 index = message.image_key.split(':')[2]
+                # adding extra return fields here may have implications in loopFast.tcl
                 result = ['LOOP_INFO', index, status, tipX, tipY, pinBaseX, fiberWidth, loopWidth, boxMinX, boxMaxX, boxMinY, boxMaxY, loopWidthX, isMicroMount, loopClass, loopScore]
                 msg = ' '.join(map(str,result))
                 ao.state.loop_images.add_results(result)
@@ -539,7 +563,7 @@ def automl_predict_response(message:AutoMLPredictResponse, context:DcssContext):
                     else:
                         _logger.warning(f'DID NOT FIND IMAGE: {file_to_adorn}')
 
-            # unfortunately, I think we can still have received == sent if automl is very fast.
+            # Here for sending the final operation completed message.
             elif ao.state.automl_responses_received == ao.state.image_index and not context.state.collect_images:
                 sent = ao.state.image_index
                 _logger.debug(f'SENT: {sent} RECEIVED: {received}' )
@@ -549,8 +573,11 @@ def automl_predict_response(message:AutoMLPredictResponse, context:DcssContext):
                 context.state.rebox_images = ao.state.loop_images
                 _logger.info('SEND OPERATION COMPLETE TO DCSS')
                 context.get_connection('dcss_conn').send(DcssHtoSOperationCompleted(ao.operation_name, ao.operation_handle,'normal','done'))
+            
+            # Here if images received from AutoML is equal to the number sent, BUT we are still in a "collect" mode. i.e. context.state.collect_images = True
+            # This would indicate the AutoML is able to keep up with the images being ingested by the JPEG receiver port.
             else:
-                _logger.info(f'GOT HERE SENT: {ao.state.image_index} RECEIVED {ao.state.automl_responses_received}')
+                _logger.info(f'SENT: {ao.state.image_index} RECEIVED: {ao.state.automl_responses_received}')
 
 
     # ==============================================================
