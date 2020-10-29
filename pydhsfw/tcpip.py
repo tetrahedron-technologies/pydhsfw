@@ -247,8 +247,21 @@ class TcpipClientTransportConnectionWorker(AbortableThread):
                 self._stream_reader.socket = None
                 self._stream_writer.socket = None
                 if sock:
-                    sock.shutdown(socket.SHUT_RDWR)
-                    sock.close()
+                    try:
+                        sock.shutdown(socket.SHUT_RDWR)
+                    except OSError as e:
+                        if e.errno == 57:
+                            _logger.warning(f'No socket available to shutdown e: {e}')
+                            _logger.warning(f'No socket available to shutdown e.errno: {e.errno}')
+                            _logger.warning(f'No socket available to shutdown e.strerror: {e.strerror}')
+                            _logger.warning('Continue on to close the socket')
+                        else:
+                            _logger.critical(f'WHY AM I HERE: {e}')
+                            _logger.critical(f'WHY AM I HERE: {e.errno}')
+                            _logger.critical(f'WHY AM I HERE: {e.strerror}')
+                            raise
+                    finally:
+                        sock.close()
                 self._set_state(TransportState.DISCONNECTED)
             else:
                 _logger.debug("Not connected, ignoring disconnect request")
