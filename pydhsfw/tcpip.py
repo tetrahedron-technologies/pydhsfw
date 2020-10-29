@@ -250,7 +250,7 @@ class TcpipClientTransportConnectionWorker(AbortableThread):
                     try:
                         sock.shutdown(socket.SHUT_RDWR)
                     except OSError as e:
-                        if e.errno is 57:
+                        if e.errno == 57:
                             _logger.warning(f'No socket available to shutdown: {e}')
                             _logger.warning(f'No socket available to shutdown: {e.errno}')
                             _logger.warning(f'No socket available to shutdown: {e.strerror}')
