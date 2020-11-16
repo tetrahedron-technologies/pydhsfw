@@ -16,6 +16,8 @@ This code base will provide the necessary functionality to communicate with DCSS
    install
    dcss
    framework
+   contributing
+   history
 
 Indices and tables
 ==================
