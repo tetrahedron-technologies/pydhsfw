@@ -41,12 +41,12 @@ class DcssMessageIn:
 
     @property
     def command(self):
-        """str: dcss command name"""
+        """str: DCSS command name"""
         return self._split_msg[0]
 
     @property
     def args(self):
-        """str: dcss command args"""
+        """str: DCSS command args"""
         return self._split_msg[1:]
 
 
@@ -120,12 +120,6 @@ class DcssStoHRegisterOperation(DcssStoCMessage):
     """Server To Hardware Register Operation
 
     This message is received from DCSS to tell the DHS which operations it is responsible for.
-
-    This message will be accompanied by two fields:
-    1. the name of the operation as it is known in the DCSS database
-    2. the name of the operation as it is known in the DHS code
-
-    note: these are almost always identical
     """
 
     def __init__(self, split):
@@ -133,16 +127,12 @@ class DcssStoHRegisterOperation(DcssStoCMessage):
 
     @property
     def operation_name(self):
-        """
-        The operation_name getter
-        """
+        """The name of the operation as it is known in the DCSS database."""
         return self.args[0]
 
     @property
     def operation_hardwareName(self):
-        """
-        The operation_hardwareName getter
-        """
+        """The name of the operation as it is known in the DHS code."""
         return self.args[1]
 
 
@@ -151,12 +141,6 @@ class DcssStoHRegisterRealMotor(DcssStoCMessage):
     """Server To Hardware Register Real Motor
 
     This message is received from DCSS to tell the DHS which real motor(s) it is responsible for.
-
-    This message will be accompanied by two fields:
-    1. the name of the motor as it is known in the DCSS database
-    2. the name of the motor as it is known in the DHS code
-
-    note: these are almost always identical
     """
 
     def __init__(self, split):
@@ -164,10 +148,12 @@ class DcssStoHRegisterRealMotor(DcssStoCMessage):
 
     @property
     def motor_name(self):
+        """The name of the motor as it is known in the DCSS database."""
         return self.args[0]
 
     @property
     def motor_hardwareName(self):
+        """The name of the motor as it is known in the DHS code."""
         return self.args[1]
 
 
@@ -176,22 +162,18 @@ class DcssStoHRegisterPseudoMotor(DcssStoCMessage):
     """Server To Hardware Register Pseudo Motor
 
     This message is received from DCSS to tell the DHS which pseudo motor(s) it is responsible for.
-
-    This message will be accompanied by two fields:
-    1. the name of the motor as it is known in the DCSS database
-    2. the name of the motor as it is known in the DHS code
-
-    note: these are almost always identical
     """
 
     def __init__(self, split):
         super().__init__(split)
 
     def get_pseudo_motor_name(self):
-        return self.get_args()[0]
+        """The name of the motor as it is known in the DCSS database."""
+        return self.args[0]
 
     def get_pseudo_motor_hardwareName(self):
-        return self.get_args()[1]
+        """The name of the motor as it is known in the DHS code."""
+        return self.args[1]
 
 
 @register_message('stoh_register_string', 'dcss')
@@ -199,12 +181,6 @@ class DcssStoHRegisterString(DcssStoCMessage):
     """Server To Hardware Register String
 
     This message is received from DCSS to tell the DHS which string(s) it is responsible for.
-
-    This message will be accompanied by two fields:
-    1. the name of the string as it is known in the DCSS database
-    2. the name of the string as it is known in the DHS code
-
-    note: these are almost always identical
     """
 
     def __init__(self, split):
@@ -212,10 +188,12 @@ class DcssStoHRegisterString(DcssStoCMessage):
 
     @property
     def string_name(self):
+        """The name of the motor as it is known in the DCSS database."""
         return self.args[0]
 
     @property
     def string_hardwareName(self):
+        """The name of the motor as it is known in the DHS code."""
         return self.args[1]
 
 
@@ -224,13 +202,6 @@ class DcssStoHRegisterShutter(DcssStoCMessage):
     """Server To Hardware Register Shutter
 
     This message is received from DCSS to tell the DHS which shutters(s) it is responsible for.
-
-    This message will be accompanied by three fields:
-    1. the name of the shutter as it is known in the DCSS database
-    2. the state of the shutter (desired state or actual state?)
-    3. the name of the shutter as it is known in the DHS code
-
-    note: fields 1 and 3 are almost always identical
     """
 
     def __init__(self, split):
@@ -238,14 +209,17 @@ class DcssStoHRegisterShutter(DcssStoCMessage):
 
     @property
     def shutter_name(self):
+        """The name of the shutter as it is known in the DCSS database."""
         return self.args[0]
 
     @property
     def shutter_status(self):
+        """The state of the shutter (desired state or actual state?)."""
         return self.args[1]
 
     @property
     def shutter_hardwareName(self):
+        """The name of the shutter as it is known in the DHS code."""
         return self.args[2]
 
 
@@ -254,15 +228,6 @@ class DcssStoHRegisterIonChamber(DcssStoCMessage):
     """Server To Hardware Register Ion Chamber
 
     This message is received from DCSS to tell the DHS which ion chamber(s) it is responsible for.
-
-    This message will be accompanied by five fields:
-    1. the name of the ion chamber as it is known in the DCSS database.
-    2. the name of the ion chamber as it is known in the DHS code.
-    3. ion chamber counter channel.
-    4. ion chamber timer.
-    5. ion chamber timer type.
-
-    note: fields 1 and 2 almost always identical
     """
 
     def __init__(self, split):
@@ -270,22 +235,27 @@ class DcssStoHRegisterIonChamber(DcssStoCMessage):
 
     @property
     def ion_chamber_name(self):
+        """The name of the ion chamber as it is known in the DCSS database.."""
         return self.args[0]
 
     @property
     def ion_chamber_hardwareName(self):
+        """The name of the ion chamber as it is known in the DHS code."""
         return self.args[1]
 
     @property
     def ion_chamber_counterChannel(self):
+        """Ion chamber counter channel."""
         return self.args[2]
 
     @property
     def ion_chamber_timer(self):
+        """Ion chamber timer."""
         return self.args[3]
 
     @property
     def ion_chamber_timerType(self):
+        """Ion chamber timer type."""
         return self.args[4]
 
 
@@ -294,12 +264,6 @@ class DcssStoHRegisterEncoder(DcssStoCMessage):
     """Server To Hardware Register Encoder
 
     This message is received from DCSS to tell the DHS which encoder(s) it is responsible for.
-
-    This message will be accompanied by two fields:
-    1. the name of the encoder as it is known in the DCSS database
-    2. the name of the encoder as it is known in the DHS code
-
-    note: these are almost always identical
     """
 
     def __init__(self, split):
@@ -307,10 +271,12 @@ class DcssStoHRegisterEncoder(DcssStoCMessage):
 
     @property
     def encoder_name(self):
+        """The name of the encoder as it is known in the DCSS database."""
         return self.args[0]
 
     @property
     def encoder_hardwareName(self):
+        """The name of the encoder as it is known in the DHS code."""
         return self.args[1]
 
 
@@ -326,10 +292,12 @@ class DcssStoHRegisterObject(DcssStoCMessage):
 
     @property
     def object_name(self):
+        """The name of the object as it is known in the DCSS database."""
         return self.args[0]
 
     @property
     def object_hardwareName(self):
+        """The name of the object as it is known in the DHS code."""
         return self.args[1]
 
 
@@ -338,21 +306,6 @@ class DcssStoHConfigureRealMotor(DcssStoCMessage):
     """Server To Hardware Configure Real Motor
 
     This message is sent from DCSS to configure a real motor.
-
-    This message will be accompanied by 13 fields:
-    1.  the name of the motor to configure
-    2.  the scaled position of the motor
-    3.  the upper limit for the motor in scaled units
-    4.  the lower limit for the motor in scaled units
-    5.  the scale factor relating scaled units to steps for the motor
-    6.  the slew rate for the motor in steps/sec
-    7.  the acceleration time for the motor in seconds
-    8.  the backlash amount for the motor in steps
-    9.  is a boolean (0 or 1) indicating if the lower limit is enabled
-    10. is a boolean (0 or 1) indicating if the upper limit is enabled
-    11. is a boolean (0 or 1) indicating if the motor is software locked
-    12. is a boolean (0 or 1) indicating if backlash correction is enabled
-    13. is a boolean (0 or 1) indicating if the motor direction is reversed
     """
 
     def __init__(self, split):
@@ -360,54 +313,67 @@ class DcssStoHConfigureRealMotor(DcssStoCMessage):
 
     @property
     def motor_name(self):
+        """The name of the motor to configure."""
         return self.args[0]
 
     @property
     def motor_position(self):
+        """The scaled position of the motor."""
         return self.args[1]
 
     @property
     def motor_upperLimit(self):
+        """The upper limit for the motor in scaled units."""
         return self.args[2]
 
     @property
     def motor_lowerLimit(self):
+        """The lower limit for the motor in scaled units."""
         return self.args[3]
 
     @property
     def motor_scaleFactor(self):
+        """The scale factor relating scaled units to steps for the motor."""
         return self.args[4]
 
     @property
     def motor_speed(self):
+        """The slew rate for the motor in steps/sec."""
         return self.args[5]
 
     @property
     def motor_acceleration(self):
+        """The acceleration time for the motor in seconds."""
         return self.args[6]
 
     @property
     def motor_backlash(self):
+        """The backlash amount for the motor in steps."""
         return self.args[7]
 
     @property
     def motor_lowerLimitOn(self):
+        """A boolean (0 or 1) indicating if the lower limit is enabled."""
         return self.args[8]
 
     @property
     def motor_upperLimitOn(self):
+        """A boolean (0 or 1) indicating if the upper limit is enabled."""
         return self.args[9]
 
     @property
     def motor_motorLockOn(self):
+        """A boolean (0 or 1) indicating if the motor is software locked."""
         return self.args[10]
 
     @property
     def motor_backlashOn(self):
+        """A boolean (0 or 1) indicating if backlash correction is enabled."""
         return self.args[11]
 
     @property
     def motor_reverseOn(self):
+        """A boolean (0 or 1) indicating if the motor direction is reversed."""
         return self.args[12]
 
 
@@ -416,15 +382,6 @@ class DcssStoHConfigurePseudoMotor(DcssStoCMessage):
     """Server To Hardware Configure Pseudo Motor
 
     This message is sent from DCSS to configure a pseudo motor.
-
-    This message will be accompanied by 7 fields:
-    1.  the name of the motor to configure
-    2.  the scaled position of the motor
-    3.  the upper limit for the motor in scaled units
-    4.  the lower limit for the motor in scaled units
-    5.  is a boolean (0 or 1) indicating if the lower limit is enabled
-    6. is a boolean (0 or 1) indicating if the upper limit is enabled
-    7. is a boolean (0 or 1) indicating if the motor is software locked
     """
 
     def __init__(self, split):
@@ -432,30 +389,37 @@ class DcssStoHConfigurePseudoMotor(DcssStoCMessage):
 
     @property
     def motor_name(self):
+        """The name of the motor to configure."""
         return self.args[0]
 
     @property
     def motor_position(self):
+        """The scaled position of the motor."""
         return self.args[1]
 
     @property
     def motor_upperLimit(self):
+        """The upper limit for the motor in scaled units."""
         return self.args[2]
 
     @property
     def motor_lowerLimit(self):
+        """The lower limit for the motor in scaled units."""
         return self.args[3]
 
     @property
     def motor_lowerLimitOn(self):
+        """A boolean (0 or 1) indicating if the lower limit is enabled."""
         return self.args[4]
 
     @property
     def motor_upperLimitOn(self):
+        """A boolean (0 or 1) indicating if the upper limit is enabled."""
         return self.args[5]
 
     @property
     def motor_motorLockOn(self):
+        """A boolean (0 or 1) indicating if the motor is software locked."""
         return self.args[6]
 
 
@@ -464,10 +428,6 @@ class DcssStoHSetMotorPosition(DcssStoCMessage):
     """Server To Hardware Set Motor Position
 
     This message requests that the position of the specified motor be set to specified scaled value.
-
-    This message takes two arguments:
-    1. the name of the motor to configure.
-    2. the new scaled position of the motor.
     """
 
     def __init__(self, split):
@@ -475,10 +435,12 @@ class DcssStoHSetMotorPosition(DcssStoCMessage):
 
     @property
     def motor_name(self):
+        """The name of the motor to configure."""
         return self.args[0]
 
     @property
     def motor_position(self):
+        """The new scaled position of the motor."""
         return self.args[1]
 
 
@@ -487,11 +449,6 @@ class DcssStoHStartMotorMove(DcssStoCMessage):
     """This is a command to start a motor move.
 
     This message requests that the specified motor be moved to the specified scaled position.
-
-    This message takes two arguments:
-    1. the name of the motor to move
-    2. the scaled destination of the motor.
-
     """
 
     def __init__(self, split):
@@ -499,10 +456,12 @@ class DcssStoHStartMotorMove(DcssStoCMessage):
 
     @property
     def motor_name(self):
+        """The name of the motor to move."""
         return self.args[0]
 
     @property
     def motor_position(self):
+        """The scaled destination of the motor."""
         return self.args[1]
 
 
@@ -511,9 +470,6 @@ class DcssStoHAbortAll(DcssStoCMessage):
     """Server To Hardware Abort All
 
     This message requests that all operations either cease immediately or halt as soon as possible.
-
-    This message takes one argument:
-    1. either "hard" or "soft" e.g. htos_abort_all [hard | soft]
 
     All motors are stopped and data collection begins shutting down and stopping detector activity.
     A single argument specifies how motors should be aborted.
@@ -526,6 +482,7 @@ class DcssStoHAbortAll(DcssStoCMessage):
 
     @property
     def abort_arg(self):
+        """Either 'hard' or 'soft' e.g. htos_abort_all [hard | soft]"""
         return self.args[0]
 
 
@@ -535,10 +492,6 @@ class DcssStoHCorrectMotorPosition(DcssStoCMessage):
 
     Requests that the position of the specified motor be adjusted by the specified correction.
     This is used to support the circle parameter for motors (i.e., modulo 360 behavior for a phi axis).
-
-    This command takes two arguments:
-    1. the name of the motor.
-    2. the correction to be applied to the motor position.
     """
 
     def __init__(self, split):
@@ -546,10 +499,12 @@ class DcssStoHCorrectMotorPosition(DcssStoCMessage):
 
     @property
     def motor_name(self):
+        """The name of the motor."""
         return self.args[0]
 
     @property
     def motor_correction(self):
+        """The correction to be applied to the motor position."""
         return self.args[1]
 
 
@@ -562,10 +517,12 @@ class DcssStoHSetMotorDependency(DcssStoCMessage):
 
     @property
     def motor_name(self):
+        """The name of the motor."""
         return self.args[0]
 
     @property
     def motor_dependencies(self):
+        """The name(s) of the dependent motors."""
         return self.args[1:]
 
 
@@ -578,10 +535,12 @@ class DcssStoHSetMotorChildren(DcssStoCMessage):
 
     @property
     def motor_name(self):
+        """The name of the parent motor."""
         return self.args[0]
 
     @property
     def motor_children(self):
+        """The name(s) of the child motors."""
         return self.args[1:]
 
 
@@ -590,9 +549,6 @@ class DcssStoHSetShutterState(DcssStoCMessage):
     """Server To Hardware Set Shutter State
 
     This message requests that the state of the specified shutter or filter be changed to a particular state.
-
-    This message is accompanied by one argument:
-    1. the desired state (open or closed)
     """
 
     def __init__(self, split):
@@ -600,10 +556,12 @@ class DcssStoHSetShutterState(DcssStoCMessage):
 
     @property
     def shutter_name(self):
+        """The name of the shutter."""
         return self.args[0]
 
     @property
     def shutter_state(self):
+        """The desired state of the shutter (open or closed)."""
         return self.args[1]
 
 
@@ -612,22 +570,6 @@ class DcssStoHStartOperation(DcssStoCMessage):
     """Server To Hardware Start Operation
 
     This message requests that the DHS start an operation.
-
-    This message is accompanied by three arguments:
-
-    1. the name of the operation to be started.
-    2. is a unique handle currently constructed by calling the create_operation_handle procedure in BLU-ICE.
-       This currently creates a handle in the following format:
-
-    clientNumber.operationCounter
-
-    where clientNumber is a unique number provided by DCSS for each connected GUI or Hardware client.
-    DCSS will reject an operation message if the clientNumber does not match the client.
-    The operationCounter is a number that the client should increment with each new operation that is started.
-
-    3. is the list of arguments that should be passed to the operation. It is recommended that the list of arguments continue to follow the general format of the DCS message structure (space separated tokens). However, this requirement can only be enforced by the writer of the operation handlers.
-
-    The message requests DCSS to forward the request to the appropriate hardware server.
     """
 
     def __init__(self, split):
@@ -635,14 +577,28 @@ class DcssStoHStartOperation(DcssStoCMessage):
 
     @property
     def operation_name(self):
+        """The name of the operation."""
         return self.args[0]
 
     @property
     def operation_handle(self):
+        """The operation handle.
+        A unique handle currently constructed by calling the create_operation_handle procedure in BLU-ICE.
+        This currently creates a handle in the following format::
+
+            clientNumber.operationCounter
+
+        where clientNumber is a unique number provided by DCSS for each connected GUI or Hardware client.
+        DCSS will reject an operation message if the clientNumber does not match the client.
+        The operationCounter is a number that the client should increment with each new operation that is started.
+        """
         return self.args[1]
 
     @property
     def operation_args(self):
+        """The operation arguments.
+        It is recommended that the list of arguments continue to follow the general format of the DCS message structure (space separated tokens).
+        However, this requirement can only be enforced by the writer of the operation handlers."""
         return self.args[2:]
 
 
@@ -650,19 +606,17 @@ class DcssStoHStartOperation(DcssStoCMessage):
 # Messages Outgoing to DCSS (Hardware TO Server)
 @register_message('htos_client_is_hardware')
 class DcssHtoSClientIsHardware(DcssHtoSMessage):
-    """Hardware To Server Clinet Is Hardware
+    """Hardware To Server Client Is Hardware
 
     This should be sent by all hardware servers in response to stoc_send_client_type message from DCSS.
 
-    The format of the message is
+    The format of the message is::
 
-    htos_client_is_hardware dhsName
+        htos_client_is_hardware dhs_name
 
-    where:
+    Args:
+        dhs_name (str): The name of a hardware server listed within the database.dat file as described in DHS entry definition
 
-    Where dhsName is the name of a hardware server listed within the database.dat file as described in DHS entry definition .
-
-    Note: This message is not forwarded to the GUI clients.
     """
 
     def __init__(self, dhs_name: str):
@@ -677,14 +631,13 @@ class DcssHtoSMotorMoveStarted(DcssHtoSMessage):
     This message indicates that the requested move of a motor has begun.
     This message is forwarded by DCSS to all GUI clients as a stog_motor_move_started message.
 
-    The format of the message is:
+    The format of the message is::
 
-    htos_motor_move_started motorName position
+        htos_motor_move_started motor_name new_position
 
-    where:
-
-    motorName is the name of the motor.
-    position is the destination move the motor.
+    Args:
+        motor_name (str): The name of the motor.
+        new_position (float): The destination move of the motor.
     """
 
     def __init__(self, motor_name: str, new_position: float):
@@ -694,28 +647,28 @@ class DcssHtoSMotorMoveStarted(DcssHtoSMessage):
 
 @register_message('htos_motor_move_completed')
 class DcssHtoSMotorMoveCompleted(DcssHtoSMessage):
-    """
-    Hardware To Server Motor Move Completed
+    """Hardware To Server Motor Move Completed
 
     Indicates that the move on the specified motor is now complete.
     DCSS forwards this message to all GUI clients as a stog_motor_move_completed message.
 
     The format of the message is::
 
-        htos_motor_move_completed motorName position completionStatus
+        htos_motor_move_completed motor_name new_position state
 
-    where::
+    Args:
+        motor_name (str): The name of the motor that finished the move.
+        new_position (float): The final position of the motor.
+        state (str): The status of the motor with values as shown below.
 
-        motorName is the name of the motor that finished the move.
-        position is the final position of the motor.
-        completionStatus is the status of the motor with values as shown below:
-            normal indicates that the motor finished its commanded move successfully.
-            aborted indicates that the motor move was aborted.
-            moving indicates that the motor was already moving.
-            cw_hw_limit indicates that the motor hit the clockwise hardware limit.
-            ccw_hw_limit indicates that the motor hit the counter-clockwise hardware limit.
-            both_hw_limits indicates that the motor cable may be disconnected.
-            unknown indicates that the motor completed abnormally, but the DHS software or the hardware controller does not know why.
+            * *normal*          indicates that the motor finished its commanded move successfully.
+            * *aborted*         indicates that the motor move was aborted.
+            * *moving*          indicates that the motor was already moving.
+            * *cw_hw_limit*     indicates that the motor hit the clockwise hardware limit.
+            * *ccw_hw_limit*    indicates that the motor hit the counter-clockwise hardware limit.
+            * *both_hw_limits*  indicates that the motor cable may be disconnected.
+            * *unknown*         indicates that the motor completed abnormally.
+
     """
 
     def __init__(self, motor_name: str, new_position: float, state: str):
@@ -729,17 +682,18 @@ class DcssHtoSOperationCompleted(DcssHtoSMessage):
 
     The message is used to indicate that an operation has been completed by this hardware server.
 
-    The general format of the message is:
+    The format of the message is::
 
-        htos_operation_completed operationName operationHandle status arguments
+        htos_operation_completed operation_name operation_handle operation_status operation_args
 
-    where:
+    Note:
+        It is recommended that list of return arguments adhere to the overall DCS protocol (space separated tokens), but this can only be enforced by the writer of the operation handle.
 
-    operationName: is the name of the operation that completed.
-    operationHandle: is the unique value that indicates which instance of the operation completed.
-    status: Anything other than a normal in this field will indicate to DCSS and BLU-ICE that the operation failed, and this token will become the reason of failure.
-    arguments: This is a list of return values.
-    It is recommended that list of return arguments adhere to the overall DCS protocol (space separated tokens), but this can only be enforced by the writer of the operation handle.
+    Args:
+        operation_name (str):       The name of the operation that completed.
+        operation_handle (float):   The unique value that indicates which instance of the operation completed.
+        operation_status (str):     Anything other than a normal in this field will indicate to DCSS and BLU-ICE that the operation failed, and this token will become the reason of failure.
+        operation_args (str):       This is a list of return values.
     """
 
     def __init__(
@@ -768,13 +722,15 @@ class DcssHtoSOperationUpdate(DcssHtoSMessage):
 
     The message format is as follows::
 
-        htos_operation_update operationName operationHandle arguments
+        htos_operation_update operation_name operation_handle operation_args
 
-    where::
+    Args:
+        operation_name (str):      The name of the operation that completed.
+        operation_handle (float):  The unique value that indicates which instance of the operation completed.
+        operation_args (str):      This is a list of return values.
 
-        operationName: is the name of the operation that completed.
-        operationHandle: is the unique value that indicates which instance of the operation completed.
-        arguments: This is a list of return values. It is recommended that list of return arguments adhere to the overall DCS protocol (space separated tokens), but this can only be enforced by the writer of the operation handle.
+    Note:
+        It is recommended that list of return arguments adhere to the overall DCS protocol (space separated tokens), but this can only be enforced by the writer of the operation handle.
     """
 
     def __init__(
@@ -791,16 +747,36 @@ class DcssHtoSOperationUpdate(DcssHtoSMessage):
 
 @register_message('htos_start_operation')
 class DcssHtoSStartOperation(DcssHtoSMessage):
-    """Hardware To Server Start Operation"""
+    """Hardware To Server Start Operation
 
-    def __init__(self, operation_info: str):
+    Args:
+        operation_name (str): The name of the operation this DHS is requesting DCSS to start.
+    """
+
+    def __init__(self, operation_name: str):
         super().__init__()
-        self._split_msg = [self.get_type_id(), operation_info]
+        self._split_msg = [self.get_type_id(), operation_name]
 
 
 @register_message('htos_update_motor_position')
 class DcssHtoSUpdateMotorPosition(DcssHtoSMessage):
-    """Hardware To Server Update Motor Position"""
+    """Hardware To Server Update Motor Position
+
+    Update DCSS with current position of a motor.
+
+    Args:
+        motor_name (str):     The name of the motor.
+        new_position (float): The current position of the motor
+        status (str):          The status of the motor with values as shown below.
+
+            * *normal*          indicates that the motor finished its commanded move successfully.
+            * *aborted*         indicates that the motor move was aborted.
+            * *moving*          indicates that the motor was already moving.
+            * *cw_hw_limit*     indicates that the motor hit the clockwise hardware limit.
+            * *ccw_hw_limit*    indicates that the motor hit the counter-clockwise hardware limit.
+            * *both_hw_limits*  indicates that the motor cable may be disconnected.
+            * *unknown*         indicates that the motor completed abnormally.
+    """
 
     def __init__(self, motor_name: str, new_position: float, status: str):
         super().__init__()
@@ -815,62 +791,76 @@ class DcssHtoSReportIonChamber(DcssHtoSMessage):
     The first three arguments are mandatory. Additional ion chambers are reported by adding additional arguments.
     DCSS forwards this message to all GUI clients as stog_report_ion_chambers message.
 
-    The format of the message is:
+    The format of the message is::
 
-    htos_report_ion_chambers time ch1 counts1 [ch2 counts2 [ch3 counts3 [chN countsN]]]
+        htos_report_ion_chambers ion_chamber_time ion_chamber_name ion_chamber_counts [ion_chamber_name2 counts2 [ion_chamber_nameN ion_chamber_countsN]]
 
-    where:
+    Args:
+        ion_chamber_time (float): The time in seconds over which counts were integrated.
+        ion_chamber_name (str):    The name of the first ion chamber read.
+        ion_chamber_counts (int):  The counts from the first ion chamber.
 
-    time: is the time in seconds over which counts were integrated.
-    ch1: is the name of the first ion chamber read.
-    cnts1: is the counts from the first ion chamber.
+    Note:
+        This is untested.
     """
 
-    def __init__(self, ion_chamber_counts: int):
+    def __init__(
+        self, ion_chamber_time: float, ion_chamber_name: str, ion_chamber_counts: int
+    ):
         super().__init__()
-        self._split_msg = [self.get_type_id(), ion_chamber_counts]
+        self._split_msg = [
+            self.get_type_id(),
+            ion_chamber_time,
+            ion_chamber_name,
+            ion_chamber_counts,
+        ]
 
 
 @register_message('htos_configure_device')
 class DcssHtoSConfigureDevice(DcssHtoSMessage):
     """Hardware To Server Configure Device
 
-    The format of the message can take one of two forms:
+    This is the message received from DCSS requesting the DHS to configure a specific motor or pseudo motor.
+    The format of the message can take one of two forms::
 
-    1. gtos_configure_device motorName position upperLimit lowerLimit lowerLimitOn upperLimitOn motorLockOn units
+        1. gtos_configure_device motorName position upperLimit lowerLimit lowerLimitOn upperLimitOn motorLockOn units
+        2. gtos_configure_device motorName position upperLimit lowerLimit scaleFactor speed acceleration backlash lowerLimitOn upperLimitOn motorLockOn backlashOn reverseOn
 
-    where:
+    For the first form which is used to configure a pseudo motor the arguments are:
 
-    motorName is the name of the motor to configure.
-    position is the scaled position of the motor.
-    upperLimit is the upper limit for the motor in scaled units.
-    lowerLimit is the lower limit for the motor in scaled units.
-    lowerLimitOn is a boolean (0 or 1) indicating if the lower limit is enabled.
-    upperLimitOn is a boolean (0 or 1) indicating if the upper limit is enabled.
-    motorLockOn is a boolean (0 or 1) indicating if the motor is software locked.
+    Args:
 
-    2. gtos_configure_device motoName position upperLimit lowerLimit scaleFactor speed acceleration backlash lowerLimitOn upperLimitOn motorLockOn backlashOn reverseOn
+        motorName: is the name of the motor to configure.
+        position: is the scaled position of the motor.
+        upperLimit: is the upper limit for the motor in scaled units.
+        lowerLimit: is the lower limit for the motor in scaled units.
+        lowerLimitOn: is a boolean (0 or 1) indicating if the lower limit is enabled.
+        upperLimitOn: is a boolean (0 or 1) indicating if the upper limit is enabled.
+        motorLockOn: is a boolean (0 or 1) indicating if the motor is software locked.
 
-    where:
+    For the second form which is used to configure a real motor the arguments are:
 
-    motor is the name of the motor to configure
-    position is the scaled position of the motor
-    upperLimit is the upper limit for the motor in scaled units
-    lowerLimit is the lower limit for the motor in scaled units
-    scaleFactor is the scale factor relating scaled units to steps for the motor
-    speed is the slew rate for the motor in steps/sec
-    acceleration is the acceleration time for the motor in seconds
-    backlash is the backlash amount for the motor in steps
-    lowerLimitOn is a boolean (0 or 1) indicating if the lower limit is enabled
-    upperLimitOn is a boolean (0 or 1) indicating if the upper limit is enabled
-    motorLockOn is a boolean (0 or 1) indicating if the motor is software locked
-    backlashOn is a boolean (0 or 1) indicating if backlash correction is enabled
-    reverseOn is a boolean (0 or 1) indicating if the motor direction is reversed
+    Args:
+
+        motor: is the name of the motor to configure
+        position: is the scaled position of the motor
+        upperLimit: is the upper limit for the motor in scaled units
+        lowerLimit: is the lower limit for the motor in scaled units
+        scaleFactor: is the scale factor relating scaled units to steps for the motor
+        speed: is the slew rate for the motor in steps/sec
+        acceleration: is the acceleration time for the motor in seconds
+        backlash: is the backlash amount for the motor in steps
+        lowerLimitOn: is a boolean (0 or 1) indicating if the lower limit is enabled
+        upperLimitOn: is a boolean (0 or 1) indicating if the upper limit is enabled
+        motorLockOn: is a boolean (0 or 1) indicating if the motor is software locked
+        backlashOn: is a boolean (0 or 1) indicating if backlash correction is enabled
+        reverseOn: is a boolean (0 or 1) indicating if the motor direction is reversed
 
     This command requests that the configuration of a real motor be changed.
     DCSS updates the device configuration in its internal database (database.dat) and forwards the message to the appropriate hardware server.
 
-    Note: This message should probably be two separate messages gtos_configure_real_motor and gtos_configure_pseudo_motor.
+    Note:
+        WARNING! UNTESTED! This message should probably be two separate messages gtos_configure_real_motor and gtos_configure_pseudo_motor.
     """
 
     def __init__(self, device_name: str, device_settings: str):
@@ -883,15 +873,14 @@ class DcssHtoSSendConfiguration(DcssHtoSMessage):
     """Hardware To Server Send Configuration
 
     This message requests that the configuration of the specified device (as remembered by DCSS) be returned to this DHS.
-    DCSS will respond with a stoh_configure_device message for the device. This message is not forwarded to the GUI clients.
+    DCSS will respond with a ``stoh_configure_device message`` for the device. This message is not forwarded to the GUI clients.
 
-    The format of the message is:
+    The format of the message is::
 
-    htos_send_configuration deviceName
+        htos_send_configuration device_name
 
-    where:
-
-    deviceName is the name of the device for which the configuration information is needed.
+    Args:
+        device_name (str): The name of the device for which the configuration information is needed.
     """
 
     def __init__(self, device_name: str):
@@ -904,22 +893,22 @@ class DcssHtoSReportShutterState(DcssHtoSMessage):
     """Hardware To Server Report Shutter State
 
     This message reports a change in the state of a shutter.
-    This may occur as a result of handling the stoh_set_shutter_state command or during a timed exposure with automated shutter handling.
-    DCSS forwards this message to all GUI clients as a stog_report_shutter_state message.
+    This may occur as a result of handling the `stoh_set_shutter_state` command or during a timed exposure with automated shutter handling.
+    DCSS forwards this message to all GUI clients as a `stog_report_shutter_state` message.
 
-    The format of the message is:
+    The format of the message is::
 
-    htos_report_shutter_state shutterName state
+        htos_report_shutter_state shutter_name state
 
-    where:
-
-    shutterName is the name of the shutter.
-    state is the new state (open | closed.)
+    Args:
+        shutter_name (str):  The name of the shutter.
+        shutter_state (str): The new state (open or closed).
+        result (str):        No idea?
     """
 
-    def __init__(self, shutter_name: str, state: str, result: str):
+    def __init__(self, shutter_name: str, shutter_state: str, result: str):
         super().__init__()
-        self._split_msg = [self.get_type_id(), shutter_name, state, result]
+        self._split_msg = [self.get_type_id(), shutter_name, shutter_state, result]
 
 
 @register_message('htos_limit_hit')
@@ -933,7 +922,11 @@ class DcssHtoSLimitHit(DcssHtoSMessage):
 
 @register_message('htos_simulating_device')
 class DcssHtoSSimulatingDevice(DcssHtoSMessage):
-    """Hardware To Server Simulating Device"""
+    """Hardware To Server Simulating Device
+
+    Note:
+        Not Implemented Yet!
+    """
 
     def __init__(self, state: str):
         super().__init__()
@@ -942,7 +935,11 @@ class DcssHtoSSimulatingDevice(DcssHtoSMessage):
 
 @register_message('htos_motor_correct_started')
 class DcssHtoSMotorCorrectStarted(DcssHtoSMessage):
-    """Hardware To Server Motor Correct Started"""
+    """Hardware To Server Motor Correct Started
+
+    Note:
+        Not Implemented Yet!
+    """
 
     def __init__(self, state: str):
         super().__init__()
@@ -969,16 +966,25 @@ class DcssHtoSSetEncoderCompleted(DcssHtoSMessage):
 
 @register_message('htos_set_string_completed')
 class DcssHtoSSetStringCompleted(DcssHtoSMessage):
-    """Hardware To Server Set String Completed"""
+    """Hardware To Server Set String Completed
 
-    def __init__(self, string_name: str, status: str):
+    Args:
+        string_name (str):   The name of the string
+        string_status (str): status?
+    """
+
+    def __init__(self, string_name: str, string_status: str):
         super().__init__()
-        self._split_msg = [self.get_type_id(), string_name, status]
+        self._split_msg = [self.get_type_id(), string_name, string_status]
 
 
 @register_message('htos_note')
 class DcssHtoSNote(DcssHtoSMessage):
-    """Hardware To Server Note"""
+    """Hardware To Server Note
+
+    Args:
+        note_message (str): Note to send to DCSS
+    """
 
     def __init__(self, note_message: str):
         super().__init__()
@@ -987,7 +993,11 @@ class DcssHtoSNote(DcssHtoSMessage):
 
 @register_message('htos_log')
 class DcssHtoSLog(DcssHtoSMessage):
-    """Hardware To Server Log"""
+    """Hardware To Server Log
+
+    Args:
+        log_message (str): Message to log to DCSS
+    """
 
     def __init__(self, log_message: str):
         super().__init__()
@@ -1003,8 +1013,9 @@ class DcssHtoSSetMotorMessage(DcssHtoSMessage):
         self._split_msg = [self.get_type_id(), motor_name]
 
 
-# Message Factory
 class DcssMessageFactory(MessageFactory):
+    """Class for parsing the messages from DCSS."""
+
     def __init__(self):
         super().__init__('dcss')
 
@@ -1013,6 +1024,11 @@ class DcssMessageFactory(MessageFactory):
 
 
 class DcssDhsV1MessageReader(MessageStreamReader):
+    """Class for reading a dcs version 1 message.
+
+    The dcs version 1 messages are always exactly 200 bytes long. When a DHS initially connects to DCSS the first messaeg received is always version 1.
+    """
+
     def __init__(self):
         pass
 
@@ -1023,6 +1039,12 @@ class DcssDhsV1MessageReader(MessageStreamReader):
 
 
 class DcssDhsV1MessageWriter(MessageStreamWriter):
+    """Class for writing a DCS version 1 message.
+
+    The DCS version 1 messages are always exactly 200 bytes long. When a DHS initially connects to DCSS the first messaeg received is always version 1.
+    It is expected that the first message sent back will also be version 1 message.
+    """
+
     def __init__(self):
         pass
 
@@ -1033,6 +1055,26 @@ class DcssDhsV1MessageWriter(MessageStreamWriter):
 
 
 class DcssDhsV2MessageReaderWriter(MessageStreamReader, MessageStreamWriter):
+    """Class to read and write DCS version 2 messages.
+
+    The DCS version 2 messages can be any length.
+    Each DCS message must start with 26 bytes of text message. These 26 bytes must contain a 2 numbers is ASCII format. The two numbers indicate the size of the text section (in bytes) and binary section (in bytes). The text message must contain a terminating 0 at the end of the two numbers. This allows a library to simply use the scanf function to obtain the two numbers.
+    An example header may look like this:
+
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+----+
+    | | | | | | | | | | | |1|2|3|5| | | | | | |2|3|2|5|0x00|
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+----+
+
+    The first number in this example indicates that there are 1235 bytes of text following the header.
+    The second number in this string indicates that there are 2325 bytes of binary data following the 1235 bytes of text.
+    The 0x00 terminates the header.
+
+    DCSS does not currently support the binary portion of the DCS message completely. In other words, the binary message should always be ``0`` for messages passed from DHS to DCSS.
+
+    The binary portion of the message is currently only used for sending the authentication key to Blu-Ice during the authentication stage made during the initial connection of Blu-Ice to DCSS.
+
+    """
+
     def __init__(self):
         super(MessageStreamReader).__init__()
         super(MessageStreamWriter).__init__()
