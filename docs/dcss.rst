@@ -3,15 +3,15 @@
 DCSS Communications
 ===================
 
-The beamline uses a distributed control system akin to a hub and spoke control model where the central hub is referred to as DCSS (Distributed Control System Server) and the spokes are called DHSs (Distributed Hardware Controllers). In order to write a new DHS we need to establish communications with DCSS.  
+The beamline uses a distributed control system akin to a hub and spoke control model where the central hub is referred to as DCSS (Distributed Control System Server) and the spokes are called DHSs (Distributed Hardware Controllers). In order to write a new DHS we need to establish communications with DCSS.
 
-DCSS communicates with DHS using the ``dcs`` protocol. All ``dcs`` messages are prefixed with a 4 character code that will tell you about the the direction of the message. For example:  
+DCSS communicates with DHS using the ``dcs`` protocol. All ``dcs`` messages are prefixed with a 4 character code that will tell you about the the direction of the message. For example:
 
-| ``stoc_``  **s**\ erver **to** **c**\ lient for messages originating from DCSS and destined for a client (hardware or software).  
-| ``stoh_``  **s**\ erver **to** **h**\ ardware for messages originating from DCSS and destined for hardware (i.e. a DHS).  
-| ``htos_``  **h**\ ardware **to** **s**\ erver for messages originating from a DHS and destined for DCSS.  
-| ``gtos_``  **G**\ UI **to** **s**\ erver for messages originating from the Blu-Ice GUI and destined for DCSS.  
-| ``stog_``  **s**\ erver **to** **G**\ UI for messages originating from DCSS and destined for the Blu-Ice GUI.  
+| ``stoc_``  **s**\ erver **to** **c**\ lient for messages originating from DCSS and destined for a client (hardware or software).
+| ``stoh_``  **s**\ erver **to** **h**\ ardware for messages originating from DCSS and destined for hardware (i.e. a DHS).
+| ``htos_``  **h**\ ardware **to** **s**\ erver for messages originating from a DHS and destined for DCSS.
+| ``gtos_``  **G**\ UI **to** **s**\ erver for messages originating from the Blu-Ice GUI and destined for DCSS.
+| ``stog_``  **s**\ erver **to** **G**\ UI for messages originating from DCSS and destined for the Blu-Ice GUI.
 
 
 More details can be found in the `DCS Admin Guide <https://github.com/dsclassen/pyDHS/blob/master/docs/DCSS_ADMIN_GUIDE.pdf>`_. This PDF documentation has not been updated since 2005, but it is still worth browsing if you intend to write a functioning DHS.
@@ -25,10 +25,10 @@ The ``dcs`` Protocol
 
 The messaging protocol used with DCSS/DHS/Blu-Ice control system.
 
-``dcs`` messages come in 2 flavors:  
+``dcs`` messages come in 2 flavors:
 
-1. ``dcs1`` messages are always 200 bytes in length.  
-2. ``dcs2`` messages can be up to 1024 bytes, but the first message from DCSS to the DHS and the first response from the DHS back to DCSS must be exactly 200 bytes ONLY.  
+1. ``dcs1`` messages are always 200 bytes in length.
+2. ``dcs2`` messages can be up to 1024 bytes, but the first message from DCSS to the DHS and the first response from the DHS back to DCSS must be exactly 200 bytes ONLY.
 
 The pydhsfw has been written to taken care of the details of these communications for you. Although not needed in order to make use of pydhsfw the details of these communications between DCSS and a DHS are outlined below.
 
@@ -37,31 +37,31 @@ The pydhsfw has been written to taken care of the details of these communication
 Connect to DCSS
 ---------------------------------------------------------
 
-Open a socket to the dcss server on port 14242  
-You will receive a 200 byte message:  
+Open a socket to the dcss server on port 14242
+You will receive a 200 byte message:
 
 ``stoc_send_client_type\0\0\0\0\0\0\0\0\0...``
 
-Read 200 bytes from the socket.  
-The trailing end of the string ("...") can be garbage, but is usually zeroes.  
+Read 200 bytes from the socket.
+The trailing end of the string ("...") can be garbage, but is usually zeroes.
 
-Respond with:  
+Respond with:
 
 ``htos_client_is_hardware DHS_NAME\0\0\0...``
 
-The very first response must be padded to 200 bytes. Need at least one zero at the end of the meaningful text.  
+The very first response must be padded to 200 bytes. Need at least one zero at the end of the meaningful text.
 
-DCSS will then send messages about the different motors, shutters, ion guages, strings, and operations that it thinks this DHS is responsible for:  
+DCSS will then send messages about the different motors, shutters, ion guages, strings, and operations that it thinks this DHS is responsible for:
 
-|  ``stoh_register_operation operationName1 operationName1\0\0\0...``  
-|  ``stoh_register_operation operationName2 operationName2\0\0\0...``  
-|  ``stoh_register_operation operationName3 operationName3\0\0\0...``  
+|  ``stoh_register_operation operationName1 operationName1\0\0\0...``
+|  ``stoh_register_operation operationName2 operationName2\0\0\0...``
+|  ``stoh_register_operation operationName3 operationName3\0\0\0...``
 
-|  ``stoh_register_real_motor motor1 motor1\0\0\0...``  
-|  ``stoh_register_real_motor motor2 motor2\0\0\0...``  
+|  ``stoh_register_real_motor motor1 motor1\0\0\0...``
+|  ``stoh_register_real_motor motor2 motor2\0\0\0...``
 
-|  ``stoh_register_string string1 standardString\0\0\0...``  
-|  ``stoh_register_string string2 string2\0\0\0...``  
+|  ``stoh_register_string string1 standardString\0\0\0...``
+|  ``stoh_register_string string2 string2\0\0\0...``
 
 
 It is also worth noting that DCSS can "go away" and it is important that the DHS be able to automagically re-establish the socket connection should this happen.
@@ -71,9 +71,9 @@ It is also worth noting that DCSS can "go away" and it is important that the DHS
 Configure motors, shutters, strings, ion gauges, and operations
 ---------------------------------------------------------------
 
-Configure motors by sending an ``htos_configure_device`` command. For example:  
+Configure motors by sending an ``htos_configure_device`` command. For example:
 
-``htos_configure_device energy 12398.42 20000 2000 1 100000 1 -600 0 0 1 0 0 0\0...``  
+``htos_configure_device energy 12398.42 20000 2000 1 100000 1 -600 0 0 1 0 0 0\0...``
 
 Where:
 
@@ -101,45 +101,45 @@ field     value                             notes
 You must pad the message up to 200 bytes and use a zero byte to end the meaningful string.
 If you enable the limits (fields 10 & 11), then DCSS will not ask you to move this motor beyond the numbers listed in fields 4 & 5.
 
-Configure shutters by sending an ``htos_configure_shutter`` command. For example:  
+Configure shutters by sending an ``htos_configure_shutter`` command. For example:
 
-|  ``htos_configure_shutter shutter open close open\0...``  
-|  or  
-|  ``htos_configure_shutter Se open close open\0...``  
+|  ``htos_configure_shutter shutter open close open\0...``
+|  or
+|  ``htos_configure_shutter Se open close open\0...``
 
 Where:
 
 ======    ==============================    ===============================================================
 field     value                             notes
 ======    ==============================    ===============================================================
-1         |  ``htos_configure_shutter``     | The xos command to configure a shutter.  
-2         |  ``shutter``                    | The name of the shutter you are configuring.  
-3         |  ``open``                       | The name for the "open" position of this shutter.  
-4         |  ``closed``                     | The name for the "closed" position of this shutter.  
-5         |  ``open``                       | The current position of this shutter.  
+1         |  ``htos_configure_shutter``     | The xos command to configure a shutter.
+2         |  ``shutter``                    | The name of the shutter you are configuring.
+3         |  ``open``                       | The name for the "open" position of this shutter.
+4         |  ``closed``                     | The name for the "closed" position of this shutter.
+5         |  ``open``                       | The current position of this shutter.
 ======    ==============================    ===============================================================
 
 Although you can get a away with using "in" and "out" or "on" and "off" for shutter devices, there are certain situations in DCSS where this doesn’t work, so just use "open" and "closed" for everything.  NOTE: it is "closed" and **NOT** "close".
 
-Configure strings by sending an ``htos_set_string_completed`` command. For example:  
+Configure strings by sending an ``htos_set_string_completed`` command. For example:
 
-a simple string with a single word:  
+a simple string with a single word:
 
-|  ``htos_set_string_completed detectorType normal PILATUS6``  
+|  ``htos_set_string_completed detectorType normal PILATUS6``
 
-or a string with multiple key/value pairs  
+or a string with multiple key/value pairs
 
-|  ``htos_set_string_completed detectorStatus normal TEMP 26.0 HUMIDITY 2.1 GAPFILL -1 EXPOSUREMODE null DISK_SIZE_KB 0 DISK_USED_KB 0 DISK_USE_PERCENT 0 FREE_IMAGE_SPACE 0 SUM_IMAGES false SUM_IMAGES_DELTA_DEG 0.1 N_FRAME_IMG 1 THRESHOLD 6330.0 GAIN autog THRESHOLD_SET false SETTING_THRESHOLD false``  
+|  ``htos_set_string_completed detectorStatus normal TEMP 26.0 HUMIDITY 2.1 GAPFILL -1 EXPOSUREMODE null DISK_SIZE_KB 0 DISK_USED_KB 0 DISK_USE_PERCENT 0 FREE_IMAGE_SPACE 0 SUM_IMAGES false SUM_IMAGES_DELTA_DEG 0.1 N_FRAME_IMG 1 THRESHOLD 6330.0 GAIN autog THRESHOLD_SET false SETTING_THRESHOLD false``
 
-Where:  
+Where:
 
 ======    ================================    ===============================================================
 field     value                               notes
 ======    ================================    ===============================================================
-1         |  ``htos_set_string_completed``    | The xos command to set a string in DCSS.  
-2         |  ``detectorType``                 | The name of the string you are configuring.  
-3         |  ``normal``                       | Tell DCSS that the string value was set successfully.  
-4         |  ``PILATUS6``                     | The value of the string.  
+1         |  ``htos_set_string_completed``    | The xos command to set a string in DCSS.
+2         |  ``detectorType``                 | The name of the string you are configuring.
+3         |  ``normal``                       | Tell DCSS that the string value was set successfully.
+4         |  ``PILATUS6``                     | The value of the string.
 ======    ================================    ===============================================================
 
 
@@ -152,56 +152,56 @@ ion gauges and operations require no configuration.
 Listen for messages from DCSS.
 ---------------------------------------------------------
 
-These are the two important ones for a DHS that is performing operations only.  
+These are the two important ones for a DHS that is performing operations only.
 
-|  ``stoh_start_operation``  
-|  ``stoh_abort_all``  
+|  ``stoh_start_operation``
+|  ``stoh_abort_all``
 
 if controlling motors or shutter then need examples here.
 
 
-The ``stoh_start_operation`` messages look like this  
+The ``stoh_start_operation`` messages look like this
 ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
-``stoh_start_operation operationName1 operationID arg1 arg2 .... argN``  
+``stoh_start_operation operationName1 operationID arg1 arg2 .... argN``
 
 Where:
 
 ======    ================================    ========================================================================
 field     value                               notes
 ======    ================================    ========================================================================
-1         |  ``operationName1``               |  The operation that DCSS has requested this DHS to execute.  
+1         |  ``operationName1``               |  The operation that DCSS has requested this DHS to execute.
 2         |  ``operationID``                  |  A unique numeric ID used to keep track of this operation instance.
-3         |  ``arg1 arg2 .... argN``          |  Optional set of args to pass into the DHS from DCSS.  
+3         |  ``arg1 arg2 .... argN``          |  Optional set of args to pass into the DHS from DCSS.
 ======    ================================    ========================================================================
 
-pyDHS can respond with periodic updates in the form of  
+pyDHS can respond with periodic updates in the form of
 ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
-``htos_operation_update operationName1 operationID updateMessage``  
+``htos_operation_update operationName1 operationID updateMessage``
 
 Where:
 
 ======    ================================    ========================================================================
 field     value                               notes
 ======    ================================    ========================================================================
-1         | ``operationName1``                |  The operation that DCSS has requested this DHS to execute.  
+1         | ``operationName1``                |  The operation that DCSS has requested this DHS to execute.
 2         | ``operationID``                   |  A unique numeric ID used to keep track of this operation instance.
-3         | ``updateNessage``                 |  Any message you want to pass back to DCSS.  
+3         | ``updateNessage``                 |  Any message you want to pass back to DCSS.
 ======    ================================    ========================================================================
 
-and when the operation is completed with a message like this  
+and when the operation is completed with a message like this
 ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
-``htos_operation_completed operationName1 operationID reason returnMessage``  
+``htos_operation_completed operationName1 operationID reason returnMessage``
 
 ======    ================================    ========================================================================
 field     value                               notes
 ======    ================================    ========================================================================
-1         | ``operationName1``                |  The operation that DCSS has requested this DHS to execute.  
-2         | ``operationID``                   |  A unique numeric ID used to keep track of this operation instance.  
+1         | ``operationName1``                |  The operation that DCSS has requested this DHS to execute.
+2         | ``operationID``                   |  A unique numeric ID used to keep track of this operation instance.
 3         | ``reason``                        |  In theory can be anything, but normally would be `normal` or `error`
-4         | ``updateMessage``                 |  Any additional info you want to pass back to DCSS.  
+4         | ``updateMessage``                 |  Any additional info you want to pass back to DCSS.
 ======    ================================    ========================================================================
 
 

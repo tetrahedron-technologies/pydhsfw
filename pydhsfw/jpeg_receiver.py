@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import threading
 import logging
 import time
@@ -10,29 +11,46 @@ from pydhsfw.threads import AbortableThread
 from pydhsfw.transport import Transport, TransportState
 from typing import Any
 from requests import Request
-from pydhsfw.messages import IncomingMessageQueue, OutgoingMessageQueue, MessageFactory, register_message
+from pydhsfw.messages import (
+    IncomingMessageQueue,
+    OutgoingMessageQueue,
+    MessageFactory,
+    register_message,
+)
 from pydhsfw.connection import ConnectionBase, register_connection
 from pydhsfw.processors import register_message_handler
-from pydhsfw.http import ContentType, FileServerRequestMessage, Headers, RequestQueue, RequestVerb, ServerMessageRequestReader, ServerRequestMessage
+from pydhsfw.http import (
+    ContentType,
+    FileServerRequestMessage,
+    Headers,
+    RequestQueue,
+    RequestVerb,
+    ServerMessageRequestReader,
+    ServerRequestMessage,
+)
 
 _logger = logging.getLogger(__name__)
+
 
 class JpegReceiverMessageRequestReader(ServerMessageRequestReader):
     def __init__(self):
         pass
 
-    def read_request(self, request:Request)->Request:
+    def read_request(self, request: Request) -> Request:
         if request.method == RequestVerb.POST.value:
             content_type = request.headers.get(Headers.CONTENT_TYPE.value)
             if content_type in (ContentType.JPEG.value, ContentType.PNG.value):
-                request.headers[Headers.DHS_REQUEST_TYPE_ID.value] = 'jpeg_receiver_image_post_request'
+                request.headers[
+                    Headers.DHS_REQUEST_TYPE_ID.value
+                ] = 'jpeg_receiver_image_post_request'
         elif request.method == RequestVerb.GET:
             pass
 
         return request
 
+
 class JpegReceiverRequestHandler(http.server.BaseHTTPRequestHandler):
-    def __init__(self, request_queue:RequestQueue, *args, **kwargs):
+    def __init__(self, request_queue: RequestQueue, *args, **kwargs):
         self._request_queue = request_queue
         super().__init__(*args, **kwargs)
 
@@ -53,25 +71,28 @@ class JpegReceiverRequestHandler(http.server.BaseHTTPRequestHandler):
                 break
             data += chunk
             remainingbytes -= len(chunk)
-    
+
         self.send_response(HTTPStatus.OK)
         self.send_header('Connection', 'close')
         self.end_headers()
 
-        request = Request(method='POST', url=self.path, headers=dict(self.headers), data=data)
+        request = Request(
+            method='POST', url=self.path, headers=dict(self.headers), data=data
+        )
         self._request_queue.queue(request)
 
     def log_message(self, format: str, *args: Any) -> None:
-        _logger.debug("%s - %s" % (self.address_string(), format%args))
-    
+        _logger.debug('%s - %s' % (self.address_string(), format % args))
+
     def log_error(self, format: str, *args: Any) -> None:
-        _logger.error("%s - %s" % (self.address_string(), format%args))
+        _logger.error('%s - %s' % (self.address_string(), format % args))
 
     def handle_expect_100(self):
         self.log_request(HTTPStatus.CONTINUE)
         self.send_response_only(HTTPStatus.CONTINUE)
         self.end_headers()
-        return True    
+        return True
+
 
 # Need special handling for disconnecting then connecting for the HTTPServer class. Needed to derive from
 # and override some methods.
@@ -79,6 +100,7 @@ if hasattr(selectors, 'PollSelector'):
     _Selector = selectors.PollSelector
 else:
     _Selector = selectors.SelectSelector
+
 
 class HttpAbortableServer(http.server.HTTPServer):
     def __init__(self, server_address, RequestHandlerClass, bind_and_activate=True):
@@ -130,10 +152,19 @@ class HttpAbortableServer(http.server.HTTPServer):
         self._ab_shutdown_request = True
         self._ab_is_shut_down.wait()
 
-class JpegReceiverTransportConnectionWorker(AbortableThread):
 
-    def __init__(self, connection_name:str, url:str, request_queue:RequestQueue, config:dict={}):
-        super().__init__(name=f'{connection_name} jpeg receiver transport connection worker', config=config)
+class JpegReceiverTransportConnectionWorker(AbortableThread):
+    def __init__(
+        self,
+        connection_name: str,
+        url: str,
+        request_queue: RequestQueue,
+        config: dict = {},
+    ):
+        super().__init__(
+            name=f'{connection_name} jpeg receiver transport connection worker',
+            config=config,
+        )
         self._connection_name = connection_name
         self._url = url
         self._config = config
@@ -142,7 +173,9 @@ class JpegReceiverTransportConnectionWorker(AbortableThread):
         self._state_change_event = threading.Event()
         self._request_queue = request_queue
         request_hander = partial(JpegReceiverRequestHandler, self._request_queue)
-        self._http_server = HttpAbortableServer(('', urlparse(url).port), request_hander)
+        self._http_server = HttpAbortableServer(
+            ('', urlparse(url).port), request_hander
+        )
 
     def connect(self):
         self._set_desired_state(TransportState.CONNECTED)
@@ -154,7 +187,7 @@ class JpegReceiverTransportConnectionWorker(AbortableThread):
         self._set_desired_state(TransportState.DISCONNECTED)
         self._disconnect()
 
-    def _set_desired_state(self, state:TransportState):
+    def _set_desired_state(self, state: TransportState):
         if self._desired_state != state:
             self._desired_state = state
             self._state_change_event.set()
@@ -191,7 +224,6 @@ class JpegReceiverTransportConnectionWorker(AbortableThread):
             except:
                 pass
 
-
     def _connect(self):
         try:
             self._http_server.serve_forever(self._get_blocking_timeout())
@@ -210,33 +242,45 @@ class JpegReceiverTransportConnectionWorker(AbortableThread):
         time.sleep(self._get_blocking_timeout())
         self._connect()
 
+
 class JpegReceiverServerTransport(Transport):
     ''' Http server transport '''
 
-    def __init__(self, connection_name:str, url:str, message_reader:JpegReceiverMessageRequestReader, config:dict={}):
+    def __init__(
+        self,
+        connection_name: str,
+        url: str,
+        message_reader: JpegReceiverMessageRequestReader,
+        config: dict = {},
+    ):
         super().__init__(connection_name, url, config)
-        self._poll_timeout = config.get(AbortableThread.THREAD_BLOCKING_TIMEOUT, AbortableThread.THREAD_BLOCKING_TIMEOUT_DEFAULT)
+        self._poll_timeout = config.get(
+            AbortableThread.THREAD_BLOCKING_TIMEOUT,
+            AbortableThread.THREAD_BLOCKING_TIMEOUT_DEFAULT,
+        )
         self._message_reader = message_reader
         self._request_queue = RequestQueue()
-        self._connection_worker = JpegReceiverTransportConnectionWorker(connection_name, url, self._request_queue, config)
+        self._connection_worker = JpegReceiverTransportConnectionWorker(
+            connection_name, url, self._request_queue, config
+        )
 
-    def send(self, msg:Any):
+    def send(self, msg: Any):
         raise NotImplemented
 
-    def receive(self)->Request:
+    def receive(self) -> Request:
         try:
             request = self._request_queue.fetch(self._poll_timeout)
-            if request: 
+            if request:
                 return self._message_reader.read_request(request)
         except TimeoutError:
-            #Read timed out. This is normal, it just means that no messages have been sent so we can ignore it.
+            # Read timed out. This is normal, it just means that no messages have been sent so we can ignore it.
             pass
         except Exception:
-            #Connection is lost because the socket was closed, probably from the other side.
-            #Block the socket event and queue a reconnect message.
+            # Connection is lost because the socket was closed, probably from the other side.
+            # Block the socket event and queue a reconnect message.
             _logger.exception(None)
             raise
-            #self.reconnect()
+            # self.reconnect()
 
     def connect(self):
         self._connection_worker.connect()
@@ -257,23 +301,44 @@ class JpegReceiverServerTransport(Transport):
     def wait(self):
         self._connection_worker.join()
 
+
 @register_message('jpeg_receiver_image_post_request', 'jpeg_receiver')
 class JpegReceiverImagePostRequestMessage(FileServerRequestMessage):
     def __init__(self, request):
         super().__init__(request)
 
+
 class JpegReceiverServerMessageFactory(MessageFactory):
     def __init__(self):
         super().__init__('jpeg_receiver')
 
-    def _parse_type_id(self, request:Any):
+    def _parse_type_id(self, request: Any):
         return ServerRequestMessage.parse_type_id(request)
 
+
 class JpegReceiverServerTransport(JpegReceiverServerTransport):
-    def __init__(self, connection_name:str, url:str, config:dict={}):
-        super().__init__(connection_name, url, JpegReceiverMessageRequestReader(), config)
+    def __init__(self, connection_name: str, url: str, config: dict = {}):
+        super().__init__(
+            connection_name, url, JpegReceiverMessageRequestReader(), config
+        )
+
 
 @register_connection('jpeg_receiver')
 class JpegReceiverServerConnection(ConnectionBase):
-    def __init__(self, connection_name:str, url:str, incoming_message_queue:IncomingMessageQueue, outgoing_message_queue:OutgoingMessageQueue, config:dict={}):
-        super().__init__(connection_name, url, JpegReceiverServerTransport(connection_name, url, config), incoming_message_queue, outgoing_message_queue, JpegReceiverServerMessageFactory(), config)
+    def __init__(
+        self,
+        connection_name: str,
+        url: str,
+        incoming_message_queue: IncomingMessageQueue,
+        outgoing_message_queue: OutgoingMessageQueue,
+        config: dict = {},
+    ):
+        super().__init__(
+            connection_name,
+            url,
+            JpegReceiverServerTransport(connection_name, url, config),
+            incoming_message_queue,
+            outgoing_message_queue,
+            JpegReceiverServerMessageFactory(),
+            config,
+        )

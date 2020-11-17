@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import threading
 import time
 import logging
@@ -5,14 +6,25 @@ import socket
 import errno
 from urllib.parse import urlparse
 from pydhsfw.threads import AbortableThread
-from pydhsfw.transport import TransportStream, TransportState, StreamReader, StreamWriter, MessageStreamReader, MessageStreamWriter
+from pydhsfw.transport import (
+    TransportStream,
+    TransportState,
+    StreamReader,
+    StreamWriter,
+    MessageStreamReader,
+    MessageStreamWriter,
+)
 
 _logger = logging.getLogger(__name__)
 
+
 class SocketStreamReader(StreamReader):
-    def __init__(self, config:dict={}):
+    def __init__(self, config: dict = {}):
         self._sock = None
-        self._read_timeout = config.get(AbortableThread.THREAD_BLOCKING_TIMEOUT, AbortableThread.THREAD_BLOCKING_TIMEOUT_DEFAULT)
+        self._read_timeout = config.get(
+            AbortableThread.THREAD_BLOCKING_TIMEOUT,
+            AbortableThread.THREAD_BLOCKING_TIMEOUT_DEFAULT,
+        )
         self._connected_event = threading.Event()
 
     @property
@@ -20,11 +32,11 @@ class SocketStreamReader(StreamReader):
         return self._sock
 
     @socket.setter
-    def socket(self, sock:socket):
+    def socket(self, sock: socket):
         self._sock = sock
         self._connected = bool(sock != None)
 
-    def read(self, msglen:int)->bytes:
+    def read(self, msglen: int) -> bytes:
 
         try:
             # Wait for the connection to be established.
@@ -39,13 +51,13 @@ class SocketStreamReader(StreamReader):
                 while bytes_recd < msglen:
                     chunk = self._sock.recv(min(msglen - bytes_recd, 2048))
                     if chunk == b'':
-                        raise ConnectionAbortedError("socket connection broken")
+                        raise ConnectionAbortedError('socket connection broken')
                     chunks.extend(chunk)
                     chunk_len = len(chunk)
                     bytes_recd = bytes_recd + chunk_len
 
                 res = bytearray(chunks)
-            
+
             return res
 
         except socket.timeout:
@@ -53,12 +65,12 @@ class SocketStreamReader(StreamReader):
 
         except OSError as e:
             if e.errno == errno.EBADF:
-                #Socket has been closed, probably from this side for some reason. Convert to ConnectionAbortedError.
-                raise ConnectionAbortedError("socket connection broken")
+                # Socket has been closed, probably from this side for some reason. Convert to ConnectionAbortedError.
+                raise ConnectionAbortedError('socket connection broken')
             else:
                 raise e
         except Exception:
-            # Log an exception here this way we can track other potential socket errors and 
+            # Log an exception here this way we can track other potential socket errors and
             # handle them specifcally like above.
             _logger.exception(None)
             raise
@@ -66,16 +78,17 @@ class SocketStreamReader(StreamReader):
     @property
     def _connected(self):
         raise NotImplementedError
-    
+
     @_connected.setter
-    def _connected(self, is_connected:bool):
+    def _connected(self, is_connected: bool):
         if is_connected:
             self._connected_event.set()
         else:
             self._connected_event.clear()
 
+
 class SocketStreamWriter(StreamWriter):
-    def __init__(self, config:dict={}):
+    def __init__(self, config: dict = {}):
         self._sock = None
 
     @property
@@ -83,10 +96,10 @@ class SocketStreamWriter(StreamWriter):
         return self._sock
 
     @socket.setter
-    def socket(self, sock:socket):
+    def socket(self, sock: socket):
         self._sock = sock
 
-    def write(self, buffer:bytes):
+    def write(self, buffer: bytes):
         try:
             self._sock.sendall(buffer)
         except Exception:
@@ -97,15 +110,32 @@ class SocketStreamWriter(StreamWriter):
 class TcpipTransport(TransportStream):
     ''' Tcpip transport base'''
 
-    def __init__(self, connection_name:str, url:str,  message_reader:MessageStreamReader, message_writer:MessageStreamWriter, config:dict={}):
+    def __init__(
+        self,
+        connection_name: str,
+        url: str,
+        message_reader: MessageStreamReader,
+        message_writer: MessageStreamWriter,
+        config: dict = {},
+    ):
         super().__init__(connection_name, url, message_reader, message_writer, config)
         self._stream_reader = SocketStreamReader(config)
         self._stream_writer = SocketStreamWriter(config)
 
-class TcpipClientTransportConnectionWorker(AbortableThread):
 
-    def __init__(self, connection_name:str, url:str, socket_stream_reader:SocketStreamReader, socket_stream_writer:SocketStreamWriter, config:dict={}):
-        super().__init__(name=f'{connection_name} tcpip client transport connection worker', config=config)
+class TcpipClientTransportConnectionWorker(AbortableThread):
+    def __init__(
+        self,
+        connection_name: str,
+        url: str,
+        socket_stream_reader: SocketStreamReader,
+        socket_stream_writer: SocketStreamWriter,
+        config: dict = {},
+    ):
+        super().__init__(
+            name=f'{connection_name} tcpip client transport connection worker',
+            config=config,
+        )
         self._connection_name = connection_name
         self._url = url
         self._config = config
@@ -127,7 +157,7 @@ class TcpipClientTransportConnectionWorker(AbortableThread):
         self._stream_reader._connected = False
         self._set_desired_state(TransportState.DISCONNECTED)
 
-    def _set_desired_state(self, state:TransportState):
+    def _set_desired_state(self, state: TransportState):
         if self._desired_state != state:
             self._desired_state = state
             self._state_change_event.set()
@@ -135,7 +165,7 @@ class TcpipClientTransportConnectionWorker(AbortableThread):
     def run(self):
 
         # This loop does three things.
-        # 1. Monitor the desired state and compare it to the actual state. If it's different call the 
+        # 1. Monitor the desired state and compare it to the actual state. If it's different call the
         # appropriate method to modify the state.
         # 2. Pop out of any blocking calls to test for a SystemExit exception so the thread can be
         # shutdown cleanly.
@@ -177,17 +207,16 @@ class TcpipClientTransportConnectionWorker(AbortableThread):
     @property
     def state(self):
         return self._state
-      
+
     def _get_url(self):
         return self._url
 
-    def _set_state(self, state:TransportState):
+    def _set_state(self, state: TransportState):
         self._state = state
         _logger.info(f'Connection state: {state}, url: {self._get_url()}')
         if state in (TransportState.CONNECTED, TransportState.DISCONNECTED):
-            #TODO[Giles]: Add ConnectionConnectedMessage or ConnectionDisconnectedMessage to the queue.
+            # TODO[Giles]: Add ConnectionConnectedMessage or ConnectionDisconnectedMessage to the queue.
             pass
-
 
     def _connect(self):
 
@@ -208,7 +237,9 @@ class TcpipClientTransportConnectionWorker(AbortableThread):
                 end_time = time.time() + float(connect_timeout or 0.0)
                 end_delay_time = time.time()
 
-                while self._desired_state == TransportState.CONNECTED and (connect_timeout == None or time.time() < end_time):
+                while self._desired_state == TransportState.CONNECTED and (
+                    connect_timeout == None or time.time() < end_time
+                ):
                     try:
                         if time.time() >= end_delay_time:
                             sock = socket.socket()
@@ -224,11 +255,15 @@ class TcpipClientTransportConnectionWorker(AbortableThread):
 
                     except socket.timeout:
                         if self._desired_state == TransportState.CONNECTED:
-                            _logger.info(f'Connection timeout: cannot connect to {url}, trying again in {connect_retry_delay} seconds')
+                            _logger.info(
+                                f'Connection timeout: cannot connect to {url}, trying again in {connect_retry_delay} seconds'
+                            )
                             end_delay_time = time.time() + connect_retry_delay
                     except ConnectionRefusedError:
                         if self._desired_state == TransportState.CONNECTED:
-                            _logger.info(f'Connection refused: cannot connect to {url}, trying again in {connect_retry_delay} seconds')
+                            _logger.info(
+                                f'Connection refused: cannot connect to {url}, trying again in {connect_retry_delay} seconds'
+                            )
                             end_delay_time = time.time() + connect_retry_delay
                     except Exception:
                         _logger.exception(None)
@@ -252,8 +287,12 @@ class TcpipClientTransportConnectionWorker(AbortableThread):
                     except OSError as e:
                         if e.errno == 57:
                             _logger.warning(f'No socket available to shutdown e: {e}')
-                            _logger.warning(f'No socket available to shutdown e.errno: {e.errno}')
-                            _logger.warning(f'No socket available to shutdown e.strerror: {e.strerror}')
+                            _logger.warning(
+                                f'No socket available to shutdown e.errno: {e.errno}'
+                            )
+                            _logger.warning(
+                                f'No socket available to shutdown e.strerror: {e.strerror}'
+                            )
                             _logger.warning('Continue on to close the socket')
                         else:
                             _logger.critical(f'WHY AM I HERE: {e}')
@@ -264,10 +303,10 @@ class TcpipClientTransportConnectionWorker(AbortableThread):
                         sock.close()
                 self._set_state(TransportState.DISCONNECTED)
             else:
-                _logger.debug("Not connected, ignoring disconnect request")
+                _logger.debug('Not connected, ignoring disconnect request')
 
     def _reconnect(self):
-        
+
         if self._desired_state == TransportState.RECONNECTED:
             self._desired_state = TransportState.DISCONNECTED
             self._state = TransportState.CONNECTED
@@ -276,12 +315,22 @@ class TcpipClientTransportConnectionWorker(AbortableThread):
             self._desired_state = TransportState.CONNECTED
             self._connect()
 
+
 class TcpipClientTransport(TcpipTransport):
     ''' Tcpip client transport '''
 
-    def __init__(self, connection_name:str, url:str, message_reader:MessageStreamReader, message_writer:MessageStreamWriter, config:dict={}):
+    def __init__(
+        self,
+        connection_name: str,
+        url: str,
+        message_reader: MessageStreamReader,
+        message_writer: MessageStreamWriter,
+        config: dict = {},
+    ):
         super().__init__(connection_name, url, message_reader, message_writer, config)
-        self._connection_worker = TcpipClientTransportConnectionWorker(connection_name, url, self._stream_reader, self._stream_writer, config)
+        self._connection_worker = TcpipClientTransportConnectionWorker(
+            connection_name, url, self._stream_reader, self._stream_writer, config
+        )
 
     def connect(self):
         self._connection_worker.connect()
@@ -300,4 +349,3 @@ class TcpipClientTransport(TcpipTransport):
 
     def wait(self):
         self._connection_worker.join()
-

@@ -1,16 +1,23 @@
+# -*- coding: utf-8 -*-
 import logging
 import coloredlogs
 import verboselogs
 from enum import Enum
 from pydhsfw.threads import AbortableThread
-from pydhsfw.messages import IncomingMessageQueue, OutgoingMessageQueue, MessageIn, MessageOut, MessageFactory
+from pydhsfw.messages import (
+    IncomingMessageQueue,
+    OutgoingMessageQueue,
+    MessageIn,
+    MessageOut,
+    MessageFactory,
+)
 from pydhsfw.transport import Transport
 
-#_logger = logging.getLogger(__name__)
+# _logger = logging.getLogger(__name__)
 _logger = verboselogs.VerboseLogger(__name__)
 
-class ConnectionMessage(MessageIn):
 
+class ConnectionMessage(MessageIn):
     def __init__(self, msg):
         super().__init__()
         self._msg = msg
@@ -18,25 +25,29 @@ class ConnectionMessage(MessageIn):
     def get_msg(self):
         return self._msg
 
+
 class ConnectionConnectedMessage(ConnectionMessage):
     def __init__(self, msg):
         super().__init__(msg)
+
 
 class ConnectionDisconnectedMessage(ConnectionMessage):
     def __init__(self, msg):
         super().__init__(msg)
 
+
 class ConnectionShutdownMessage(ConnectionMessage):
     def __init__(self, msg):
         super().__init__(msg)
 
-class MessageReader():
+
+class MessageReader:
     def read(self):
         pass
 
-class Connection:
 
-    def __init__(self, connection_name:str, url:str, config:dict={}):
+class Connection:
+    def __init__(self, connection_name: str, url: str, config: dict = {}):
         self._connection_name = connection_name
         self._url = url
         self._config = config
@@ -47,7 +58,7 @@ class Connection:
     def disconnect(self):
         pass
 
-    def send(self, msg:MessageOut):
+    def send(self, msg: MessageOut):
         """
         DO docstrings show stuff in MS VSCODE When I hover over the command?
         """
@@ -59,37 +70,47 @@ class Connection:
     def wait(self):
         pass
 
-class ConnectionRegistry():
+
+class ConnectionRegistry:
 
     _registry = {}
 
     @classmethod
-    def _register_connection(cls, connection_scheme:str, connection_cls: Connection):
-        cls._registry[connection_scheme]=connection_cls
+    def _register_connection(cls, connection_scheme: str, connection_cls: Connection):
+        cls._registry[connection_scheme] = connection_cls
 
     @classmethod
-    def _get_connection_class(cls, connection_scheme:str):
-        return cls._registry.get(connection_scheme, None)        
+    def _get_connection_class(cls, connection_scheme: str):
+        return cls._registry.get(connection_scheme, None)
 
     @classmethod
     def _get_connection_classes(cls):
         return cls._registry
 
-def register_connection(connection_scheme:str):
+
+def register_connection(connection_scheme: str):
     def decorator_register_connection(cls):
         cls._scheme = connection_scheme
         if connection_scheme and issubclass(cls, Connection):
             ConnectionRegistry._register_connection(connection_scheme, cls)
-        
+
         return cls
 
     return decorator_register_connection
 
 
 class ConnectionReadWorker(AbortableThread):
-    
-    def __init__(self, connection_name:str, transport:Transport, incoming_message_queue:IncomingMessageQueue, message_factory:MessageFactory, config:dict={}):
-        super().__init__(name=f'{connection_name} connection read worker', config=config)
+    def __init__(
+        self,
+        connection_name: str,
+        transport: Transport,
+        incoming_message_queue: IncomingMessageQueue,
+        message_factory: MessageFactory,
+        config: dict = {},
+    ):
+        super().__init__(
+            name=f'{connection_name} connection read worker', config=config
+        )
         self._connection_name = connection_name
         self._transport = transport
         self._msg_queue = incoming_message_queue
@@ -97,7 +118,7 @@ class ConnectionReadWorker(AbortableThread):
 
     def run(self):
 
-        # Only one thing to do here, read raw messages from the transport and translate them 
+        # Only one thing to do here, read raw messages from the transport and translate them
         # into messages using the message factory, then stick them on the incoming queue.
 
         try:
@@ -113,7 +134,7 @@ class ConnectionReadWorker(AbortableThread):
                             self._msg_queue.queue(msg)
 
                 except TimeoutError:
-                    #Socket read timed out. This is normal, it just means that no messages have been sent so we can ignore it.
+                    # Socket read timed out. This is normal, it just means that no messages have been sent so we can ignore it.
                     pass
                 except Exception:
                     # Log other exceptions so we can monitor and create special handlng if needed.
@@ -122,14 +143,22 @@ class ConnectionReadWorker(AbortableThread):
 
         except SystemExit:
             _logger.info(f'Shutdown signal received, exiting {self.name}')
-            
+
         finally:
             pass
 
+
 class ConnectionWriteWorker(AbortableThread):
-    
-    def __init__(self, connection_name:str, transport:Transport, outgoing_message_queue:OutgoingMessageQueue, config:dict={}):
-        super().__init__(name=f'{connection_name} connection write worker', config=config)
+    def __init__(
+        self,
+        connection_name: str,
+        transport: Transport,
+        outgoing_message_queue: OutgoingMessageQueue,
+        config: dict = {},
+    ):
+        super().__init__(
+            name=f'{connection_name} connection write worker', config=config
+        )
         self._connection_name = connection_name
         self._transport = transport
         self._msg_queue = outgoing_message_queue
@@ -144,13 +173,13 @@ class ConnectionWriteWorker(AbortableThread):
                     # Blocking call with timeout configured elsewhere. This will timeout to check for control messages, specifically SystemExit.
                     msg = self._msg_queue.fetch(self._get_blocking_timeout())
                     if msg:
-                        _logger.spam(f"Sending message: {msg}")
+                        _logger.spam(f'Sending message: {msg}')
                         buffer = msg.write()
-                        _logger.spam(f"Sending unpacked raw message: {buffer}")
+                        _logger.spam(f'Sending unpacked raw message: {buffer}')
                         self._transport.send(buffer)
 
                 except TimeoutError:
-                    #Socket read timed out. This is normal, it just means that no messages have been sent so we can ignore it.
+                    # Socket read timed out. This is normal, it just means that no messages have been sent so we can ignore it.
                     pass
                 except Exception:
                     # Log other exceptions so we can monitor and create special handlng if needed.
@@ -159,16 +188,30 @@ class ConnectionWriteWorker(AbortableThread):
 
         except SystemExit:
             _logger.info(f'Shutdown signal received, exiting {self.name}')
-            
+
         finally:
             pass
 
+
 class ConnectionBase(Connection):
-    def __init__(self, connection_name:str, url:str, transport:Transport, incoming_message_queue:IncomingMessageQueue, outgoing_message_queue:OutgoingMessageQueue, message_factory:MessageFactory, config:dict={}):
+    def __init__(
+        self,
+        connection_name: str,
+        url: str,
+        transport: Transport,
+        incoming_message_queue: IncomingMessageQueue,
+        outgoing_message_queue: OutgoingMessageQueue,
+        message_factory: MessageFactory,
+        config: dict = {},
+    ):
         super().__init__(url, config)
         self._transport = transport
-        self._read_worker = ConnectionReadWorker(connection_name, transport, incoming_message_queue, message_factory, config)
-        self._write_worker = ConnectionWriteWorker(connection_name, transport, outgoing_message_queue, config)
+        self._read_worker = ConnectionReadWorker(
+            connection_name, transport, incoming_message_queue, message_factory, config
+        )
+        self._write_worker = ConnectionWriteWorker(
+            connection_name, transport, outgoing_message_queue, config
+        )
         self._outgoing_message_queue = outgoing_message_queue
         self._transport.start()
         self._read_worker.start()
@@ -180,7 +223,7 @@ class ConnectionBase(Connection):
     def disconnect(self):
         self._transport.disconnect()
 
-    def send(self, msg:MessageOut):
+    def send(self, msg: MessageOut):
         self._outgoing_message_queue.queue(msg)
 
     def shutdown(self):
