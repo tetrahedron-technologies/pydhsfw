@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-from context import pydhsfw
 import logging
 import sys
 import time

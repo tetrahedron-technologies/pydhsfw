@@ -15,7 +15,7 @@ class TransportState(Enum):
 
 
 class Transport:
-    ''' Underlying bass class that all transports must derive from. '''
+    """ Underlying bass class that all transports must derive from. """
 
     def __init__(self, connection_name: str, url: str, config: dict = {}):
         self._connection_name = connection_name
@@ -23,11 +23,11 @@ class Transport:
         self._config = config
 
     def connect(self):
-        ''' Connects to the specified resource and maintains a persistent connection. '''
+        """ Connects to the specified resource and maintains a persistent connection. """
         pass
 
     def disconnect(self):
-        ''' Disconnects from a resource. '''
+        """ Disconnects from a resource. """
         pass
 
     def reconnect(self):

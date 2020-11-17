@@ -1,8 +1,6 @@
 # -*- coding: utf-8 -*-
 import base64
 import io
-import json
-from context import pydhsfw
 import logging
 import sys
 import time

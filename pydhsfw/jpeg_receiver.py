@@ -18,7 +18,6 @@ from pydhsfw.messages import (
     register_message,
 )
 from pydhsfw.connection import ConnectionBase, register_connection
-from pydhsfw.processors import register_message_handler
 from pydhsfw.http import (
     ContentType,
     FileServerRequestMessage,
@@ -221,8 +220,9 @@ class JpegReceiverTransportConnectionWorker(AbortableThread):
         finally:
             try:
                 self._disconnect()
-            except:
-                pass
+            except Exception:
+                _logger.exception(None)
+                raise
 
     def _connect(self):
         try:
@@ -244,7 +244,7 @@ class JpegReceiverTransportConnectionWorker(AbortableThread):
 
 
 class JpegReceiverServerTransport(Transport):
-    ''' Http server transport '''
+    """ Http server transport """
 
     def __init__(
         self,
@@ -265,7 +265,7 @@ class JpegReceiverServerTransport(Transport):
         )
 
     def send(self, msg: Any):
-        raise NotImplemented
+        raise NotImplementedError
 
     def receive(self) -> Request:
         try:

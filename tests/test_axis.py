@@ -1,10 +1,8 @@
 # -*- coding: utf-8 -*-
-from context import pydhsfw
 import logging
 import sys
 import time
 import signal
-from typing import Any
 from pydhsfw.processors import register_message_handler
 from pydhsfw.axis import AxisImageRequestMessage, AxisImageResponseMessage
 from pydhsfw.dhs import Dhs, DhsContext, DhsInit, DhsStart

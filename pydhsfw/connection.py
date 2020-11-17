@@ -1,8 +1,5 @@
 # -*- coding: utf-8 -*-
-import logging
-import coloredlogs
 import verboselogs
-from enum import Enum
 from pydhsfw.threads import AbortableThread
 from pydhsfw.messages import (
     IncomingMessageQueue,

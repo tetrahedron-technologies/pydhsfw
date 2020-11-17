@@ -34,7 +34,7 @@ class SocketStreamReader(StreamReader):
     @socket.setter
     def socket(self, sock: socket):
         self._sock = sock
-        self._connected = bool(sock != None)
+        self._connected = bool(sock is not None)
 
     def read(self, msglen: int) -> bytes:
 
@@ -108,7 +108,7 @@ class SocketStreamWriter(StreamWriter):
 
 
 class TcpipTransport(TransportStream):
-    ''' Tcpip transport base'''
+    """ Tcpip transport base"""
 
     def __init__(
         self,
@@ -201,7 +201,7 @@ class TcpipClientTransportConnectionWorker(AbortableThread):
         finally:
             try:
                 self._disconnect()
-            except:
+            except Exception:
                 pass
 
     @property
@@ -238,7 +238,7 @@ class TcpipClientTransportConnectionWorker(AbortableThread):
                 end_delay_time = time.time()
 
                 while self._desired_state == TransportState.CONNECTED and (
-                    connect_timeout == None or time.time() < end_time
+                    connect_timeout is None or time.time() < end_time
                 ):
                     try:
                         if time.time() >= end_delay_time:
@@ -317,7 +317,7 @@ class TcpipClientTransportConnectionWorker(AbortableThread):
 
 
 class TcpipClientTransport(TcpipTransport):
-    ''' Tcpip client transport '''
+    """ Tcpip client transport """
 
     def __init__(
         self,

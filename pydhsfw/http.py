@@ -252,11 +252,11 @@ class HttpClientTransportConnectionWorker(AbortableThread):
 
                 except gaierror as e:
                     _logger.error(
-                        f'Connection error, could not resolve hostname {urlparse(url).hostname}'
+                        f'Connection error {e}, could not resolve hostname {urlparse(url).hostname}'
                     )
                     self._set_state(TransportState.DISCONNECTED)
                 except exceptions.ConnectionError as e:
-                    _logger.error(f'Connection error, could not connect to {url}')
+                    _logger.error(f'Connection error {e}, could not connect to {url}')
                     self._set_state(TransportState.DISCONNECTED)
                 except Exception:
                     # Send all other exceptions to the log so we can analyse them to determine if
@@ -269,7 +269,7 @@ class HttpClientTransportConnectionWorker(AbortableThread):
         finally:
             try:
                 self._disconnect()
-            except:
+            except Exception:
                 pass
 
     @property
@@ -306,7 +306,7 @@ class HttpClientTransportConnectionWorker(AbortableThread):
                 end_delay_time = time.time()
 
                 while self._desired_state == TransportState.CONNECTED and (
-                    connect_timeout == None or time.time() < end_time
+                    connect_timeout is None or time.time() < end_time
                 ):
                     try:
                         if time.time() >= end_delay_time:
@@ -326,12 +326,14 @@ class HttpClientTransportConnectionWorker(AbortableThread):
                             end_delay_time = time.time() + connect_retry_delay
                     except gaierror as e:
                         _logger.error(
-                            f'Connection error, could not resolve hostname {urlparse(url).hostname}'
+                            f'Connection error {e}, could not resolve hostname {urlparse(url).hostname}'
                         )
                         self._set_state(TransportState.DISCONNECTED)
                         end_delay_time = time.time() + connect_retry_delay
                     except exceptions.ConnectionError as e:
-                        _logger.error(f'Connection error, could not connect to {url}')
+                        _logger.error(
+                            f'Connection error {e}, could not connect to {url}'
+                        )
                         self._set_state(TransportState.DISCONNECTED)
                         end_delay_time = time.time() + connect_retry_delay
                     except Exception:
@@ -386,7 +388,7 @@ class ResponseQueue(BlockingQueue[Response]):
 
 
 class HttpClientTransport(Transport):
-    ''' Http client transport '''
+    """ Http client transport """
 
     def __init__(
         self,

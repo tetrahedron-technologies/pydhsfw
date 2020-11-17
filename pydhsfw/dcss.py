@@ -25,8 +25,6 @@ _logger = logging.getLogger(__name__)
 # --------------------------------------------------------------------------
 # DCSS Message Base Classes
 class DcssMessageIn:
-    """DcssMessageIn Class"""
-
     def __init__(self, split):
         self._split_msg = split
 
@@ -72,8 +70,6 @@ class DcssStoCMessage(MessageIn, DcssMessageIn):
 
 
 class DcssMessageOut(MessageOut):
-    """DcssMessageOut Class"""
-
     def __init__(self):
         super().__init__()
         self._split_msg = None
@@ -620,9 +616,10 @@ class DcssStoHStartOperation(DcssStoCMessage):
     This message is accompanied by three arguments:
 
     1. the name of the operation to be started.
-    2. is a unique handle currently constructed by calling the create_operation_handle procedure in BLU-ICE. This currently creates a handle in the following format::
+    2. is a unique handle currently constructed by calling the create_operation_handle procedure in BLU-ICE.
+       This currently creates a handle in the following format:
 
-        clientNumber.operationCounter
+    clientNumber.operationCounter
 
     where clientNumber is a unique number provided by DCSS for each connected GUI or Hardware client.
     DCSS will reject an operation message if the clientNumber does not match the client.
@@ -731,7 +728,8 @@ class DcssHtoSOperationCompleted(DcssHtoSMessage):
     """Hardware To Server Operation Completed
 
     The message is used to indicate that an operation has been completed by this hardware server.
-    The general format of the message is::
+
+    The general format of the message is:
 
         htos_operation_completed operationName operationHandle status arguments
 

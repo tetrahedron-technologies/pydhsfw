@@ -59,7 +59,7 @@ def dhs_init(message: DhsInit, context: DhsContext):
         metavar='config_file',
     )
 
-    args = parser.parse_args(message.args)
+    # args = parser.parse_args(message.args)
     # print(args)
     # I'm not sure how to set a default logging level in argparse so will try this
     # if args.loglevel == None:

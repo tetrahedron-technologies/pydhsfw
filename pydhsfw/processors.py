@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 import logging
-from threading import Event
 from inspect import isfunction, signature, getsourcelines, getmodule
 from pydhsfw.threads import AbortableThread
 from pydhsfw.messages import IncomingMessageQueue, MessageIn
@@ -45,7 +44,7 @@ class MessageHandlerRegistry:
                 'The handler_function must have a named parameter "context" that is of type Context'
             )
 
-        if cls._registry.get(processor_name) == None:
+        if cls._registry.get(processor_name) is None:
             cls._registry[processor_name] = dict()
 
         cls._registry[processor_name][msg_type_id] = msg_handler_function

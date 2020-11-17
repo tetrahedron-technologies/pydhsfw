@@ -45,7 +45,7 @@ class MessageRegistry:
 
     @classmethod
     def _register_message(cls, factory_name: str, msg_cls: MessageIn):
-        if cls._registry.get(factory_name) == None:
+        if cls._registry.get(factory_name) is None:
             cls._registry[factory_name] = set()
 
         cls._registry[factory_name].add(msg_cls)

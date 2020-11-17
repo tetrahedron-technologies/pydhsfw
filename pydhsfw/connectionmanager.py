@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 import logging
 from inspect import getmodule, getsourcelines
-from urllib.parse import urlparse
 from pydhsfw.messages import OutgoingMessageQueue, IncomingMessageQueue
 from pydhsfw.connection import Connection, ConnectionRegistry
 
