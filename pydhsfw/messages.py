@@ -112,7 +112,7 @@ class MessageFactory:
         return self._create_message(type_id, raw_msg)
 
 
-T = TypeVar("T")
+T = TypeVar('T')
 
 
 class Queue(Generic[T]):

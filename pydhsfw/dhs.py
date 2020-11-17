@@ -59,7 +59,7 @@ class DhsContext(DcssContext):
             config,
         )
         if not conn:
-            _logger.error(f"Could not create a connection for {scheme}")
+            _logger.error(f'Could not create a connection for {scheme}')
 
         return conn
 
@@ -97,7 +97,7 @@ class DhsContext(DcssContext):
         self._state = state
 
 
-@register_message("dhs_init")
+@register_message('dhs_init')
 class DhsInit(MessageIn):
     def __init__(self, parser, args):
         super().__init__()
@@ -119,7 +119,7 @@ class DhsInit(MessageIn):
         return self.cmd_args
 
 
-@register_message("dhs_start")
+@register_message('dhs_start')
 class DhsStart(MessageIn):
     def __init__(self):
         super().__init__()
@@ -138,7 +138,7 @@ class Dhs:
             self._active_operations, self._conn_mgr, self._incoming_msg_queue
         )
         self._msg_disp = DcssMessageQueueDispatcher(
-            "default",
+            'default',
             self._incoming_msg_queue,
             self._context,
             self._active_operations,
@@ -154,7 +154,7 @@ class Dhs:
         # DHS writer can then handle in Dhs_Init to add Dhs specific parse elements.
         #
         # Send the DHSInit message now out of band of the normal message queue.
-        parser = argparse.ArgumentParser(description="DHS Distributed Hardware Server")
+        parser = argparse.ArgumentParser(description='DHS Distributed Hardware Server')
         self._msg_disp.process_message_now(DhsInit(parser, sys.argv[1:]))
 
     def start(self):
@@ -185,7 +185,7 @@ class Dhs:
             def handler(signal_received, frame):
                 # Handle any cleanup here
                 sig_e = _sig_map.get(signal_received)
-                _logger.info(f"{sig_e} detected. Exiting gracefully")
+                _logger.info(f'{sig_e} detected. Exiting gracefully')
                 self.shutdown()
 
             for sig in signal_set:

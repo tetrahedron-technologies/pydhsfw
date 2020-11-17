@@ -22,23 +22,23 @@ from pydhsfw.http import (
 _logger = logging.getLogger(__name__)
 
 
-@register_message("automl_predict_request")
+@register_message('automl_predict_request')
 class AutoMLPredictRequest(PostJsonRequestMessage):
     """Formats a json data package and sends to the GCP AutoML server for prediction."""
 
     def __init__(self, key: str, image: bytes):
 
-        encoded_image = base64.b64encode(image).decode("utf-8")
+        encoded_image = base64.b64encode(image).decode('utf-8')
 
         instances = {
-            "instances": [{"image_bytes": {"b64": str(encoded_image)}, "key": key}],
-            "params": [{"max_bounding_box_count": "10"}],
+            'instances': [{'image_bytes': {'b64': str(encoded_image)}, 'key': key}],
+            'params': [{'max_bounding_box_count': '10'}],
         }
 
-        super().__init__("/v1/models/default:predict", json=instances)
+        super().__init__('/v1/models/default:predict', json=instances)
 
 
-@register_message("automl_predict_response", "automl")
+@register_message('automl_predict_response', 'automl')
 class AutoMLPredictResponse(JsonResponseMessage):
     """Parses the response json file and stores various values the top hit in class properties."""
 
@@ -48,17 +48,17 @@ class AutoMLPredictResponse(JsonResponseMessage):
     def get_score(self, n: int) -> float:
         """Returns the AutoML inference score for the Nth object in a sorted results list"""
         # _logger.info(f'AutoMLPredictResponse function called with {n}')
-        return dotty(self.json)[f"predictions.0.detection_scores.{n}"]
+        return dotty(self.json)[f'predictions.0.detection_scores.{n}']
 
     @property
     def image_key(self):
-        return dotty(self.json)["predictions.0.key"]
+        return dotty(self.json)['predictions.0.key']
 
     @property
     def top_score(self):
         # might want to do some sort of filtering here?
         # only accept if score if better than 90% or something?
-        return dotty(self.json)["predictions.0.detection_scores.0"]
+        return dotty(self.json)['predictions.0.detection_scores.0']
 
     @property
     def top_bb(self):
@@ -77,32 +77,32 @@ class AutoMLPredictResponse(JsonResponseMessage):
         (0,1) Y-axis
 
         """
-        return dotty(self.json)["predictions.0.detection_boxes.0"]
+        return dotty(self.json)['predictions.0.detection_boxes.0']
 
     @property
     def bb_minY(self):
-        return dotty(self.json)["predictions.0.detection_boxes.0.0"]
+        return dotty(self.json)['predictions.0.detection_boxes.0.0']
 
     @property
     def bb_minX(self):
-        return dotty(self.json)["predictions.0.detection_boxes.0.1"]
+        return dotty(self.json)['predictions.0.detection_boxes.0.1']
 
     @property
     def bb_maxY(self):
-        return dotty(self.json)["predictions.0.detection_boxes.0.2"]
+        return dotty(self.json)['predictions.0.detection_boxes.0.2']
 
     @property
     def bb_maxX(self):
-        return dotty(self.json)["predictions.0.detection_boxes.0.3"]
+        return dotty(self.json)['predictions.0.detection_boxes.0.3']
 
     @property
     def top_classification(self):
-        return dotty(self.json)["predictions.0.detection_classes_as_text.0"]
+        return dotty(self.json)['predictions.0.detection_classes_as_text.0']
 
 
 class AutoMLMessageFactory(MessageFactory):
     def __init__(self):
-        super().__init__("automl")
+        super().__init__('automl')
 
     def _parse_type_id(self, response: Any):
         return ResponseMessage.parse_type_id(response)
@@ -121,7 +121,7 @@ class AutoMLClientTransport(HttpClientTransport):
         )
 
 
-@register_connection("automl")
+@register_connection('automl')
 class AutoMLClientConnection(ConnectionBase):
     """Overrides ConnectionBase and creates a GCP AutoML connection"""
 

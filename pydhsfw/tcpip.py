@@ -50,8 +50,8 @@ class SocketStreamReader(StreamReader):
                 bytes_recd = 0
                 while bytes_recd < msglen:
                     chunk = self._sock.recv(min(msglen - bytes_recd, 2048))
-                    if chunk == b"":
-                        raise ConnectionAbortedError("socket connection broken")
+                    if chunk == b'':
+                        raise ConnectionAbortedError('socket connection broken')
                     chunks.extend(chunk)
                     chunk_len = len(chunk)
                     bytes_recd = bytes_recd + chunk_len
@@ -66,7 +66,7 @@ class SocketStreamReader(StreamReader):
         except OSError as e:
             if e.errno == errno.EBADF:
                 # Socket has been closed, probably from this side for some reason. Convert to ConnectionAbortedError.
-                raise ConnectionAbortedError("socket connection broken")
+                raise ConnectionAbortedError('socket connection broken')
             else:
                 raise e
         except Exception:
@@ -133,7 +133,7 @@ class TcpipClientTransportConnectionWorker(AbortableThread):
         config: dict = {},
     ):
         super().__init__(
-            name=f"{connection_name} tcpip client transport connection worker",
+            name=f'{connection_name} tcpip client transport connection worker',
             config=config,
         )
         self._connection_name = connection_name
@@ -197,7 +197,7 @@ class TcpipClientTransportConnectionWorker(AbortableThread):
                     raise
 
         except SystemExit:
-            _logger.info(f"Shutdown signal received, exiting {self.name}")
+            _logger.info(f'Shutdown signal received, exiting {self.name}')
         finally:
             try:
                 self._disconnect()
@@ -213,7 +213,7 @@ class TcpipClientTransportConnectionWorker(AbortableThread):
 
     def _set_state(self, state: TransportState):
         self._state = state
-        _logger.info(f"Connection state: {state}, url: {self._get_url()}")
+        _logger.info(f'Connection state: {state}, url: {self._get_url()}')
         if state in (TransportState.CONNECTED, TransportState.DISCONNECTED):
             # TODO[Giles]: Add ConnectionConnectedMessage or ConnectionDisconnectedMessage to the queue.
             pass
@@ -225,8 +225,8 @@ class TcpipClientTransportConnectionWorker(AbortableThread):
             if self.state == TransportState.DISCONNECTED:
 
                 socket_timeout = self._get_blocking_timeout()
-                connect_timeout = self._config.get("connect_timeout", None)
-                connect_retry_delay = self._config.get("connect_retry_delay", 10)
+                connect_timeout = self._config.get('connect_timeout', None)
+                connect_retry_delay = self._config.get('connect_retry_delay', 10)
                 url = self._get_url()
                 uparts = urlparse(url)
 
@@ -256,13 +256,13 @@ class TcpipClientTransportConnectionWorker(AbortableThread):
                     except socket.timeout:
                         if self._desired_state == TransportState.CONNECTED:
                             _logger.info(
-                                f"Connection timeout: cannot connect to {url}, trying again in {connect_retry_delay} seconds"
+                                f'Connection timeout: cannot connect to {url}, trying again in {connect_retry_delay} seconds'
                             )
                             end_delay_time = time.time() + connect_retry_delay
                     except ConnectionRefusedError:
                         if self._desired_state == TransportState.CONNECTED:
                             _logger.info(
-                                f"Connection refused: cannot connect to {url}, trying again in {connect_retry_delay} seconds"
+                                f'Connection refused: cannot connect to {url}, trying again in {connect_retry_delay} seconds'
                             )
                             end_delay_time = time.time() + connect_retry_delay
                     except Exception:
@@ -270,7 +270,7 @@ class TcpipClientTransportConnectionWorker(AbortableThread):
                         self._set_state(TransportState.DISCONNECTED)
                         raise
             else:
-                _logger.debug("Already connected, ignoring connection request")
+                _logger.debug('Already connected, ignoring connection request')
 
     def _disconnect(self):
 
@@ -286,24 +286,24 @@ class TcpipClientTransportConnectionWorker(AbortableThread):
                         sock.shutdown(socket.SHUT_RDWR)
                     except OSError as e:
                         if e.errno == 57:
-                            _logger.warning(f"No socket available to shutdown e: {e}")
+                            _logger.warning(f'No socket available to shutdown e: {e}')
                             _logger.warning(
-                                f"No socket available to shutdown e.errno: {e.errno}"
+                                f'No socket available to shutdown e.errno: {e.errno}'
                             )
                             _logger.warning(
-                                f"No socket available to shutdown e.strerror: {e.strerror}"
+                                f'No socket available to shutdown e.strerror: {e.strerror}'
                             )
-                            _logger.warning("Continue on to close the socket")
+                            _logger.warning('Continue on to close the socket')
                         else:
-                            _logger.critical(f"WHY AM I HERE: {e}")
-                            _logger.critical(f"WHY AM I HERE: {e.errno}")
-                            _logger.critical(f"WHY AM I HERE: {e.strerror}")
+                            _logger.critical(f'WHY AM I HERE: {e}')
+                            _logger.critical(f'WHY AM I HERE: {e.errno}')
+                            _logger.critical(f'WHY AM I HERE: {e.strerror}')
                             raise
                     finally:
                         sock.close()
                 self._set_state(TransportState.DISCONNECTED)
             else:
-                _logger.debug("Not connected, ignoring disconnect request")
+                _logger.debug('Not connected, ignoring disconnect request')
 
     def _reconnect(self):
 

@@ -106,7 +106,7 @@ class ConnectionReadWorker(AbortableThread):
         config: dict = {},
     ):
         super().__init__(
-            name=f"{connection_name} connection read worker", config=config
+            name=f'{connection_name} connection read worker', config=config
         )
         self._connection_name = connection_name
         self._transport = transport
@@ -124,10 +124,10 @@ class ConnectionReadWorker(AbortableThread):
                     # Blocking call with timeout configured elsewhere. This will timeout to check for control messages, specifically SystemExit.
                     raw_msg = self._transport.receive()
                     if raw_msg:
-                        _logger.debug(f"Received unpacked raw message, {raw_msg}")
+                        _logger.debug(f'Received unpacked raw message, {raw_msg}')
                         msg = self._msg_factory.create_message(raw_msg)
                         if msg:
-                            _logger.debug(f"Received factory created message: {msg}")
+                            _logger.debug(f'Received factory created message: {msg}')
                             self._msg_queue.queue(msg)
 
                 except TimeoutError:
@@ -139,7 +139,7 @@ class ConnectionReadWorker(AbortableThread):
                     raise
 
         except SystemExit:
-            _logger.info(f"Shutdown signal received, exiting {self.name}")
+            _logger.info(f'Shutdown signal received, exiting {self.name}')
 
         finally:
             pass
@@ -154,7 +154,7 @@ class ConnectionWriteWorker(AbortableThread):
         config: dict = {},
     ):
         super().__init__(
-            name=f"{connection_name} connection write worker", config=config
+            name=f'{connection_name} connection write worker', config=config
         )
         self._connection_name = connection_name
         self._transport = transport
@@ -170,9 +170,9 @@ class ConnectionWriteWorker(AbortableThread):
                     # Blocking call with timeout configured elsewhere. This will timeout to check for control messages, specifically SystemExit.
                     msg = self._msg_queue.fetch(self._get_blocking_timeout())
                     if msg:
-                        _logger.spam(f"Sending message: {msg}")
+                        _logger.spam(f'Sending message: {msg}')
                         buffer = msg.write()
-                        _logger.spam(f"Sending unpacked raw message: {buffer}")
+                        _logger.spam(f'Sending unpacked raw message: {buffer}')
                         self._transport.send(buffer)
 
                 except TimeoutError:
@@ -184,7 +184,7 @@ class ConnectionWriteWorker(AbortableThread):
                     raise
 
         except SystemExit:
-            _logger.info(f"Shutdown signal received, exiting {self.name}")
+            _logger.info(f'Shutdown signal received, exiting {self.name}')
 
         finally:
             pass

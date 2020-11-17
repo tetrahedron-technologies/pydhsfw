@@ -12,19 +12,19 @@ class TestThread(AbortableThread):
         # target function of the thread class
         try:
             while True:
-                print("running " + self.name)
+                print('running ' + self.name)
                 time.sleep(0.25)
         except SystemExit:
-            print("exception")
+            print('exception')
         finally:
             self.cleanup()
-            print("ended")
+            print('ended')
 
     def cleanup(self):
-        print("cleanup")
+        print('cleanup')
 
 
-t1 = TestThread("Thread 1")
+t1 = TestThread('Thread 1')
 t1.start()
 time.sleep(1)
 t1.abort()

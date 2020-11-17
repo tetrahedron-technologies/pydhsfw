@@ -20,13 +20,13 @@ from pydhsfw.http import (
 _logger = logging.getLogger(__name__)
 
 
-@register_message("axis_image_request")
+@register_message('axis_image_request')
 class AxisImageRequestMessage(GetRequestMessage):
     def __init__(self, camera: str):
-        super().__init__("/axis-cgi/jpg/image.cgi", camera)
+        super().__init__('/axis-cgi/jpg/image.cgi', camera)
 
 
-@register_message("axis_image_response", "axis")
+@register_message('axis_image_response', 'axis')
 class AxisImageResponseMessage(FileResponseMessage):
     def __init__(self, response):
         super().__init__(response)
@@ -34,7 +34,7 @@ class AxisImageResponseMessage(FileResponseMessage):
 
 class AxisMessageFactory(MessageFactory):
     def __init__(self):
-        super().__init__("axis")
+        super().__init__('axis')
 
     def _parse_type_id(self, response: Any):
         return ResponseMessage.parse_type_id(response)
@@ -53,7 +53,7 @@ class AxisClientTransport(HttpClientTransport):
         )
 
 
-@register_connection("axis")
+@register_connection('axis')
 class AxisClientConnection(ConnectionBase):
     """Overrides ConnectionBase and creates an HTTP Axis connection"""
 

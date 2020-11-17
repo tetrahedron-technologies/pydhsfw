@@ -181,7 +181,7 @@ class TransportStream(Transport):
         except ConnectionAbortedError:
             # Connection is lost because the socket was closed, probably from the other side.
             # Block the socket event and queue a reconnect message.
-            _logger.warning("Connection lost, attempting to reconnect")
+            _logger.warning('Connection lost, attempting to reconnect')
             self.reconnect()
 
     def receive(self):
@@ -193,5 +193,5 @@ class TransportStream(Transport):
         except ConnectionAbortedError:
             # Connection is lost because the socket was closed, probably from the other side.
             # Block the socket event and queue a reconnect message.
-            _logger.warning("Connection lost, attempting to reconnect")
+            _logger.warning('Connection lost, attempting to reconnect')
             self.reconnect()

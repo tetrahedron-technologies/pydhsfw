@@ -39,7 +39,7 @@ class ConnectionManager:
         conn = None
 
         if name in self._connections.keys():
-            raise ValueError("Connection name already exists")
+            raise ValueError('Connection name already exists')
 
         conn = self._connection_factory.create_connection(
             name, scheme, url, incoming_message_queue, outgoing_message_queue, config
@@ -72,7 +72,7 @@ class ConnectionFactory:
             lineno = getsourcelines(conn_cls)[1]
             module = getmodule(conn_cls)
             _logger.info(
-                f"Registered connection class: {scheme}, {module.__name__}:{conn_cls.__name__}():{lineno} with connection registry"
+                f'Registered connection class: {scheme}, {module.__name__}:{conn_cls.__name__}():{lineno} with connection registry'
             )
 
     def create_connection(

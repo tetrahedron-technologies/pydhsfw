@@ -29,11 +29,11 @@ class DcssMessageIn:
         self._split_msg = split
 
     def __str__(self):
-        return " ".join(self._split_msg)
+        return ' '.join(self._split_msg)
 
     @staticmethod
     def _split(buffer: bytes):
-        return buffer.decode("ascii").rstrip("\n\r\x00").split(" ")
+        return buffer.decode('ascii').rstrip('\n\r\x00').split(' ')
 
     @staticmethod
     def parse_type_id(buffer: bytes):
@@ -79,13 +79,13 @@ class DcssMessageOut(MessageOut):
         self._split_msg = None
 
     def __str__(self):
-        return " ".join(self._split_msg)
+        return ' '.join(self._split_msg)
 
     def write(self) -> bytes:
         buffer = None
 
         if self._split_msg:
-            buffer = " ".join(self._split_msg).encode("ascii")
+            buffer = ' '.join(self._split_msg).encode('ascii')
 
         return buffer
 
@@ -97,7 +97,7 @@ class DcssHtoSMessage(DcssMessageOut):
 
 # --------------------------------------------------------------------------
 # Messages Incoming from DCSS
-@register_message("stoc_send_client_type", "dcss")
+@register_message('stoc_send_client_type', 'dcss')
 class DcssStoCSendClientType(DcssStoCMessage):
     """The initial command received from DCSS.
 
@@ -119,7 +119,7 @@ class DcssStoCSendClientType(DcssStoCMessage):
         super().__init__(split)
 
 
-@register_message("stoh_register_operation", "dcss")
+@register_message('stoh_register_operation', 'dcss')
 class DcssStoHRegisterOperation(DcssStoCMessage):
     """Server To Hardware Register Operation
 
@@ -150,7 +150,7 @@ class DcssStoHRegisterOperation(DcssStoCMessage):
         return self.args[1]
 
 
-@register_message("stoh_register_real_motor", "dcss")
+@register_message('stoh_register_real_motor', 'dcss')
 class DcssStoHRegisterRealMotor(DcssStoCMessage):
     """Server To Hardware Register Real Motor
 
@@ -175,7 +175,7 @@ class DcssStoHRegisterRealMotor(DcssStoCMessage):
         return self.args[1]
 
 
-@register_message("stoh_register_pseudo_motor", "dcss")
+@register_message('stoh_register_pseudo_motor', 'dcss')
 class DcssStoHRegisterPseudoMotor(DcssStoCMessage):
     """Server To Hardware Register Pseudo Motor
 
@@ -198,7 +198,7 @@ class DcssStoHRegisterPseudoMotor(DcssStoCMessage):
         return self.get_args()[1]
 
 
-@register_message("stoh_register_string", "dcss")
+@register_message('stoh_register_string', 'dcss')
 class DcssStoHRegisterString(DcssStoCMessage):
     """Server To Hardware Register String
 
@@ -223,7 +223,7 @@ class DcssStoHRegisterString(DcssStoCMessage):
         return self.args[1]
 
 
-@register_message("stoh_register_shutter", "dcss")
+@register_message('stoh_register_shutter', 'dcss')
 class DcssStoHRegisterShutter(DcssStoCMessage):
     """Server To Hardware Register Shutter
 
@@ -253,7 +253,7 @@ class DcssStoHRegisterShutter(DcssStoCMessage):
         return self.args[2]
 
 
-@register_message("stoh_register_ion_chamber", "dcss")
+@register_message('stoh_register_ion_chamber', 'dcss')
 class DcssStoHRegisterIonChamber(DcssStoCMessage):
     """Server To Hardware Register Ion Chamber
 
@@ -293,7 +293,7 @@ class DcssStoHRegisterIonChamber(DcssStoCMessage):
         return self.args[4]
 
 
-@register_message("stoh_register_encoder", "dcss")
+@register_message('stoh_register_encoder', 'dcss')
 class DcssStoHRegisterEncoder(DcssStoCMessage):
     """Server To Hardware Register Encoder
 
@@ -318,7 +318,7 @@ class DcssStoHRegisterEncoder(DcssStoCMessage):
         return self.args[1]
 
 
-@register_message("stoh_register_object", "dcss")
+@register_message('stoh_register_object', 'dcss')
 class DcssStoHRegisterObject(DcssStoCMessage):
     """Server to Hardware Register Object
 
@@ -337,7 +337,7 @@ class DcssStoHRegisterObject(DcssStoCMessage):
         return self.args[1]
 
 
-@register_message("stoh_configure_real_motor", "dcss")
+@register_message('stoh_configure_real_motor', 'dcss')
 class DcssStoHConfigureRealMotor(DcssStoCMessage):
     """Server To Hardware Configure Real Motor
 
@@ -415,7 +415,7 @@ class DcssStoHConfigureRealMotor(DcssStoCMessage):
         return self.args[12]
 
 
-@register_message("stoh_configure_pseudo_motor", "dcss")
+@register_message('stoh_configure_pseudo_motor', 'dcss')
 class DcssStoHConfigurePseudoMotor(DcssStoCMessage):
     """Server To Hardware Configure Pseudo Motor
 
@@ -463,7 +463,7 @@ class DcssStoHConfigurePseudoMotor(DcssStoCMessage):
         return self.args[6]
 
 
-@register_message("stoh_set_motor_position", "dcss")
+@register_message('stoh_set_motor_position', 'dcss')
 class DcssStoHSetMotorPosition(DcssStoCMessage):
     """Server To Hardware Set Motor Position
 
@@ -486,7 +486,7 @@ class DcssStoHSetMotorPosition(DcssStoCMessage):
         return self.args[1]
 
 
-@register_message("stoh_start_motor_move", "dcss")
+@register_message('stoh_start_motor_move', 'dcss')
 class DcssStoHStartMotorMove(DcssStoCMessage):
     """This is a command to start a motor move.
 
@@ -510,7 +510,7 @@ class DcssStoHStartMotorMove(DcssStoCMessage):
         return self.args[1]
 
 
-@register_message("stoh_abort_all", "dcss")
+@register_message('stoh_abort_all', 'dcss')
 class DcssStoHAbortAll(DcssStoCMessage):
     """Server To Hardware Abort All
 
@@ -533,7 +533,7 @@ class DcssStoHAbortAll(DcssStoCMessage):
         return self.args[0]
 
 
-@register_message("stoh_correct_motor_position", "dcss")
+@register_message('stoh_correct_motor_position', 'dcss')
 class DcssStoHCorrectMotorPosition(DcssStoCMessage):
     """Server To Hardware Correct Motor Position
 
@@ -557,7 +557,7 @@ class DcssStoHCorrectMotorPosition(DcssStoCMessage):
         return self.args[1]
 
 
-@register_message("stoh_set_motor_dependency", "dcss")
+@register_message('stoh_set_motor_dependency', 'dcss')
 class DcssStoHSetMotorDependency(DcssStoCMessage):
     """Server To Hardware Set Motor Dependency"""
 
@@ -573,7 +573,7 @@ class DcssStoHSetMotorDependency(DcssStoCMessage):
         return self.args[1:]
 
 
-@register_message("stoh_set_motor_children", "dcss")
+@register_message('stoh_set_motor_children', 'dcss')
 class DcssStoHSetMotorChildren(DcssStoCMessage):
     """Server To Hardware Set Motor Children"""
 
@@ -589,7 +589,7 @@ class DcssStoHSetMotorChildren(DcssStoCMessage):
         return self.args[1:]
 
 
-@register_message("stoh_set_shutter_state", "dcss")
+@register_message('stoh_set_shutter_state', 'dcss')
 class DcssStoHSetShutterState(DcssStoCMessage):
     """Server To Hardware Set Shutter State
 
@@ -611,7 +611,7 @@ class DcssStoHSetShutterState(DcssStoCMessage):
         return self.args[1]
 
 
-@register_message("stoh_start_operation", "dcss")
+@register_message('stoh_start_operation', 'dcss')
 class DcssStoHStartOperation(DcssStoCMessage):
     """Server To Hardware Start Operation
 
@@ -653,7 +653,7 @@ class DcssStoHStartOperation(DcssStoCMessage):
 
 # --------------------------------------------------------------------------
 # Messages Outgoing to DCSS (Hardware TO Server)
-@register_message("htos_client_is_hardware")
+@register_message('htos_client_is_hardware')
 class DcssHtoSClientIsHardware(DcssHtoSMessage):
     """Hardware To Server Clinet Is Hardware
 
@@ -675,7 +675,7 @@ class DcssHtoSClientIsHardware(DcssHtoSMessage):
         self._split_msg = [self.get_type_id(), dhs_name]
 
 
-@register_message("htos_motor_move_started")
+@register_message('htos_motor_move_started')
 class DcssHtoSMotorMoveStarted(DcssHtoSMessage):
     """Hardware To Server Motor Move Started
 
@@ -697,7 +697,7 @@ class DcssHtoSMotorMoveStarted(DcssHtoSMessage):
         self._split_msg = [self.get_type_id(), motor_name, new_position]
 
 
-@register_message("htos_motor_move_completed")
+@register_message('htos_motor_move_completed')
 class DcssHtoSMotorMoveCompleted(DcssHtoSMessage):
     """Hardware To Server Motor Move Completed
 
@@ -727,7 +727,7 @@ class DcssHtoSMotorMoveCompleted(DcssHtoSMessage):
         self._split_msg = [self.get_type_id(), motor_name, new_position, state]
 
 
-@register_message("htos_operation_completed")
+@register_message('htos_operation_completed')
 class DcssHtoSOperationCompleted(DcssHtoSMessage):
     """Hardware To Server Operation Completed
 
@@ -763,7 +763,7 @@ class DcssHtoSOperationCompleted(DcssHtoSMessage):
         ]
 
 
-@register_message("htos_operation_update")
+@register_message('htos_operation_update')
 class DcssHtoSOperationUpdate(DcssHtoSMessage):
     """Hardware To Server Operation Update
 
@@ -794,7 +794,7 @@ class DcssHtoSOperationUpdate(DcssHtoSMessage):
         ]
 
 
-@register_message("htos_start_operation")
+@register_message('htos_start_operation')
 class DcssHtoSStartOperation(DcssHtoSMessage):
     """Hardware To Server Start Operation"""
 
@@ -803,7 +803,7 @@ class DcssHtoSStartOperation(DcssHtoSMessage):
         self._split_msg = [self.get_type_id(), operation_info]
 
 
-@register_message("htos_update_motor_position")
+@register_message('htos_update_motor_position')
 class DcssHtoSUpdateMotorPosition(DcssHtoSMessage):
     """Hardware To Server Update Motor Position"""
 
@@ -812,7 +812,7 @@ class DcssHtoSUpdateMotorPosition(DcssHtoSMessage):
         self._split_msg = [self.get_type_id(), motor_name, new_position, status]
 
 
-@register_message("htos_report_ion_chambers")
+@register_message('htos_report_ion_chambers')
 class DcssHtoSReportIonChamber(DcssHtoSMessage):
     """Hardware To Server Report Ion Chamber
 
@@ -836,7 +836,7 @@ class DcssHtoSReportIonChamber(DcssHtoSMessage):
         self._split_msg = [self.get_type_id(), ion_chamber_counts]
 
 
-@register_message("htos_configure_device")
+@register_message('htos_configure_device')
 class DcssHtoSConfigureDevice(DcssHtoSMessage):
     """Hardware To Server Configure Device
 
@@ -883,7 +883,7 @@ class DcssHtoSConfigureDevice(DcssHtoSMessage):
         self._split_msg = [self.get_type_id(), device_name, device_settings]
 
 
-@register_message("htos_send_configuration")
+@register_message('htos_send_configuration')
 class DcssHtoSSendConfiguration(DcssHtoSMessage):
     """Hardware To Server Send Configuration
 
@@ -904,7 +904,7 @@ class DcssHtoSSendConfiguration(DcssHtoSMessage):
         self._split_msg = [self.get_type_id(), device_name]
 
 
-@register_message("htos_report_shutter_state")
+@register_message('htos_report_shutter_state')
 class DcssHtoSReportShutterState(DcssHtoSMessage):
     """Hardware To Server Report Shutter State
 
@@ -927,7 +927,7 @@ class DcssHtoSReportShutterState(DcssHtoSMessage):
         self._split_msg = [self.get_type_id(), shutter_name, state, result]
 
 
-@register_message("htos_limit_hit")
+@register_message('htos_limit_hit')
 class DcssHtoSLimitHit(DcssHtoSMessage):
     """Hardware To Server Limit Hit"""
 
@@ -936,7 +936,7 @@ class DcssHtoSLimitHit(DcssHtoSMessage):
         self._split_msg = [self.get_type_id(), state]
 
 
-@register_message("htos_simulating_device")
+@register_message('htos_simulating_device')
 class DcssHtoSSimulatingDevice(DcssHtoSMessage):
     """Hardware To Server Simulating Device"""
 
@@ -945,7 +945,7 @@ class DcssHtoSSimulatingDevice(DcssHtoSMessage):
         self._split_msg = [self.get_type_id(), state]
 
 
-@register_message("htos_motor_correct_started")
+@register_message('htos_motor_correct_started')
 class DcssHtoSMotorCorrectStarted(DcssHtoSMessage):
     """Hardware To Server Motor Correct Started"""
 
@@ -954,7 +954,7 @@ class DcssHtoSMotorCorrectStarted(DcssHtoSMessage):
         self._split_msg = [self.get_type_id(), state]
 
 
-@register_message("htos_get_encoder_completed")
+@register_message('htos_get_encoder_completed')
 class DcssHtoSGetEncoderCompleted(DcssHtoSMessage):
     """Hardware To Server Get Encoder Completed"""
 
@@ -963,7 +963,7 @@ class DcssHtoSGetEncoderCompleted(DcssHtoSMessage):
         self._split_msg = [self.get_type_id(), encoder_name, new_position, status]
 
 
-@register_message("htos_set_encoder_completed")
+@register_message('htos_set_encoder_completed')
 class DcssHtoSSetEncoderCompleted(DcssHtoSMessage):
     """Hardware To Server Set Encoder Completed"""
 
@@ -972,7 +972,7 @@ class DcssHtoSSetEncoderCompleted(DcssHtoSMessage):
         self._split_msg = [self.get_type_id(), encoder_name, new_position, status]
 
 
-@register_message("htos_set_string_completed")
+@register_message('htos_set_string_completed')
 class DcssHtoSSetStringCompleted(DcssHtoSMessage):
     """Hardware To Server Set String Completed"""
 
@@ -981,7 +981,7 @@ class DcssHtoSSetStringCompleted(DcssHtoSMessage):
         self._split_msg = [self.get_type_id(), string_name, status]
 
 
-@register_message("htos_note")
+@register_message('htos_note')
 class DcssHtoSNote(DcssHtoSMessage):
     """Hardware To Server Note"""
 
@@ -990,7 +990,7 @@ class DcssHtoSNote(DcssHtoSMessage):
         self._split_msg = [self.get_type_id(), note_message]
 
 
-@register_message("htos_log")
+@register_message('htos_log')
 class DcssHtoSLog(DcssHtoSMessage):
     """Hardware To Server Log"""
 
@@ -999,7 +999,7 @@ class DcssHtoSLog(DcssHtoSMessage):
         self._split_msg = [self.get_type_id(), log_message]
 
 
-@register_message("htos_set_motor_message")
+@register_message('htos_set_motor_message')
 class DcssHtoSSetMotorMessage(DcssHtoSMessage):
     """Hardware To Server Set Motor Message"""
 
@@ -1011,7 +1011,7 @@ class DcssHtoSSetMotorMessage(DcssHtoSMessage):
 # Message Factory
 class DcssMessageFactory(MessageFactory):
     def __init__(self):
-        super().__init__("dcss")
+        super().__init__('dcss')
 
     def _parse_type_id(self, raw_msg: bytes):
         return DcssMessageIn.parse_type_id(raw_msg)
@@ -1023,8 +1023,8 @@ class DcssDhsV1MessageReader(MessageStreamReader):
 
     def read_msg(self, stream_reader: StreamReader) -> bytes:
         packed = stream_reader.read(200)
-        _logger.debug(f"Received packed raw message: {packed}")
-        return packed.decode("ascii").rstrip("\n\r\x00").encode("ascii")
+        _logger.debug(f'Received packed raw message: {packed}')
+        return packed.decode('ascii').rstrip('\n\r\x00').encode('ascii')
 
 
 class DcssDhsV1MessageWriter(MessageStreamWriter):
@@ -1032,8 +1032,8 @@ class DcssDhsV1MessageWriter(MessageStreamWriter):
         pass
 
     def write_msg(self, stream_writer: StreamWriter, msg: bytes):
-        packed = msg.decode("ascii").ljust(200, "\x00").encode("ascii")
-        _logger.debug(f"Sending packed raw message: {packed}")
+        packed = msg.decode('ascii').ljust(200, '\x00').encode('ascii')
+        _logger.debug(f'Sending packed raw message: {packed}')
         stream_writer.write(packed)
 
 
@@ -1049,7 +1049,7 @@ class DcssDhsV2MessageReaderWriter(MessageStreamReader, MessageStreamWriter):
 
         header = stream_reader.read(26)
         packed = header
-        hdr_str = header.decode("ascii").rstrip("\x00\r\n").split()
+        hdr_str = header.decode('ascii').rstrip('\x00\r\n').split()
         if hdr_str[0].isnumeric():
             text_size = int(hdr_str[0])
             bin_size = int(hdr_str[1])
@@ -1067,24 +1067,24 @@ class DcssDhsV2MessageReaderWriter(MessageStreamReader, MessageStreamWriter):
             unpacked = packed
             self._version = 1
 
-        _logger.debug(f"Received packed raw message version {self._version}: {packed}")
+        _logger.debug(f'Received packed raw message version {self._version}: {packed}')
 
-        return unpacked.decode("ascii").rstrip("\n\r\x00").encode("ascii")
+        return unpacked.decode('ascii').rstrip('\n\r\x00').encode('ascii')
 
     def write_msg(self, stream_writer: StreamWriter, msg: bytes):
 
         packed = None
         if self._version == 2:
-            msg_str = msg.decode("ascii").rstrip("\r\n\x00") + " \x00"
-            msg_text_buf = msg_str.encode("ascii")
+            msg_str = msg.decode('ascii').rstrip('\r\n\x00') + ' \x00'
+            msg_text_buf = msg_str.encode('ascii')
             msg_text_len = len(msg_text_buf)
-            msg_header = str(msg_text_len).rjust(12) + str(0).rjust(13) + " "
-            msg_hdr_buf = msg_header.encode("ascii")
+            msg_header = str(msg_text_len).rjust(12) + str(0).rjust(13) + ' '
+            msg_hdr_buf = msg_header.encode('ascii')
             packed = msg_hdr_buf + msg_text_buf
         else:
-            packed = msg.decode("ascii").ljust(200, "\x00").encode("ascii")
+            packed = msg.decode('ascii').ljust(200, '\x00').encode('ascii')
 
-        _logger.debug(f"Sending packed raw message version {self._version}: {packed}")
+        _logger.debug(f'Sending packed raw message version {self._version}: {packed}')
         stream_writer.write(packed)
 
 
@@ -1100,7 +1100,7 @@ class DcssClientTransport(TcpipClientTransport):
         )
 
 
-@register_connection("dcss")
+@register_connection('dcss')
 class DcssClientConnection(ConnectionBase):
     def __init__(
         self,
@@ -1123,7 +1123,7 @@ class DcssClientConnection(ConnectionBase):
 
 class DcssOperationHandlerRegistry:
 
-    _default_processor_name = "default"
+    _default_processor_name = 'default'
     _registry = {}
 
     @classmethod
@@ -1134,16 +1134,16 @@ class DcssOperationHandlerRegistry:
             processor_name = cls._default_processor_name
 
         if not isfunction(operation_handler_function):
-            raise TypeError("handler_function must be a function")
+            raise TypeError('handler_function must be a function')
 
         hf_sig = signature(operation_handler_function)
-        msg_param = hf_sig.parameters.get("message")
+        msg_param = hf_sig.parameters.get('message')
         if not issubclass(msg_param.annotation, DcssStoHStartOperation):
             raise TypeError(
                 'The handler_function must have a named parameter "message" that is of type DcssStoHStartOperation'
             )
 
-        ctx_param = hf_sig.parameters.get("context")
+        ctx_param = hf_sig.parameters.get('context')
         if not issubclass(ctx_param.annotation, DcssContext):
             raise TypeError(
                 'The handler_function must have a named parameter "context" that is of type DcssContext'
@@ -1323,7 +1323,7 @@ class DcssMessageQueueDispatcher(MessageQueueDispatcher):
             lineno = getsourcelines(func)[1]
             module = getmodule(func)
             _logger.debug(
-                f"Registered start operation handler: {op_name}, {module.__name__}:{func.__name__}():{lineno} with {self._disp_name} dispatcher"
+                f'Registered start operation handler: {op_name}, {module.__name__}:{func.__name__}():{lineno} with {self._disp_name} dispatcher'
             )
 
     def process_message(self, message: MessageIn):

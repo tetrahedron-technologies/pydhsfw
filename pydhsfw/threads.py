@@ -8,7 +8,7 @@ _logger = logging.getLogger(__name__)
 
 class AbortableThread(threading.Thread):
 
-    THREAD_BLOCKING_TIMEOUT = "thread_blocking_timeout"
+    THREAD_BLOCKING_TIMEOUT = 'thread_blocking_timeout'
     THREAD_BLOCKING_TIMEOUT_DEFAULT = 5.0
 
     def __init__(
@@ -43,7 +43,7 @@ class AbortableThread(threading.Thread):
 
         thread = threading._active.get(thread_id)
         if thread:
-            _logger.info(f"Sending SystemExit exceptions to: {thread.name}")
+            _logger.info(f'Sending SystemExit exceptions to: {thread.name}')
             res = ctypes.pythonapi.PyThreadState_SetAsyncExc(
                 ctypes.c_ulong(thread_id), ctypes.py_object(SystemExit)
             )
@@ -51,4 +51,4 @@ class AbortableThread(threading.Thread):
                 ctypes.pythonapi.PyThreadState_SetAsyncExc(
                     ctypes.c_ulong(thread_id), None
                 )
-                print("Exception raise failure")
+                print('Exception raise failure')

@@ -41,7 +41,7 @@ class JpegReceiverMessageRequestReader(ServerMessageRequestReader):
             if content_type in (ContentType.JPEG.value, ContentType.PNG.value):
                 request.headers[
                     Headers.DHS_REQUEST_TYPE_ID.value
-                ] = "jpeg_receiver_image_post_request"
+                ] = 'jpeg_receiver_image_post_request'
         elif request.method == RequestVerb.GET:
             pass
 
@@ -53,7 +53,7 @@ class JpegReceiverRequestHandler(http.server.BaseHTTPRequestHandler):
         self._request_queue = request_queue
         super().__init__(*args, **kwargs)
 
-    protocol_version = "HTTP/1.1"
+    protocol_version = 'HTTP/1.1'
     timeout = 5
 
     def do_POST(self):
@@ -66,25 +66,25 @@ class JpegReceiverRequestHandler(http.server.BaseHTTPRequestHandler):
         data = bytes()
         while remainingbytes > 0:
             chunk = self.rfile.read(remainingbytes)
-            if chunk == b"":
+            if chunk == b'':
                 break
             data += chunk
             remainingbytes -= len(chunk)
 
         self.send_response(HTTPStatus.OK)
-        self.send_header("Connection", "close")
+        self.send_header('Connection', 'close')
         self.end_headers()
 
         request = Request(
-            method="POST", url=self.path, headers=dict(self.headers), data=data
+            method='POST', url=self.path, headers=dict(self.headers), data=data
         )
         self._request_queue.queue(request)
 
     def log_message(self, format: str, *args: Any) -> None:
-        _logger.debug("%s - %s" % (self.address_string(), format % args))
+        _logger.debug('%s - %s' % (self.address_string(), format % args))
 
     def log_error(self, format: str, *args: Any) -> None:
-        _logger.error("%s - %s" % (self.address_string(), format % args))
+        _logger.error('%s - %s' % (self.address_string(), format % args))
 
     def handle_expect_100(self):
         self.log_request(HTTPStatus.CONTINUE)
@@ -95,7 +95,7 @@ class JpegReceiverRequestHandler(http.server.BaseHTTPRequestHandler):
 
 # Need special handling for disconnecting then connecting for the HTTPServer class. Needed to derive from
 # and override some methods.
-if hasattr(selectors, "PollSelector"):
+if hasattr(selectors, 'PollSelector'):
     _Selector = selectors.PollSelector
 else:
     _Selector = selectors.SelectSelector
@@ -161,7 +161,7 @@ class JpegReceiverTransportConnectionWorker(AbortableThread):
         config: dict = {},
     ):
         super().__init__(
-            name=f"{connection_name} jpeg receiver transport connection worker",
+            name=f'{connection_name} jpeg receiver transport connection worker',
             config=config,
         )
         self._connection_name = connection_name
@@ -173,7 +173,7 @@ class JpegReceiverTransportConnectionWorker(AbortableThread):
         self._request_queue = request_queue
         request_hander = partial(JpegReceiverRequestHandler, self._request_queue)
         self._http_server = HttpAbortableServer(
-            ("", urlparse(url).port), request_hander
+            ('', urlparse(url).port), request_hander
         )
 
     def connect(self):
@@ -216,7 +216,7 @@ class JpegReceiverTransportConnectionWorker(AbortableThread):
                     raise
 
         except SystemExit:
-            _logger.info(f"Shutdown signal received, exiting {self.name}")
+            _logger.info(f'Shutdown signal received, exiting {self.name}')
         finally:
             try:
                 self._disconnect()
@@ -302,7 +302,7 @@ class JpegReceiverServerTransport(Transport):
         self._connection_worker.join()
 
 
-@register_message("jpeg_receiver_image_post_request", "jpeg_receiver")
+@register_message('jpeg_receiver_image_post_request', 'jpeg_receiver')
 class JpegReceiverImagePostRequestMessage(FileServerRequestMessage):
     def __init__(self, request):
         super().__init__(request)
@@ -310,7 +310,7 @@ class JpegReceiverImagePostRequestMessage(FileServerRequestMessage):
 
 class JpegReceiverServerMessageFactory(MessageFactory):
     def __init__(self):
-        super().__init__("jpeg_receiver")
+        super().__init__('jpeg_receiver')
 
     def _parse_type_id(self, request: Any):
         return ServerRequestMessage.parse_type_id(request)
@@ -323,7 +323,7 @@ class JpegReceiverServerTransport(JpegReceiverServerTransport):
         )
 
 
-@register_connection("jpeg_receiver")
+@register_connection('jpeg_receiver')
 class JpegReceiverServerConnection(ConnectionBase):
     def __init__(
         self,

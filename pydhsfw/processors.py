@@ -18,7 +18,7 @@ class Context:
 
 class MessageHandlerRegistry:
 
-    _default_processor_name = "default"
+    _default_processor_name = 'default'
     _registry = {}
 
     @classmethod
@@ -29,16 +29,16 @@ class MessageHandlerRegistry:
             processor_name = cls._default_processor_name
 
         if not isfunction(msg_handler_function):
-            raise TypeError("handler_function must be a function")
+            raise TypeError('handler_function must be a function')
 
         hf_sig = signature(msg_handler_function)
-        msg_param = hf_sig.parameters.get("message")
+        msg_param = hf_sig.parameters.get('message')
         if not issubclass(msg_param.annotation, MessageIn):
             raise TypeError(
                 'The handler_function must have a named parameter "message" that is of type MessageIn'
             )
 
-        ctx_param = hf_sig.parameters.get("context")
+        ctx_param = hf_sig.parameters.get('context')
         if not issubclass(ctx_param.annotation, Context):
             raise TypeError(
                 'The handler_function must have a named parameter "context" that is of type Context'
@@ -104,7 +104,7 @@ class MessageQueueWorker(AbortableThread):
                     # Can't wait forever in blocking call, need to enter loop to check for control messages, specifically SystemExit.
                     msg = self._msg_queue.fetch(self._get_blocking_timeout())
                     if msg:
-                        _logger.debug(f"Processing message: {msg}")
+                        _logger.debug(f'Processing message: {msg}')
                         self.process_message(msg)
                 except TimeoutError:
                     # This is normal when there are no more mesages in the queue and wait time has ben satisfied. Just ignore it.
@@ -115,7 +115,7 @@ class MessageQueueWorker(AbortableThread):
                     raise
 
         except SystemExit:
-            _logger.info(f"Shutdown signal received, exiting {self.name}")
+            _logger.info(f'Shutdown signal received, exiting {self.name}')
 
         finally:
             pass
@@ -130,7 +130,7 @@ class MessageQueueDispatcher(MessageQueueWorker):
         config: dict = {},
     ):
         super().__init__(
-            f"{name} dhs message dispatcher", incoming_message_queue, config
+            f'{name} dhs message dispatcher', incoming_message_queue, config
         )
         self._disp_name = name
         self._handler_map = MessageHandlerRegistry._get_message_handlers()
@@ -142,7 +142,7 @@ class MessageQueueDispatcher(MessageQueueWorker):
             lineno = getsourcelines(func)[1]
             module = getmodule(func)
             _logger.info(
-                f"Registered message handler: {type}, {module.__name__}:{func.__name__}():{lineno} with {self._disp_name} dispatcher"
+                f'Registered message handler: {type}, {module.__name__}:{func.__name__}():{lineno} with {self._disp_name} dispatcher'
             )
 
     def process_message(self, message: MessageIn):
