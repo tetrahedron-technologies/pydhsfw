@@ -85,7 +85,7 @@ Ready to contribute? Here's how to set up the pydhsfw for local development.
 
    Now you can make your changes locally.
 
-6. When you're done making changes, check that your changes pass the tests::
+6. [NOT IMPLEMENTED YET]When you're done making changes, check that your changes pass the tests::
 
     $ pytest
 

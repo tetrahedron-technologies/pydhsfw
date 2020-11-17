@@ -1,8 +1,3 @@
-.. pydhsfw documentation master file, created by
-   sphinx-quickstart on Mon Nov 16 11:38:48 2020.
-   You can adapt this file completely to your liking, but it should at least
-   contain the root `toctree` directive.
-
 Welcome to pydhsfw's documentation!
 ===================================
 
@@ -12,11 +7,11 @@ This code base will provide the necessary functionality to communicate with DCSS
    :maxdepth: 2
    :caption: Contents:
 
-   support
    install
-   dcss
    framework
+   dcss
    contributing
+   support
    history
 
 Indices and tables
