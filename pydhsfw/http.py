@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import threading
 import time
 import logging
@@ -12,19 +13,23 @@ from pydhsfw.transport import Transport, TransportState
 
 _logger = logging.getLogger(__name__)
 
+
 class RequestVerb(Enum):
-    GET ='GET'
-    POST = 'POST'
+    GET = "GET"
+    POST = "POST"
+
 
 class ContentType(Enum):
-    JPEG = 'image/jpeg'
-    PNG = 'image/png'
+    JPEG = "image/jpeg"
+    PNG = "image/png"
+
 
 class Headers(Enum):
-    DHS_REQUEST_TYPE_ID = 'DHS-Request-Type-Id'
-    DHS_RESPONSE_TYPE_ID = 'DHS-Response-Type-Id'
-    CONTENT_TYPE = 'Content-Type'
-    CONTENT_LENGTH = 'Content-Length'
+    DHS_REQUEST_TYPE_ID = "DHS-Request-Type-Id"
+    DHS_RESPONSE_TYPE_ID = "DHS-Response-Type-Id"
+    CONTENT_TYPE = "Content-Type"
+    CONTENT_LENGTH = "Content-Length"
+
 
 class ResponseMessage(MessageIn):
     def __init__(self, response):
@@ -32,19 +37,20 @@ class ResponseMessage(MessageIn):
         self._response = response
 
     @staticmethod
-    def parse_type_id(response:Response):
+    def parse_type_id(response: Response):
         return response.request.headers.get(Headers.DHS_RESPONSE_TYPE_ID.value)
 
     @classmethod
-    def parse(cls, response:Response)->Any:
-        
+    def parse(cls, response: Response) -> Any:
+
         msg = None
-        
+
         type_id = ResponseMessage.parse_type_id(response)
         if type_id == cls.get_type_id():
             msg = cls(response)
-        
+
         return msg
+
 
 class JsonResponseMessage(ResponseMessage):
     def __init__(self, response):
@@ -54,6 +60,7 @@ class JsonResponseMessage(ResponseMessage):
     def json(self):
         return self._response.json()
 
+
 class FileResponseMessage(ResponseMessage):
     def __init__(self, response):
         super().__init__(response)
@@ -62,9 +69,10 @@ class FileResponseMessage(ResponseMessage):
     def file(self):
         return self._response.content
 
-    @property 
+    @property
     def file_length(self):
         return int(self._response.headers[Headers.CONTENT_LENGTH.value])
+
 
 class ServerRequestMessage(MessageIn):
     def __init__(self, request):
@@ -72,19 +80,20 @@ class ServerRequestMessage(MessageIn):
         self._request = request
 
     @staticmethod
-    def parse_type_id(request:Request):
+    def parse_type_id(request: Request):
         return request.headers.get(Headers.DHS_REQUEST_TYPE_ID.value)
 
     @classmethod
-    def parse(cls, request:Request)->Any:
-        
+    def parse(cls, request: Request) -> Any:
+
         msg = None
-        
+
         type_id = ServerRequestMessage.parse_type_id(request)
         if type_id == cls.get_type_id():
             msg = cls(request)
-        
+
         return msg
+
 
 class FileServerRequestMessage(ServerRequestMessage):
     def __init__(self, request):
@@ -94,28 +103,30 @@ class FileServerRequestMessage(ServerRequestMessage):
     def file(self):
         return self._request.data
 
+
 class GetRequestMessage(MessageOut):
-    def __init__(self, path:str, params:dict=None):
+    def __init__(self, path: str, params: dict = None):
         super().__init__()
         self._path = path
         self._params = params
-    
-    def write(self)->Request:
+
+    def write(self) -> Request:
         request = Request(RequestVerb.GET.value, self._path, params=self._params)
         request.headers[Headers.DHS_REQUEST_TYPE_ID.value] = self.get_type_id()
         return request
 
     def __str__(self):
-        return f'{super().__str__()} {self._path} {self._params}'
+        return f"{super().__str__()} {self._path} {self._params}"
+
 
 class PostRequestMessage(MessageOut):
-    def __init__(self, path:str, json:dict=None, data:dict=None):
+    def __init__(self, path: str, json: dict = None, data: dict = None):
         super().__init__()
         self._path = path
         self._data = data
         self._json = json
-    
-    def write(self)->bytes:
+
+    def write(self) -> bytes:
         request = Request(RequestVerb.POST.value, self._path)
         request.headers[Headers.DHS_REQUEST_TYPE_ID.value] = self.get_type_id()
         if self._json:
@@ -126,64 +137,66 @@ class PostRequestMessage(MessageOut):
         return request
 
     def __str__(self):
-        return f'{super().__str__()} {self._path} {self._json} {self._data}'
+        return f"{super().__str__()} {self._path} {self._json} {self._data}"
+
 
 class PostJsonRequestMessage(PostRequestMessage):
-    def __init__(self, path:str, json:dict):
+    def __init__(self, path: str, json: dict):
         super().__init__(path, json=json)
 
+
 class PostFormRequestMessage(PostRequestMessage):
-    def __init__(self, path:str, data:dict):
+    def __init__(self, path: str, data: dict):
         super().__init__(path, data=data)
 
-class MessageResponseReader():
+
+class MessageResponseReader:
     def __init__(self):
         pass
 
-    def read_response(self, response:Response)->Response:
-        ''' Read the http response and convert it into an object that the message factory can read and convert to a message.
-
-        '''
+    def read_response(self, response: Response) -> Response:
+        """Read the http response and convert it into an object that the message factory can read and convert to a message."""
         return response
 
-class MessageRequestWriter():
+
+class MessageRequestWriter:
     def __init__(self):
         pass
 
-    def write_request(self, request:Request)->Request:
-        ''' Create an http request out of a message bytes.
-
-        '''
+    def write_request(self, request: Request) -> Request:
+        """Create an http request out of a message bytes."""
 
         # Read the custom header for the message request type id and add a custom header with the response
         # message type id which is just replacing the _request at the end with _response
-        req_type_id = request.headers.get(Headers.DHS_REQUEST_TYPE_ID.value) 
+        req_type_id = request.headers.get(Headers.DHS_REQUEST_TYPE_ID.value)
         if req_type_id:
             res_type_id = req_type_id
-            if res_type_id.endswith('_request'): 
-                 res_type_id = res_type_id[:-(len('_request'))]
-            res_type_id += '_response'
+            if res_type_id.endswith("_request"):
+                res_type_id = res_type_id[: -(len("_request"))]
+            res_type_id += "_response"
             request.headers[Headers.DHS_RESPONSE_TYPE_ID.value] = res_type_id
 
         return request
 
-class ServerMessageRequestReader():
+
+class ServerMessageRequestReader:
     def __init__(self):
         pass
 
-    def read_request(self, request:Request)->Request:
-        ''' Read the http request and convert it into an object that the message factory can read and convert to a message.
-
-        '''
+    def read_request(self, request: Request) -> Request:
+        """Read the http request and convert it into an object that the message factory can read and convert to a message."""
         return request
 
-class HttpClientTransportConnectionWorker(AbortableThread):
 
-    def __init__(self, connection_name:str, url:str, config:dict={}):
-        super().__init__(name=f'{connection_name} http client transport connection worker', config=config)
+class HttpClientTransportConnectionWorker(AbortableThread):
+    def __init__(self, connection_name: str, url: str, config: dict = {}):
+        super().__init__(
+            name=f"{connection_name} http client transport connection worker",
+            config=config,
+        )
         self._connection_name = connection_name
         self._url = url
-        self._hearbeat_path = config.get('heartbeat_path')
+        self._hearbeat_path = config.get("heartbeat_path")
         self._config = config
         self._state = TransportState.DISCONNECTED
         self._desired_state = TransportState.DISCONNECTED
@@ -201,7 +214,7 @@ class HttpClientTransportConnectionWorker(AbortableThread):
         self._stream_reader._connected = False
         self._set_desired_state(TransportState.DISCONNECTED)
 
-    def _set_desired_state(self, state:TransportState):
+    def _set_desired_state(self, state: TransportState):
         if self._desired_state != state:
             self._desired_state = state
             self._state_change_event.set()
@@ -229,17 +242,21 @@ class HttpClientTransportConnectionWorker(AbortableThread):
 
                     elif self._state == TransportState.CONNECTED:
                         if self._next_heatbeat and time.time() > self._next_heatbeat:
-                            _logger.info(f'Sending heartbeat to {url}')
+                            _logger.info(f"Sending heartbeat to {url}")
                             state = self._heartbeat(url, self._get_blocking_timeout())
                             if state != TransportState.CONNECTED:
-                                _logger.warning(f'Heartbeat failed: cannot connect to {url}')
+                                _logger.warning(
+                                    f"Heartbeat failed: cannot connect to {url}"
+                                )
                                 self._set_state(state)
 
                 except gaierror as e:
-                    _logger.error(f'Connection error, could not resolve hostname {urlparse(url).hostname}')
+                    _logger.error(
+                        f"Connection error {e}, could not resolve hostname {urlparse(url).hostname}"
+                    )
                     self._set_state(TransportState.DISCONNECTED)
                 except exceptions.ConnectionError as e:
-                    _logger.error(f'Connection error, could not connect to {url}')
+                    _logger.error(f"Connection error {e}, could not connect to {url}")
                     self._set_state(TransportState.DISCONNECTED)
                 except Exception:
                     # Send all other exceptions to the log so we can analyse them to determine if
@@ -248,28 +265,28 @@ class HttpClientTransportConnectionWorker(AbortableThread):
                     raise
 
         except SystemExit:
-            _logger.info(f'Shutdown signal received, exiting {self.name}')
+            _logger.info(f"Shutdown signal received, exiting {self.name}")
         finally:
             try:
                 self._disconnect()
-            except:
+            except Exception:
                 pass
 
     @property
     def state(self):
         return self._state
-      
+
     def _get_url(self):
         return self._url
 
     def _get_heartbeat_url(self):
         return urljoin(self._url, self._hearbeat_path)
 
-    def _set_state(self, state:TransportState):
+    def _set_state(self, state: TransportState):
         self._state = state
-        _logger.info(f'Connection state: {state}, url: {self._get_url()}')
+        _logger.info(f"Connection state: {state}, url: {self._get_url()}")
         if state in (TransportState.CONNECTED, TransportState.DISCONNECTED):
-            #TODO[Giles]: Add ConnectionConnectedMessage or ConnectionDisconnectedMessage to the queue.
+            # TODO[Giles]: Add ConnectionConnectedMessage or ConnectionDisconnectedMessage to the queue.
             pass
 
     def _connect(self):
@@ -279,8 +296,8 @@ class HttpClientTransportConnectionWorker(AbortableThread):
             if self.state == TransportState.DISCONNECTED:
 
                 wait_timeout = self._get_blocking_timeout()
-                connect_timeout = self._config.get('connect_timeout', None)
-                connect_retry_delay = self._config.get('connect_retry_delay', 10)
+                connect_timeout = self._config.get("connect_timeout", None)
+                connect_retry_delay = self._config.get("connect_retry_delay", 10)
                 url = self._get_heartbeat_url()
 
                 self._set_state(TransportState.CONNECTING)
@@ -288,10 +305,12 @@ class HttpClientTransportConnectionWorker(AbortableThread):
                 end_time = time.time() + float(connect_timeout or 0.0)
                 end_delay_time = time.time()
 
-                while self._desired_state == TransportState.CONNECTED and (connect_timeout == None or time.time() < end_time):
+                while self._desired_state == TransportState.CONNECTED and (
+                    connect_timeout is None or time.time() < end_time
+                ):
                     try:
                         if time.time() >= end_delay_time:
-                            _logger.info(f'Connecting to {url}')
+                            _logger.info(f"Connecting to {url}")
                             state = self._heartbeat(url, wait_timeout)
                             if state == TransportState.CONNECTED:
                                 self._set_state(TransportState.CONNECTED)
@@ -301,14 +320,20 @@ class HttpClientTransportConnectionWorker(AbortableThread):
 
                     except Timeout:
                         if self._desired_state == TransportState.CONNECTED:
-                            _logger.info(f'Connection timeout: cannot connect to {url}, trying again in {connect_retry_delay} seconds')
+                            _logger.info(
+                                f"Connection timeout: cannot connect to {url}, trying again in {connect_retry_delay} seconds"
+                            )
                             end_delay_time = time.time() + connect_retry_delay
                     except gaierror as e:
-                        _logger.error(f'Connection error, could not resolve hostname {urlparse(url).hostname}')
+                        _logger.error(
+                            f"Connection error {e}, could not resolve hostname {urlparse(url).hostname}"
+                        )
                         self._set_state(TransportState.DISCONNECTED)
                         end_delay_time = time.time() + connect_retry_delay
                     except exceptions.ConnectionError as e:
-                        _logger.error(f'Connection error, could not connect to {url}')
+                        _logger.error(
+                            f"Connection error {e}, could not connect to {url}"
+                        )
                         self._set_state(TransportState.DISCONNECTED)
                         end_delay_time = time.time() + connect_retry_delay
                     except Exception:
@@ -316,7 +341,7 @@ class HttpClientTransportConnectionWorker(AbortableThread):
                         self._set_state(TransportState.DISCONNECTED)
                         raise
             else:
-                _logger.debug('Already connected, ignoring connection request')
+                _logger.debug("Already connected, ignoring connection request")
 
     def _disconnect(self):
 
@@ -329,7 +354,7 @@ class HttpClientTransportConnectionWorker(AbortableThread):
                 _logger.debug("Not connected, ignoring disconnect request")
 
     def _reconnect(self):
-        
+
         if self._desired_state == TransportState.RECONNECTED:
             self._desired_state = TransportState.DISCONNECTED
             self._state = TransportState.CONNECTED
@@ -338,38 +363,50 @@ class HttpClientTransportConnectionWorker(AbortableThread):
             self._desired_state = TransportState.CONNECTED
             self._connect()
 
-    def _heartbeat(self, url, timeout)->TransportState:
+    def _heartbeat(self, url, timeout) -> TransportState:
         state = TransportState.DISCONNECTED
-        
-        #Use DNS lookup to resolve hostname since the request call below takes a long time.
+
+        # Use DNS lookup to resolve hostname since the request call below takes a long time.
         gethostbyname(urlparse(url).hostname)
-        hearbeat_delay = self._config.get('heartbeat_delay', 30)
+        hearbeat_delay = self._config.get("heartbeat_delay", 30)
         self._next_heatbeat = time.time() + hearbeat_delay
-        response = request('GET', url, timeout=timeout)
+        response = request("GET", url, timeout=timeout)
         if response.ok:
             state = TransportState.CONNECTED
-        
+
         return state
+
 
 class RequestQueue(BlockingQueue[Request]):
     def __init__(self):
         super().__init__()
 
+
 class ResponseQueue(BlockingQueue[Response]):
     def __init__(self):
         super().__init__()
 
-class HttpClientTransport(Transport):
-    ''' Http client transport '''
 
-    def __init__(self, connection_name:str, url:str, message_reader:MessageResponseReader, message_writer:MessageRequestWriter, config:dict={}):
+class HttpClientTransport(Transport):
+    """ Http client transport """
+
+    def __init__(
+        self,
+        connection_name: str,
+        url: str,
+        message_reader: MessageResponseReader,
+        message_writer: MessageRequestWriter,
+        config: dict = {},
+    ):
         super().__init__(connection_name, url, config)
         self._message_reader = message_reader
         self._message_writer = message_writer
-        self._connection_worker = HttpClientTransportConnectionWorker(connection_name, url, config)
+        self._connection_worker = HttpClientTransportConnectionWorker(
+            connection_name, url, config
+        )
         self._response_queue = ResponseQueue()
 
-    def _send(self, request:Request)->Response:
+    def _send(self, request: Request) -> Response:
         response = None
         if self._connection_worker._state == TransportState.CONNECTED:
             with Session() as s:
@@ -377,7 +414,7 @@ class HttpClientTransport(Transport):
                 response = s.send(p)
         return response
 
-    def send(self, msg:Request):
+    def send(self, msg: Request):
         try:
             if self._connection_worker._state == TransportState.CONNECTED:
                 request = self._message_writer.write_request(msg)
@@ -387,32 +424,34 @@ class HttpClientTransport(Transport):
                 if response.ok:
                     self._response_queue.queue(response)
                 else:
-                    _logger.warning(f'Bad response {response.status_code}')
+                    _logger.warning(f"Bad response {response.status_code}")
 
             else:
-                _logger.warning(f'Send failed, not connected {msg}')
-            
+                _logger.warning(f"Send failed, not connected {msg}")
+
         except Exception:
-            #Connection is lost because the socket was closed, probably from the other side.
-            #Block the socket event and queue a reconnect message.
+            # Connection is lost because the socket was closed, probably from the other side.
+            # Block the socket event and queue a reconnect message.
             _logger.exception(None)
             raise
-            #self.reconnect()
+            # self.reconnect()
 
-    def receive(self)->Response:
+    def receive(self) -> Response:
         try:
-            response = self._response_queue.fetch(self._connection_worker._get_blocking_timeout())
-            if response: 
+            response = self._response_queue.fetch(
+                self._connection_worker._get_blocking_timeout()
+            )
+            if response:
                 return self._message_reader.read_response(response)
         except TimeoutError:
-            #Read timed out. This is normal, it just means that no messages have been sent so we can ignore it.
+            # Read timed out. This is normal, it just means that no messages have been sent so we can ignore it.
             pass
         except Exception:
-            #Connection is lost because the socket was closed, probably from the other side.
-            #Block the socket event and queue a reconnect message.
+            # Connection is lost because the socket was closed, probably from the other side.
+            # Block the socket event and queue a reconnect message.
             _logger.excpetion(None)
             raise
-            #self.reconnect()
+            # self.reconnect()
 
     def connect(self):
         self._connection_worker.connect()
@@ -431,4 +470,3 @@ class HttpClientTransport(Transport):
 
     def wait(self):
         self._connection_worker.join()
-

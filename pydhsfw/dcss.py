@@ -1,8 +1,21 @@
+# -*- coding: utf-8 -*-
 import logging
 from typing import Any
 from inspect import isfunction, signature, getsourcelines, getmodule
-from pydhsfw.messages import IncomingMessageQueue, OutgoingMessageQueue, MessageIn, MessageOut, MessageFactory, register_message
-from pydhsfw.transport import MessageStreamReader, MessageStreamWriter, StreamReader, StreamWriter
+from pydhsfw.messages import (
+    IncomingMessageQueue,
+    OutgoingMessageQueue,
+    MessageIn,
+    MessageOut,
+    MessageFactory,
+    register_message,
+)
+from pydhsfw.transport import (
+    MessageStreamReader,
+    MessageStreamWriter,
+    StreamReader,
+    StreamWriter,
+)
 from pydhsfw.connection import ConnectionBase, register_connection
 from pydhsfw.tcpip import TcpipClientTransport
 from pydhsfw.processors import Context, MessageQueueDispatcher
@@ -11,20 +24,19 @@ _logger = logging.getLogger(__name__)
 
 # --------------------------------------------------------------------------
 # DCSS Message Base Classes
-class DcssMessageIn():
-
+class DcssMessageIn:
     def __init__(self, split):
         self._split_msg = split
-    
+
     def __str__(self):
         return " ".join(self._split_msg)
 
     @staticmethod
-    def _split(buffer:bytes):
-        return buffer.decode('ascii').rstrip('\n\r\x00').split(' ')
+    def _split(buffer: bytes):
+        return buffer.decode("ascii").rstrip("\n\r\x00").split(" ")
 
     @staticmethod
-    def parse_type_id(buffer:bytes):
+    def parse_type_id(buffer: bytes):
         return DcssMessageIn._split(buffer)[0]
 
     @property
@@ -41,8 +53,8 @@ class DcssMessageIn():
         """
         return self._split_msg[1:]
 
+
 class DcssStoCMessage(MessageIn, DcssMessageIn):
- 
     def __init__(self, split):
         DcssMessageIn.__init__(self, split)
 
@@ -50,18 +62,18 @@ class DcssStoCMessage(MessageIn, DcssMessageIn):
         return DcssMessageIn.__str__(self)
 
     @classmethod
-    def parse(cls, buffer:bytes):
-        
+    def parse(cls, buffer: bytes):
+
         msg = None
-        
+
         split = DcssMessageIn._split(buffer)
         if split[0] == cls.get_type_id():
             msg = cls(split)
-        
+
         return msg
 
-class DcssMessageOut(MessageOut):
 
+class DcssMessageOut(MessageOut):
     def __init__(self):
         super().__init__()
         self._split_msg = None
@@ -69,21 +81,23 @@ class DcssMessageOut(MessageOut):
     def __str__(self):
         return " ".join(self._split_msg)
 
-    def write(self)->bytes:
+    def write(self) -> bytes:
         buffer = None
-        
+
         if self._split_msg:
-            buffer = " ".join(self._split_msg).encode('ascii')
+            buffer = " ".join(self._split_msg).encode("ascii")
 
         return buffer
+
 
 class DcssHtoSMessage(DcssMessageOut):
     def __init__(self):
         super().__init__()
 
+
 # --------------------------------------------------------------------------
 # Messages Incoming from DCSS
-@register_message('stoc_send_client_type', 'dcss')
+@register_message("stoc_send_client_type", "dcss")
 class DcssStoCSendClientType(DcssStoCMessage):
     """The initial command received from DCSS.
 
@@ -100,10 +114,12 @@ class DcssStoCSendClientType(DcssStoCMessage):
     There is already a DHS connected with the same name as the DHS that is currently trying to connect.
 
     """
+
     def __init__(self, split):
         super().__init__(split)
 
-@register_message('stoh_register_operation', 'dcss')
+
+@register_message("stoh_register_operation", "dcss")
 class DcssStoHRegisterOperation(DcssStoCMessage):
     """Server To Hardware Register Operation
 
@@ -115,6 +131,7 @@ class DcssStoHRegisterOperation(DcssStoCMessage):
 
     note: these are almost always identical
     """
+
     def __init__(self, split):
         super().__init__(split)
 
@@ -132,7 +149,8 @@ class DcssStoHRegisterOperation(DcssStoCMessage):
         """
         return self.args[1]
 
-@register_message('stoh_register_real_motor', 'dcss')
+
+@register_message("stoh_register_real_motor", "dcss")
 class DcssStoHRegisterRealMotor(DcssStoCMessage):
     """Server To Hardware Register Real Motor
 
@@ -144,6 +162,7 @@ class DcssStoHRegisterRealMotor(DcssStoCMessage):
 
     note: these are almost always identical
     """
+
     def __init__(self, split):
         super().__init__(split)
 
@@ -155,7 +174,8 @@ class DcssStoHRegisterRealMotor(DcssStoCMessage):
     def motor_hardwareName(self):
         return self.args[1]
 
-@register_message('stoh_register_pseudo_motor', 'dcss')
+
+@register_message("stoh_register_pseudo_motor", "dcss")
 class DcssStoHRegisterPseudoMotor(DcssStoCMessage):
     """Server To Hardware Register Pseudo Motor
 
@@ -167,6 +187,7 @@ class DcssStoHRegisterPseudoMotor(DcssStoCMessage):
 
     note: these are almost always identical
     """
+
     def __init__(self, split):
         super().__init__(split)
 
@@ -176,7 +197,8 @@ class DcssStoHRegisterPseudoMotor(DcssStoCMessage):
     def get_pseudo_motor_hardwareName(self):
         return self.get_args()[1]
 
-@register_message('stoh_register_string', 'dcss')
+
+@register_message("stoh_register_string", "dcss")
 class DcssStoHRegisterString(DcssStoCMessage):
     """Server To Hardware Register String
 
@@ -188,6 +210,7 @@ class DcssStoHRegisterString(DcssStoCMessage):
 
     note: these are almost always identical
     """
+
     def __init__(self, split):
         super().__init__(split)
 
@@ -199,7 +222,8 @@ class DcssStoHRegisterString(DcssStoCMessage):
     def string_hardwareName(self):
         return self.args[1]
 
-@register_message('stoh_register_shutter', 'dcss')
+
+@register_message("stoh_register_shutter", "dcss")
 class DcssStoHRegisterShutter(DcssStoCMessage):
     """Server To Hardware Register Shutter
 
@@ -212,6 +236,7 @@ class DcssStoHRegisterShutter(DcssStoCMessage):
 
     note: fields 1 and 3 are almost always identical
     """
+
     def __init__(self, split):
         super().__init__(split)
 
@@ -227,7 +252,8 @@ class DcssStoHRegisterShutter(DcssStoCMessage):
     def shutter_hardwareName(self):
         return self.args[2]
 
-@register_message('stoh_register_ion_chamber', 'dcss')
+
+@register_message("stoh_register_ion_chamber", "dcss")
 class DcssStoHRegisterIonChamber(DcssStoCMessage):
     """Server To Hardware Register Ion Chamber
 
@@ -242,6 +268,7 @@ class DcssStoHRegisterIonChamber(DcssStoCMessage):
 
     note: fields 1 and 2 almost always identical
     """
+
     def __init__(self, split):
         super().__init__(split)
 
@@ -265,7 +292,8 @@ class DcssStoHRegisterIonChamber(DcssStoCMessage):
     def ion_chamber_timerType(self):
         return self.args[4]
 
-@register_message('stoh_register_encoder', 'dcss')
+
+@register_message("stoh_register_encoder", "dcss")
 class DcssStoHRegisterEncoder(DcssStoCMessage):
     """Server To Hardware Register Encoder
 
@@ -277,6 +305,7 @@ class DcssStoHRegisterEncoder(DcssStoCMessage):
 
     note: these are almost always identical
     """
+
     def __init__(self, split):
         super().__init__(split)
 
@@ -288,12 +317,14 @@ class DcssStoHRegisterEncoder(DcssStoCMessage):
     def encoder_hardwareName(self):
         return self.args[1]
 
-@register_message('stoh_register_object', 'dcss')
+
+@register_message("stoh_register_object", "dcss")
 class DcssStoHRegisterObject(DcssStoCMessage):
     """Server to Hardware Register Object
 
     Not sure if this is used or what it is used for.
     """
+
     def __init__(self, split):
         super().__init__(split)
 
@@ -305,7 +336,8 @@ class DcssStoHRegisterObject(DcssStoCMessage):
     def object_hardwareName(self):
         return self.args[1]
 
-@register_message('stoh_configure_real_motor', 'dcss')
+
+@register_message("stoh_configure_real_motor", "dcss")
 class DcssStoHConfigureRealMotor(DcssStoCMessage):
     """Server To Hardware Configure Real Motor
 
@@ -326,6 +358,7 @@ class DcssStoHConfigureRealMotor(DcssStoCMessage):
     12. is a boolean (0 or 1) indicating if backlash correction is enabled
     13. is a boolean (0 or 1) indicating if the motor direction is reversed
     """
+
     def __init__(self, split):
         super().__init__(split)
 
@@ -381,7 +414,8 @@ class DcssStoHConfigureRealMotor(DcssStoCMessage):
     def motor_reverseOn(self):
         return self.args[12]
 
-@register_message('stoh_configure_pseudo_motor', 'dcss')
+
+@register_message("stoh_configure_pseudo_motor", "dcss")
 class DcssStoHConfigurePseudoMotor(DcssStoCMessage):
     """Server To Hardware Configure Pseudo Motor
 
@@ -396,6 +430,7 @@ class DcssStoHConfigurePseudoMotor(DcssStoCMessage):
     6. is a boolean (0 or 1) indicating if the upper limit is enabled
     7. is a boolean (0 or 1) indicating if the motor is software locked
     """
+
     def __init__(self, split):
         super().__init__(split)
 
@@ -427,7 +462,8 @@ class DcssStoHConfigurePseudoMotor(DcssStoCMessage):
     def motor_motorLockOn(self):
         return self.args[6]
 
-@register_message('stoh_set_motor_position', 'dcss')
+
+@register_message("stoh_set_motor_position", "dcss")
 class DcssStoHSetMotorPosition(DcssStoCMessage):
     """Server To Hardware Set Motor Position
 
@@ -437,6 +473,7 @@ class DcssStoHSetMotorPosition(DcssStoCMessage):
     1. the name of the motor to configure.
     2. the new scaled position of the motor.
     """
+
     def __init__(self, split):
         super().__init__(split)
 
@@ -448,10 +485,11 @@ class DcssStoHSetMotorPosition(DcssStoCMessage):
     def motor_position(self):
         return self.args[1]
 
-@register_message('stoh_start_motor_move', 'dcss')
+
+@register_message("stoh_start_motor_move", "dcss")
 class DcssStoHStartMotorMove(DcssStoCMessage):
     """This is a command to start a motor move.
-    
+
     This message requests that the specified motor be moved to the specified scaled position.
 
     This message takes two arguments:
@@ -459,6 +497,7 @@ class DcssStoHStartMotorMove(DcssStoCMessage):
     2. the scaled destination of the motor.
 
     """
+
     def __init__(self, split):
         super().__init__(split)
 
@@ -470,7 +509,8 @@ class DcssStoHStartMotorMove(DcssStoCMessage):
     def motor_position(self):
         return self.args[1]
 
-@register_message('stoh_abort_all', 'dcss')
+
+@register_message("stoh_abort_all", "dcss")
 class DcssStoHAbortAll(DcssStoCMessage):
     """Server To Hardware Abort All
 
@@ -484,6 +524,7 @@ class DcssStoHAbortAll(DcssStoCMessage):
     A value of hard indicates that motors should stop without decelerating.
     A value of soft indicates that motors should decelerate properly before stopping.
     """
+
     def __init__(self, split):
         super().__init__(split)
 
@@ -491,17 +532,19 @@ class DcssStoHAbortAll(DcssStoCMessage):
     def abort_arg(self):
         return self.args[0]
 
-@register_message('stoh_correct_motor_position', 'dcss')
+
+@register_message("stoh_correct_motor_position", "dcss")
 class DcssStoHCorrectMotorPosition(DcssStoCMessage):
     """Server To Hardware Correct Motor Position
 
     Requests that the position of the specified motor be adjusted by the specified correction.
     This is used to support the circle parameter for motors (i.e., modulo 360 behavior for a phi axis).
-    
+
     This command takes two arguments:
     1. the name of the motor.
     2. the correction to be applied to the motor position.
     """
+
     def __init__(self, split):
         super().__init__(split)
 
@@ -513,10 +556,11 @@ class DcssStoHCorrectMotorPosition(DcssStoCMessage):
     def motor_correction(self):
         return self.args[1]
 
-@register_message('stoh_set_motor_dependency', 'dcss')
+
+@register_message("stoh_set_motor_dependency", "dcss")
 class DcssStoHSetMotorDependency(DcssStoCMessage):
-    """Server To Hardware Set Motor Dependency
-    """
+    """Server To Hardware Set Motor Dependency"""
+
     def __init__(self, split):
         super().__init__(split)
 
@@ -528,10 +572,11 @@ class DcssStoHSetMotorDependency(DcssStoCMessage):
     def motor_dependencies(self):
         return self.args[1:]
 
-@register_message('stoh_set_motor_children', 'dcss')
+
+@register_message("stoh_set_motor_children", "dcss")
 class DcssStoHSetMotorChildren(DcssStoCMessage):
-    """Server To Hardware Set Motor Children
-    """
+    """Server To Hardware Set Motor Children"""
+
     def __init__(self, split):
         super().__init__(split)
 
@@ -543,7 +588,8 @@ class DcssStoHSetMotorChildren(DcssStoCMessage):
     def motor_children(self):
         return self.args[1:]
 
-@register_message('stoh_set_shutter_state','dcss')
+
+@register_message("stoh_set_shutter_state", "dcss")
 class DcssStoHSetShutterState(DcssStoCMessage):
     """Server To Hardware Set Shutter State
 
@@ -552,6 +598,7 @@ class DcssStoHSetShutterState(DcssStoCMessage):
     This message is accompanied by one argument:
     1. the desired state (open or closed)
     """
+
     def __init__(self, split):
         super().__init__(split)
 
@@ -563,7 +610,8 @@ class DcssStoHSetShutterState(DcssStoCMessage):
     def shutter_state(self):
         return self.args[1]
 
-@register_message('stoh_start_operation','dcss')
+
+@register_message("stoh_start_operation", "dcss")
 class DcssStoHStartOperation(DcssStoCMessage):
     """Server To Hardware Start Operation
 
@@ -573,7 +621,7 @@ class DcssStoHStartOperation(DcssStoCMessage):
     1. the name of the operation to be started.
     2. is a unique handle currently constructed by calling the create_operation_handle procedure in BLU-ICE.
        This currently creates a handle in the following format:
-        
+
     clientNumber.operationCounter
 
     where clientNumber is a unique number provided by DCSS for each connected GUI or Hardware client.
@@ -586,6 +634,7 @@ class DcssStoHStartOperation(DcssStoCMessage):
 
     The message requests DCSS to forward the request to the appropriate hardware server.
     """
+
     def __init__(self, split):
         super().__init__(split)
 
@@ -601,9 +650,10 @@ class DcssStoHStartOperation(DcssStoCMessage):
     def operation_args(self):
         return self.args[2:]
 
+
 # --------------------------------------------------------------------------
 # Messages Outgoing to DCSS (Hardware TO Server)
-@register_message('htos_client_is_hardware')
+@register_message("htos_client_is_hardware")
 class DcssHtoSClientIsHardware(DcssHtoSMessage):
     """Hardware To Server Clinet Is Hardware
 
@@ -619,11 +669,13 @@ class DcssHtoSClientIsHardware(DcssHtoSMessage):
 
     Note: This message is not forwarded to the GUI clients.
     """
-    def __init__(self, dhs_name:str):
+
+    def __init__(self, dhs_name: str):
         super().__init__()
         self._split_msg = [self.get_type_id(), dhs_name]
 
-@register_message('htos_motor_move_started')
+
+@register_message("htos_motor_move_started")
 class DcssHtoSMotorMoveStarted(DcssHtoSMessage):
     """Hardware To Server Motor Move Started
 
@@ -639,11 +691,13 @@ class DcssHtoSMotorMoveStarted(DcssHtoSMessage):
     motorName is the name of the motor.
     position is the destination move the motor.
     """
-    def __init__(self, motor_name:str, new_position:float):
+
+    def __init__(self, motor_name: str, new_position: float):
         super().__init__()
         self._split_msg = [self.get_type_id(), motor_name, new_position]
 
-@register_message('htos_motor_move_completed')
+
+@register_message("htos_motor_move_completed")
 class DcssHtoSMotorMoveCompleted(DcssHtoSMessage):
     """Hardware To Server Motor Move Completed
 
@@ -667,16 +721,18 @@ class DcssHtoSMotorMoveCompleted(DcssHtoSMessage):
         both_hw_limits indicates that the motor cable may be disconnected.
         unknown indicates that the motor completed abnormally, but the DHS software or the hardware controller does not know why.
     """
-    def __init__(self, motor_name:str, new_position:float, state:str):
+
+    def __init__(self, motor_name: str, new_position: float, state: str):
         super().__init__()
         self._split_msg = [self.get_type_id(), motor_name, new_position, state]
 
-@register_message('htos_operation_completed')
+
+@register_message("htos_operation_completed")
 class DcssHtoSOperationCompleted(DcssHtoSMessage):
     """Hardware To Server Operation Completed
 
     The message is used to indicate that an operation has been completed by this hardware server.
-    
+
     The general format of the message is:
 
     htos_operation_completed operationName operationHandle status arguments
@@ -689,11 +745,25 @@ class DcssHtoSOperationCompleted(DcssHtoSMessage):
     arguments: This is a list of return values.
                It is recommended that list of return arguments adhere to the overall DCS protocol (space separated tokens), but this can only be enforced by the writer of the operation handle.
     """
-    def __init__(self, operation_name:str, operation_handle:float, operation_status:str, operation_args:str):
-        super().__init__()
-        self._split_msg = [self.get_type_id(), operation_name, operation_handle, operation_status, operation_args]
 
-@register_message('htos_operation_update')
+    def __init__(
+        self,
+        operation_name: str,
+        operation_handle: float,
+        operation_status: str,
+        operation_args: str,
+    ):
+        super().__init__()
+        self._split_msg = [
+            self.get_type_id(),
+            operation_name,
+            operation_handle,
+            operation_status,
+            operation_args,
+        ]
+
+
+@register_message("htos_operation_update")
 class DcssHtoSOperationUpdate(DcssHtoSMessage):
     """Hardware To Server Operation Update
 
@@ -711,27 +781,38 @@ class DcssHtoSOperationUpdate(DcssHtoSMessage):
     arguments: This is a list of return values.
                It is recommended that list of return arguments adhere to the overall DCS protocol (space separated tokens), but this can only be enforced by the writer of the operation handle.
     """
-    def __init__(self, operation_name:str, operation_handle:float, operation_args:str):
-        super().__init__()
-        self._split_msg = [self.get_type_id(), operation_name, operation_handle, operation_args]
 
-@register_message('htos_start_operation')
+    def __init__(
+        self, operation_name: str, operation_handle: float, operation_args: str
+    ):
+        super().__init__()
+        self._split_msg = [
+            self.get_type_id(),
+            operation_name,
+            operation_handle,
+            operation_args,
+        ]
+
+
+@register_message("htos_start_operation")
 class DcssHtoSStartOperation(DcssHtoSMessage):
-    """Hardware To Server Start Operation
-    """
-    def __init__(self, operation_info:str):
+    """Hardware To Server Start Operation"""
+
+    def __init__(self, operation_info: str):
         super().__init__()
         self._split_msg = [self.get_type_id(), operation_info]
 
-@register_message('htos_update_motor_position')
+
+@register_message("htos_update_motor_position")
 class DcssHtoSUpdateMotorPosition(DcssHtoSMessage):
-    """Hardware To Server Update Motor Position
-    """
-    def __init__(self, motor_name:str, new_position:float, status:str):
+    """Hardware To Server Update Motor Position"""
+
+    def __init__(self, motor_name: str, new_position: float, status: str):
         super().__init__()
         self._split_msg = [self.get_type_id(), motor_name, new_position, status]
 
-@register_message('htos_report_ion_chambers')
+
+@register_message("htos_report_ion_chambers")
 class DcssHtoSReportIonChamber(DcssHtoSMessage):
     """Hardware To Server Report Ion Chamber
 
@@ -749,11 +830,13 @@ class DcssHtoSReportIonChamber(DcssHtoSMessage):
     ch1: is the name of the first ion chamber read.
     cnts1: is the counts from the first ion chamber.
     """
-    def __init__(self, ion_chamber_counts:int):
+
+    def __init__(self, ion_chamber_counts: int):
         super().__init__()
         self._split_msg = [self.get_type_id(), ion_chamber_counts]
 
-@register_message('htos_configure_device')
+
+@register_message("htos_configure_device")
 class DcssHtoSConfigureDevice(DcssHtoSMessage):
     """Hardware To Server Configure Device
 
@@ -794,11 +877,13 @@ class DcssHtoSConfigureDevice(DcssHtoSMessage):
 
     Note: This message should probably be two separate messages gtos_configure_real_motor and gtos_configure_pseudo_motor.
     """
-    def __init__(self, device_name:str, device_settings:str):
+
+    def __init__(self, device_name: str, device_settings: str):
         super().__init__()
         self._split_msg = [self.get_type_id(), device_name, device_settings]
 
-@register_message('htos_send_configuration')
+
+@register_message("htos_send_configuration")
 class DcssHtoSSendConfiguration(DcssHtoSMessage):
     """Hardware To Server Send Configuration
 
@@ -813,11 +898,13 @@ class DcssHtoSSendConfiguration(DcssHtoSMessage):
 
     deviceName is the name of the device for which the configuration information is needed.
     """
-    def __init__(self, device_name:str):
+
+    def __init__(self, device_name: str):
         super().__init__()
         self._split_msg = [self.get_type_id(), device_name]
 
-@register_message('htos_report_shutter_state')
+
+@register_message("htos_report_shutter_state")
 class DcssHtoSReportShutterState(DcssHtoSMessage):
     """Hardware To Server Report Shutter State
 
@@ -834,90 +921,99 @@ class DcssHtoSReportShutterState(DcssHtoSMessage):
     shutterName is the name of the shutter.
     state is the new state (open | closed.)
     """
-    def __init__(self, shutter_name:str, state:str, result:str):
+
+    def __init__(self, shutter_name: str, state: str, result: str):
         super().__init__()
         self._split_msg = [self.get_type_id(), shutter_name, state, result]
 
 
-@register_message('htos_limit_hit')
+@register_message("htos_limit_hit")
 class DcssHtoSLimitHit(DcssHtoSMessage):
-    """Hardware To Server Limit Hit
-    """
-    def __init__(self, state:str):
+    """Hardware To Server Limit Hit"""
+
+    def __init__(self, state: str):
         super().__init__()
         self._split_msg = [self.get_type_id(), state]
 
-@register_message('htos_simulating_device')
+
+@register_message("htos_simulating_device")
 class DcssHtoSSimulatingDevice(DcssHtoSMessage):
-    """Hardware To Server Simulating Device
-    """
-    def __init__(self, state:str):
+    """Hardware To Server Simulating Device"""
+
+    def __init__(self, state: str):
         super().__init__()
         self._split_msg = [self.get_type_id(), state]
 
-@register_message('htos_motor_correct_started')
+
+@register_message("htos_motor_correct_started")
 class DcssHtoSMotorCorrectStarted(DcssHtoSMessage):
-    """Hardware To Server Motor Correct Started
-    """
-    def __init__(self, state:str):
+    """Hardware To Server Motor Correct Started"""
+
+    def __init__(self, state: str):
         super().__init__()
         self._split_msg = [self.get_type_id(), state]
 
-@register_message('htos_get_encoder_completed')
+
+@register_message("htos_get_encoder_completed")
 class DcssHtoSGetEncoderCompleted(DcssHtoSMessage):
-    """Hardware To Server Get Encoder Completed
-    """
-    def __init__(self, encoder_name:str, new_position:float, status:str):
+    """Hardware To Server Get Encoder Completed"""
+
+    def __init__(self, encoder_name: str, new_position: float, status: str):
         super().__init__()
         self._split_msg = [self.get_type_id(), encoder_name, new_position, status]
 
-@register_message('htos_set_encoder_completed')
+
+@register_message("htos_set_encoder_completed")
 class DcssHtoSSetEncoderCompleted(DcssHtoSMessage):
-    """Hardware To Server Set Encoder Completed
-    """
-    def __init__(self, encoder_name:str, new_position:int, status:str):
+    """Hardware To Server Set Encoder Completed"""
+
+    def __init__(self, encoder_name: str, new_position: int, status: str):
         super().__init__()
         self._split_msg = [self.get_type_id(), encoder_name, new_position, status]
 
-@register_message('htos_set_string_completed')
+
+@register_message("htos_set_string_completed")
 class DcssHtoSSetStringCompleted(DcssHtoSMessage):
-    """Hardware To Server Set String Completed
-    """
-    def __init__(self, string_name:str, status:str):
+    """Hardware To Server Set String Completed"""
+
+    def __init__(self, string_name: str, status: str):
         super().__init__()
         self._split_msg = [self.get_type_id(), string_name, status]
 
-@register_message('htos_note')
+
+@register_message("htos_note")
 class DcssHtoSNote(DcssHtoSMessage):
-    """Hardware To Server Note
-    """
-    def __init__(self, note_message:str):
+    """Hardware To Server Note"""
+
+    def __init__(self, note_message: str):
         super().__init__()
         self._split_msg = [self.get_type_id(), note_message]
 
-@register_message('htos_log')
+
+@register_message("htos_log")
 class DcssHtoSLog(DcssHtoSMessage):
-    """Hardware To Server Log
-    """
-    def __init__(self, log_message:str):
+    """Hardware To Server Log"""
+
+    def __init__(self, log_message: str):
         super().__init__()
         self._split_msg = [self.get_type_id(), log_message]
 
-@register_message('htos_set_motor_message')
+
+@register_message("htos_set_motor_message")
 class DcssHtoSSetMotorMessage(DcssHtoSMessage):
-    """Hardware To Server Set Motor Message
-    """
-    def __init__(self, motor_name:str):
+    """Hardware To Server Set Motor Message"""
+
+    def __init__(self, motor_name: str):
         super().__init__()
         self._split_msg = [self.get_type_id(), motor_name]
 
 
-#Message Factory
+# Message Factory
 class DcssMessageFactory(MessageFactory):
     def __init__(self):
-        super().__init__('dcss')
+        super().__init__("dcss")
 
-    def _parse_type_id(self, raw_msg:bytes):
+    def _parse_type_id(self, raw_msg: bytes):
         return DcssMessageIn.parse_type_id(raw_msg)
 
 
@@ -925,19 +1021,21 @@ class DcssDhsV1MessageReader(MessageStreamReader):
     def __init__(self):
         pass
 
-    def read_msg(self, stream_reader:StreamReader)->bytes:
+    def read_msg(self, stream_reader: StreamReader) -> bytes:
         packed = stream_reader.read(200)
         _logger.debug(f"Received packed raw message: {packed}")
-        return packed.decode('ascii').rstrip('\n\r\x00').encode('ascii')
+        return packed.decode("ascii").rstrip("\n\r\x00").encode("ascii")
+
 
 class DcssDhsV1MessageWriter(MessageStreamWriter):
     def __init__(self):
         pass
 
-    def write_msg(self, stream_writer:StreamWriter, msg:bytes):
-        packed = msg.decode('ascii').ljust(200, '\x00').encode('ascii')
+    def write_msg(self, stream_writer: StreamWriter, msg: bytes):
+        packed = msg.decode("ascii").ljust(200, "\x00").encode("ascii")
         _logger.debug(f"Sending packed raw message: {packed}")
         stream_writer.write(packed)
+
 
 class DcssDhsV2MessageReaderWriter(MessageStreamReader, MessageStreamWriter):
     def __init__(self):
@@ -945,13 +1043,13 @@ class DcssDhsV2MessageReaderWriter(MessageStreamReader, MessageStreamWriter):
         super(MessageStreamWriter).__init__()
         self._version = 1
 
-    def read_msg(self, stream_reader:StreamReader)->bytes:
-        
+    def read_msg(self, stream_reader: StreamReader) -> bytes:
+
         unpacked = None
 
         header = stream_reader.read(26)
         packed = header
-        hdr_str = header.decode('ascii').rstrip('\x00\r\n').split()
+        hdr_str = header.decode("ascii").rstrip("\x00\r\n").split()
         if hdr_str[0].isnumeric():
             text_size = int(hdr_str[0])
             bin_size = int(hdr_str[1])
@@ -971,75 +1069,107 @@ class DcssDhsV2MessageReaderWriter(MessageStreamReader, MessageStreamWriter):
 
         _logger.debug(f"Received packed raw message version {self._version}: {packed}")
 
-        return unpacked.decode('ascii').rstrip('\n\r\x00').encode('ascii')
+        return unpacked.decode("ascii").rstrip("\n\r\x00").encode("ascii")
 
-    def write_msg(self, stream_writer:StreamWriter, msg:bytes):
-        
+    def write_msg(self, stream_writer: StreamWriter, msg: bytes):
+
         packed = None
         if self._version == 2:
-            msg_str = msg.decode('ascii').rstrip('\r\n\x00') + ' \x00'
-            msg_text_buf = msg_str.encode('ascii')
+            msg_str = msg.decode("ascii").rstrip("\r\n\x00") + " \x00"
+            msg_text_buf = msg_str.encode("ascii")
             msg_text_len = len(msg_text_buf)
-            msg_header = str(msg_text_len).rjust(12) + str(0).rjust(13) + ' '
-            msg_hdr_buf = msg_header.encode('ascii')
+            msg_header = str(msg_text_len).rjust(12) + str(0).rjust(13) + " "
+            msg_hdr_buf = msg_header.encode("ascii")
             packed = msg_hdr_buf + msg_text_buf
         else:
-            packed = msg.decode('ascii').ljust(200, '\x00').encode('ascii')
+            packed = msg.decode("ascii").ljust(200, "\x00").encode("ascii")
 
         _logger.debug(f"Sending packed raw message version {self._version}: {packed}")
         stream_writer.write(packed)
-    
+
+
 class DcssClientTransport(TcpipClientTransport):
-    def __init__(self, connection_name:str, url:str, config:dict={}):
+    def __init__(self, connection_name: str, url: str, config: dict = {}):
         self._msg_reader_writer = DcssDhsV2MessageReaderWriter()
-        super().__init__(connection_name, url, self._msg_reader_writer, self._msg_reader_writer, config)
+        super().__init__(
+            connection_name,
+            url,
+            self._msg_reader_writer,
+            self._msg_reader_writer,
+            config,
+        )
 
-@register_connection('dcss')
+
+@register_connection("dcss")
 class DcssClientConnection(ConnectionBase):
-    def __init__(self, connection_name:str, url:str, incoming_message_queue:IncomingMessageQueue, outgoing_message_queue:OutgoingMessageQueue, config:dict={}):
-        super().__init__(connection_name, url, DcssClientTransport(connection_name, url, config), incoming_message_queue, outgoing_message_queue, DcssMessageFactory(), config)
+    def __init__(
+        self,
+        connection_name: str,
+        url: str,
+        incoming_message_queue: IncomingMessageQueue,
+        outgoing_message_queue: OutgoingMessageQueue,
+        config: dict = {},
+    ):
+        super().__init__(
+            connection_name,
+            url,
+            DcssClientTransport(connection_name, url, config),
+            incoming_message_queue,
+            outgoing_message_queue,
+            DcssMessageFactory(),
+            config,
+        )
 
-class DcssOperationHandlerRegistry():
 
-    _default_processor_name = 'default'
+class DcssOperationHandlerRegistry:
+
+    _default_processor_name = "default"
     _registry = {}
 
     @classmethod
-    def _register_start_operation_handler(cls, operation_name:str, operation_handler_function, processor_name:str=None):
+    def _register_start_operation_handler(
+        cls, operation_name: str, operation_handler_function, processor_name: str = None
+    ):
         if not processor_name:
             processor_name = cls._default_processor_name
 
         if not isfunction(operation_handler_function):
-            raise TypeError('handler_function must be a function')
+            raise TypeError("handler_function must be a function")
 
         hf_sig = signature(operation_handler_function)
-        msg_param = hf_sig.parameters.get('message')
+        msg_param = hf_sig.parameters.get("message")
         if not issubclass(msg_param.annotation, DcssStoHStartOperation):
-            raise TypeError('The handler_function must have a named parameter "message" that is of type DcssStoHStartOperation')
+            raise TypeError(
+                'The handler_function must have a named parameter "message" that is of type DcssStoHStartOperation'
+            )
 
-        ctx_param = hf_sig.parameters.get('context')
+        ctx_param = hf_sig.parameters.get("context")
         if not issubclass(ctx_param.annotation, DcssContext):
-            raise TypeError('The handler_function must have a named parameter "context" that is of type DcssContext')
+            raise TypeError(
+                'The handler_function must have a named parameter "context" that is of type DcssContext'
+            )
 
-        if cls._registry.get(processor_name) == None:
+        if cls._registry.get(processor_name) is None:
             cls._registry[processor_name] = dict()
-        
-        cls._registry[processor_name][operation_name]=operation_handler_function
+
+        cls._registry[processor_name][operation_name] = operation_handler_function
 
     @classmethod
-    def _get_operation_handlers(cls, processor_name:str=None):
+    def _get_operation_handlers(cls, processor_name: str = None):
         if not processor_name:
             processor_name = cls._default_processor_name
-        return cls._registry.get(processor_name, {})        
+        return cls._registry.get(processor_name, {})
 
 
-def register_dcss_start_operation_handler(operation_name:str, dispatcher_name:str=None):
-    '''Registers a function to handle a dcss start operation message.
+def register_dcss_start_operation_handler(
+    operation_name: str, dispatcher_name: str = None
+):
+    """Registers a function to handle a dcss start operation message.
 
     operation_name - Start operations that match this operation name will be dispatched to this function.
 
     dispatcher_name - Name of the message dispatcher that will be routing the messages to this message handler.
-    Each message dispatcher will run in it's own thread and in the future there may be a requirement 
+    Each message dispatcher will run in it's own thread and in the future there may be a requirement
     to have multiple dispatchers. For now, there is only one dispatcher, so leave this blank or set
     it to None.
 
@@ -1047,25 +1177,35 @@ def register_dcss_start_operation_handler(operation_name:str, dispatcher_name:st
 
     def handler(message:DcssStoHStartOperation, context:DcssContext)
 
-    '''
+    """
+
     def decorator_register_start_operation_handler(func):
-        DcssOperationHandlerRegistry._register_start_operation_handler(operation_name, func, dispatcher_name)
+        DcssOperationHandlerRegistry._register_start_operation_handler(
+            operation_name, func, dispatcher_name
+        )
         return func
 
     return decorator_register_start_operation_handler
 
+
 class DcssActiveOperation:
-    ''' Storage class for active operations.
-    
+    """Storage class for active operations.
+
     Active operations that are currently underway have information stored in this class. It stores the operation name, operation handle, start operation message,
     and a DHS implementation placeholder property called state that implementer can use to store whatever they need for the duration of the operation.
 
-    This class is created and stored in the active operations list when a dcss stoh_start_operation message is received. 
+    This class is created and stored in the active operations list when a dcss stoh_start_operation message is received.
     It is removed, along with state allocations mentioned above, when the DHS responds with the htos_operation_completed message.
     After the call, the active operation and state is no longer available.
 
-    '''
-    def __init__(self, operation_name:str, operation_handle:str, start_operation_message:DcssStoHStartOperation):
+    """
+
+    def __init__(
+        self,
+        operation_name: str,
+        operation_handle: str,
+        start_operation_message: DcssStoHStartOperation,
+    ):
         self._operation_name = operation_name
         self._operation_handle = operation_handle
         self._start_operation_message = start_operation_message
@@ -1088,93 +1228,119 @@ class DcssActiveOperation:
         return self._operation_state
 
     @operation_state.setter
-    def operation_state(self, operation_state:Any):
+    def operation_state(self, operation_state: Any):
         self._operation_state = operation_state
-        
-class DcssActiveOperations:
-    ''' Stores a list of active operations that are currently in progress'''
 
+
+class DcssActiveOperations:
+    """ Stores a list of active operations that are currently in progress"""
 
     def __init__(self):
         self._active_operations = []
 
-    def add_operation(self, operation:DcssActiveOperation):
+    def add_operation(self, operation: DcssActiveOperation):
         # replace existing operation if there is one.
         self.remove_operation(operation)
         self._active_operations.append(operation)
 
-    def get_operations(self, operation_name:str=None, operation_handle=None):
-        return list(filter(lambda op: (not operation_name or operation_name == op.operation_name) 
-            and (not operation_handle or operation_handle == op.operation_handle), self._active_operations))
+    def get_operations(self, operation_name: str = None, operation_handle=None):
+        return list(
+            filter(
+                lambda op: (not operation_name or operation_name == op.operation_name)
+                and (not operation_handle or operation_handle == op.operation_handle),
+                self._active_operations,
+            )
+        )
 
-    def remove_operation(self, operation:DcssActiveOperation):
+    def remove_operation(self, operation: DcssActiveOperation):
         ops = self.get_operations(operation.operation_name, operation.operation_handle)
         for op in ops:
             while op in self._active_operations:
                 self._active_operations.remove(op)
 
-    def remove_operations(self, operations:list):
+    def remove_operations(self, operations: list):
         for op in operations:
             self.remove_operation(op)
 
+
 class DcssContext(Context):
-    def __init__(self, active_operations:DcssActiveOperations):
+    def __init__(self, active_operations: DcssActiveOperations):
         super().__init__()
         self._active_operations = active_operations
 
-    def get_active_operations(self, operation_name:str=None, operation_handle=None)->DcssActiveOperation:
-        ''' Retrieve active operations that match the name and/or handle.
-        
-         operation_name - Get all active operations that match that name. None acts as a wildcard.
-         operation_handle - Get all active operations that match that handle. None acts as a wildcard.
+    def get_active_operations(
+        self, operation_name: str = None, operation_handle=None
+    ) -> DcssActiveOperation:
+        """Retrieve active operations that match the name and/or handle.
 
-         Note: To get active operations pas in None for name and handle. To be specific you can match both
-         name and handle.
+        operation_name - Get all active operations that match that name. None acts as a wildcard.
+        operation_handle - Get all active operations that match that handle. None acts as a wildcard.
 
-         '''
+        Note: To get active operations pas in None for name and handle. To be specific you can match both
+        name and handle.
+
+        """
         return self._active_operations.get_operations(operation_name, operation_handle)
 
     def get_active_operation_names(self):
         return self._active_operations.get_operations()
 
+
 class DcssOutgoingMessageQueue(OutgoingMessageQueue):
-    def __init__(self, active_operations:DcssActiveOperations):
+    def __init__(self, active_operations: DcssActiveOperations):
         super().__init__()
         self._active_operations = active_operations
 
-    def queue(self, message:MessageOut):
+    def queue(self, message: MessageOut):
         super().queue(message)
 
-        #Special handling for operation completed messages
+        # Special handling for operation completed messages
         if isinstance(message, DcssHtoSOperationCompleted):
-            ops = self._active_operations.get_operations(message._split_msg[1], message._split_msg[2])
+            ops = self._active_operations.get_operations(
+                message._split_msg[1], message._split_msg[2]
+            )
             self._active_operations.remove_operations(ops)
 
+
 class DcssMessageQueueDispatcher(MessageQueueDispatcher):
-    def __init__(self, name:str, incoming_message_queue:IncomingMessageQueue, context:Context, active_operations:DcssActiveOperations, config:dict={}):
+    def __init__(
+        self,
+        name: str,
+        incoming_message_queue: IncomingMessageQueue,
+        context: Context,
+        active_operations: DcssActiveOperations,
+        config: dict = {},
+    ):
         super().__init__(name, incoming_message_queue, context, config)
         self._active_operations = active_operations
-        self._operation_handler_map = DcssOperationHandlerRegistry._get_operation_handlers()
+        self._operation_handler_map = (
+            DcssOperationHandlerRegistry._get_operation_handlers()
+        )
 
     def start(self):
         super().start()
         for op_name, func in self._operation_handler_map.items():
             lineno = getsourcelines(func)[1]
             module = getmodule(func)
-            _logger.debug(f'Registered start operation handler: {op_name}, {module.__name__}:{func.__name__}():{lineno} with {self._disp_name} dispatcher')
+            _logger.debug(
+                f"Registered start operation handler: {op_name}, {module.__name__}:{func.__name__}():{lineno} with {self._disp_name} dispatcher"
+            )
 
-    def process_message(self, message:MessageIn):
-        #Send to parent dispatcher to handle messages.
+    def process_message(self, message: MessageIn):
+        # Send to parent dispatcher to handle messages.
         super().process_message(message)
 
-        #Special handling for start operation messages.
+        # Special handling for start operation messages.
         if isinstance(message, DcssStoHStartOperation):
             handler = self._operation_handler_map.get(message.operation_name)
             if isfunction(handler):
-                self._active_operations.add_operation(DcssActiveOperation(message.operation_name, message.operation_handle, message))
+                self._active_operations.add_operation(
+                    DcssActiveOperation(
+                        message.operation_name, message.operation_handle, message
+                    )
+                )
                 handler(message, self._context)
 
-    def process_message_now(self, message:MessageIn):
-        #Send to parent dispatcher to handle messages.
+    def process_message_now(self, message: MessageIn):
+        # Send to parent dispatcher to handle messages.
         super().process_message(message)
-
