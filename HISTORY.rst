@@ -2,7 +2,7 @@
 History
 =======
 
-1.0.0
--------------------
+v0.1-alpha (10-15-2020)
+-----------------------
 
-stuff
+The first tagged release of this project.
