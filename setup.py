@@ -23,5 +23,14 @@ setup(
         'License :: OSI Approved :: MIT License',
         'Operating System :: OS Independent',
     ],
-    install_requires=['PyYAML', 'dotty-dict', 'coloredlogs', 'verboselogs', 'requests'],
+    install_requires=[
+        'PyYAML',
+        'dotty-dict',
+        'coloredlogs',
+        'verboselogs',
+        'requests',
+        'opencv-python-headless',
+        'matplotlib',
+        'scipy',
+    ],
 )
