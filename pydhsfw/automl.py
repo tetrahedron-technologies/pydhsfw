@@ -24,7 +24,14 @@ _logger = logging.getLogger(__name__)
 
 @register_message('automl_predict_request')
 class AutoMLPredictRequest(PostJsonRequestMessage):
-    """Formats a json data package and sends to the GCP AutoML server for prediction."""
+    """Formats a json data package and sends to the Google AutoML server for prediction.
+
+    As per the Google documentation the image must be base64 encoded.
+
+    Note:
+        Google claims there are a number of `parameters <https://cloud.google.com/automl/docs/reference/rest/v1/projects.locations.models/predict>`_ that can be passed in with this json package.
+        However, I have had no luck in getting this working with our edge-deployed model.
+    """
 
     def __init__(self, key: str, image: bytes):
 
@@ -40,7 +47,7 @@ class AutoMLPredictRequest(PostJsonRequestMessage):
 
 @register_message('automl_predict_response', 'automl')
 class AutoMLPredictResponse(JsonResponseMessage):
-    """Parses the response json file and stores various values the top hit in class properties."""
+    """Parses the response json file and stores various values from the top hit in class properties."""
 
     def __init__(self, response):
         super().__init__(response)
@@ -52,51 +59,60 @@ class AutoMLPredictResponse(JsonResponseMessage):
 
     @property
     def image_key(self):
+        """str: This is the unique key associated with this particular prediction request."""
         return dotty(self.json)['predictions.0.key']
 
     @property
     def top_score(self):
-        # might want to do some sort of filtering here?
-        # only accept if score if better than 90% or something?
+        """float: This is the highest AutoML score from this prediction request (0.0-1.0)"""
         return dotty(self.json)['predictions.0.detection_scores.0']
 
     @property
     def top_bb(self):
-        """
-        Object bounding box returned from AutoML
-        minY, minX, maxY, maxX
+        """:obj:`list` of :obj:`float`: Bounding box returned from AutoML containing minY, minX, maxY, maxX
 
-        origin in upper left corner of image.
+        The values returned are fractional coordinates with the origin in upper left corner of image::
 
-        (0,0)----------------------> (1,0) X-axis
-        |
-        |
-        |
-        |
-        v
-        (0,1) Y-axis
+            (0,0)----------------------> (1,0) X-axis (horizontal)
+            |
+            |
+            |
+            |
+            v
+            (0,1) Y-axis (vertical)
 
         """
         return dotty(self.json)['predictions.0.detection_boxes.0']
 
     @property
     def bb_minY(self):
+        """float: The minimum vertical coordinate for the bounding box. i.e. the top of the bounding box."""
         return dotty(self.json)['predictions.0.detection_boxes.0.0']
 
     @property
     def bb_minX(self):
+        """float: The minimum horizontal coordinate for the bounding box. i.e. the left side of the bounding box."""
         return dotty(self.json)['predictions.0.detection_boxes.0.1']
 
     @property
     def bb_maxY(self):
+        """float: The maximum vertical coordinate for the bounding box. i.e. the bottom of the bounding box."""
         return dotty(self.json)['predictions.0.detection_boxes.0.2']
 
     @property
     def bb_maxX(self):
+        """float: The maximum horizontal coordinate for the bounding box. i.e. the right side of the bounding box."""
         return dotty(self.json)['predictions.0.detection_boxes.0.3']
 
     @property
     def top_classification(self):
+        """str: The text value associated with the top prediction.
+
+        This depends on what type of AutoML model you are using and how many objects it has been trained to detect.
+
+        Note:
+            For our implementaion of the loopDHS at beamline 8.3.1 we have an AutoML model trained to detect **nylon** and **mitegen** loops as well as **pins**.
+        """
         return dotty(self.json)['predictions.0.detection_classes_as_text.0']
 
 

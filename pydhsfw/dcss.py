@@ -22,9 +22,11 @@ from pydhsfw.processors import Context, MessageQueueDispatcher
 
 _logger = logging.getLogger(__name__)
 
-# --------------------------------------------------------------------------
+# -------------------------------------------------------------------------------------
 # DCSS Message Base Classes
 class DcssMessageIn:
+    """DCSS incoming message class."""
+
     def __init__(self, split):
         self._split_msg = split
 
@@ -37,20 +39,39 @@ class DcssMessageIn:
 
     @staticmethod
     def parse_type_id(buffer: bytes):
+        """Parses out the raw message coming from DCSS.
+
+        For example when we receive::
+
+            stoh_start_operation detector_collect_image 1.2780
+
+        This function will return the first element in this string (**stoh_start_operation**).
+
+        Returns:
+            byte object containg the DCS message/command.
+        """
         return DcssMessageIn._split(buffer)[0]
 
     @property
     def command(self):
-        """str: DCSS command name"""
+        """str: DCSS command name
+
+        This is the DCS/XOS command.
+        """
         return self._split_msg[0]
 
     @property
     def args(self):
-        """str: DCSS command args"""
+        """str: DCSS command args
+
+        This contains everything after the DCS/XOS command.
+        """
         return self._split_msg[1:]
 
 
 class DcssStoCMessage(MessageIn, DcssMessageIn):
+    """DCSS Server To Client incoming message base class."""
+
     def __init__(self, split):
         DcssMessageIn.__init__(self, split)
 
@@ -59,7 +80,10 @@ class DcssStoCMessage(MessageIn, DcssMessageIn):
 
     @classmethod
     def parse(cls, buffer: bytes):
-
+        """
+        Returns:
+            The DCS/XOS command name.
+        """
         msg = None
 
         split = DcssMessageIn._split(buffer)
@@ -70,6 +94,8 @@ class DcssStoCMessage(MessageIn, DcssMessageIn):
 
 
 class DcssMessageOut(MessageOut):
+    """DCSS outgoing message class."""
+
     def __init__(self):
         super().__init__()
         self._split_msg = None
@@ -78,6 +104,11 @@ class DcssMessageOut(MessageOut):
         return ' '.join(self._split_msg)
 
     def write(self) -> bytes:
+        """Write the outgoing DCSS message.
+
+        Returns:
+            ASCII encoded buffer
+        """
         buffer = None
 
         if self._split_msg:
@@ -87,11 +118,13 @@ class DcssMessageOut(MessageOut):
 
 
 class DcssHtoSMessage(DcssMessageOut):
+    """DCSS Hardware To Server outgoing message base class."""
+
     def __init__(self):
         super().__init__()
 
 
-# --------------------------------------------------------------------------
+# -------------------------------------------------------------------------------------
 # Messages Incoming from DCSS
 @register_message('stoc_send_client_type', 'dcss')
 class DcssStoCSendClientType(DcssStoCMessage):
@@ -602,7 +635,7 @@ class DcssStoHStartOperation(DcssStoCMessage):
         return self.args[2:]
 
 
-# --------------------------------------------------------------------------
+# -------------------------------------------------------------------------------------
 # Messages Outgoing to DCSS (Hardware TO Server)
 @register_message('htos_client_is_hardware')
 class DcssHtoSClientIsHardware(DcssHtoSMessage):
@@ -686,14 +719,14 @@ class DcssHtoSOperationCompleted(DcssHtoSMessage):
 
         htos_operation_completed operation_name operation_handle operation_status operation_args
 
-    Note:
-        It is recommended that list of return arguments adhere to the overall DCS protocol (space separated tokens), but this can only be enforced by the writer of the operation handle.
-
     Args:
         operation_name (str):       The name of the operation that completed.
         operation_handle (float):   The unique value that indicates which instance of the operation completed.
         operation_status (str):     Anything other than a normal in this field will indicate to DCSS and BLU-ICE that the operation failed, and this token will become the reason of failure.
         operation_args (str):       This is a list of return values.
+
+    Note:
+        It is recommended that list of return arguments adhere to the overall DCS protocol (space separated tokens), but this can only be enforced by the writer of the operation handle.
     """
 
     def __init__(
@@ -1013,6 +1046,8 @@ class DcssHtoSSetMotorMessage(DcssHtoSMessage):
         self._split_msg = [self.get_type_id(), motor_name]
 
 
+# -------------------------------------------------------------------------------------
+# Messaging, Transport, Other Utilities
 class DcssMessageFactory(MessageFactory):
     """Class for parsing the messages from DCSS."""
 
@@ -1226,15 +1261,14 @@ def register_dcss_start_operation_handler(
 
 
 class DcssActiveOperation:
-    """Storage class for active operations.
+    """Storage class for an active operation.
 
     Active operations that are currently underway have information stored in this class. It stores the operation name, operation handle, start operation message,
     and a DHS implementation placeholder property called state that implementer can use to store whatever they need for the duration of the operation.
 
-    This class is created and stored in the active operations list when a dcss stoh_start_operation message is received.
-    It is removed, along with state allocations mentioned above, when the DHS responds with the htos_operation_completed message.
+    This class is created and stored in the active operations list when a dcss **stoh_start_operation** message is received.
+    It is removed, along with state allocations mentioned above, when the DHS responds with the **htos_operation_completed** message.
     After the call, the active operation and state is no longer available.
-
     """
 
     def __init__(
@@ -1250,18 +1284,22 @@ class DcssActiveOperation:
 
     @property
     def operation_name(self):
+        """The name of the DCSS operation."""
         return self._operation_name
 
     @property
     def operation_handle(self):
+        """The unique handle for the DCSS operation."""
         return self._operation_handle
 
     @property
     def start_operation_message(self):
+        """The arguments passed in with the DCSS operation."""
         return self._start_operation_message
 
     @property
     def operation_state(self):
+        """The state of the DCSS operation."""
         return self._operation_state
 
     @operation_state.setter
@@ -1270,17 +1308,31 @@ class DcssActiveOperation:
 
 
 class DcssActiveOperations:
-    """ Stores a list of active operations that are currently in progress"""
+    """Storage class for list of all active operations."""
 
     def __init__(self):
         self._active_operations = []
 
     def add_operation(self, operation: DcssActiveOperation):
+        """Add or replace an active operation.
+
+        Args:
+            operation (DcssActiveOperation): an object of type DcssActiveOperation representing a single active operation that should be added or replaced.
+        """
         # replace existing operation if there is one.
         self.remove_operation(operation)
         self._active_operations.append(operation)
 
     def get_operations(self, operation_name: str = None, operation_handle=None):
+        """Get active operations.
+
+        Args:
+            operation_name (str): The name of the operation to retreive.
+            operation_handle (float): The numeric handle for the operation.
+
+        Returns:
+            List of all active operations matching the operation_name or operation_handle.
+        """
         return list(
             filter(
                 lambda op: (not operation_name or operation_name == op.operation_name)
@@ -1290,17 +1342,29 @@ class DcssActiveOperations:
         )
 
     def remove_operation(self, operation: DcssActiveOperation):
+        """Remove a single operation from the list of active operations.
+
+        Args:
+            operation (DcssActiveOperation): an object of type DcssActiveOperation representing a single active operation that should be removed.
+        """
         ops = self.get_operations(operation.operation_name, operation.operation_handle)
         for op in ops:
             while op in self._active_operations:
                 self._active_operations.remove(op)
 
     def remove_operations(self, operations: list):
+        """Remove all active operations.
+
+        Args:
+            operations (list): A list of operations to remove from the active operations.
+        """
         for op in operations:
             self.remove_operation(op)
 
 
 class DcssContext(Context):
+    """Context class for DCSS"""
+
     def __init__(self, active_operations: DcssActiveOperations):
         super().__init__()
         self._active_operations = active_operations
@@ -1308,18 +1372,24 @@ class DcssContext(Context):
     def get_active_operations(
         self, operation_name: str = None, operation_handle=None
     ) -> DcssActiveOperation:
-        """Retrieve active operations that match the name and/or handle.
+        """Retrieve active operations that match the operation_name and/or operation_handle.
 
-        operation_name - Get all active operations that match that name. None acts as a wildcard.
-        operation_handle - Get all active operations that match that handle. None acts as a wildcard.
+        Args:
+            operation_name (str): Get all active operations that match that operation_name. **None** acts as a wildcard.
+            operation_handle (float): Get all active operations that match that operation_handle. **None** acts as a wildcard.
 
-        Note: To get active operations pas in None for name and handle. To be specific you can match both
-        name and handle.
-
+        Note:
+            To get active operations pass in **None** for operation_name and operation_handle. To be specific you can match both operation_name and operation_handle.
         """
+
         return self._active_operations.get_operations(operation_name, operation_handle)
 
     def get_active_operation_names(self):
+        """Get list of all active operations.
+
+        Returns:
+            List of all active operations.
+        """
         return self._active_operations.get_operations()
 
 
