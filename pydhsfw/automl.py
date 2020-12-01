@@ -47,6 +47,7 @@ class AutoMLPredictResponse(JsonResponseMessage):
         self._pin_num = None
         self._loop_num = None
         # could we assign values to these two variables during __init__ ?
+        # if these are "None" when any properties are accessed then we will get an error.
 
     def get_score(self, n: int) -> float:
         """Returns the AutoML inference score for the Nth object in a sorted results list"""
@@ -121,6 +122,22 @@ class AutoMLPredictResponse(JsonResponseMessage):
     @property
     def loop_bb_maxX(self):
         return dotty(self.json)[f'predictions.0.detection_boxes.{self._loop_num}.3']
+
+    @property
+    def pin_bb_minY(self):
+        return dotty(self.json)[f'predictions.0.detection_boxes.{self._pin_num}.0']
+
+    @property
+    def pin_bb_minX(self):
+        return dotty(self.json)[f'predictions.0.detection_boxes.{self._pin_num}.1']
+
+    @property
+    def pin_bb_maxY(self):
+        return dotty(self.json)[f'predictions.0.detection_boxes.{self._pin_num}.2']
+
+    @property
+    def pin_bb_maxX(self):
+        return dotty(self.json)[f'predictions.0.detection_boxes.{self._pin_num}.3']
 
     @property
     def loop_top_classification(self):
