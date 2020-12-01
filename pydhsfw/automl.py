@@ -46,15 +46,20 @@ class AutoMLPredictResponse(JsonResponseMessage):
         super().__init__(response)
         self._pin_num = None
         self._loop_num = None
+        # could we assign values to these two variables during __init__ ?
 
     def get_score(self, n: int) -> float:
         """Returns the AutoML inference score for the Nth object in a sorted results list"""
         # _logger.info(f'AutoMLPredictResponse function called with {n}')
         return dotty(self.json)[f'predictions.0.detection_scores.{n}']
 
-    def get_obj(self, n: int) -> str:
-        """Returns the AutoML classification for the Nth object in a sorted results list"""
+    def get_detection_class_as_text(self, n: int) -> str:
+        """Returns the AutoML classification (as text) for the Nth object in a sorted results list"""
         return dotty(self.json)[f'predictions.0.detection_classes_as_text.{n}']
+
+    def get_detection_class_as_int(self, n: int) -> str:
+        """Returns the AutoML classification (as int) for the Nth object in a sorted results list"""
+        return dotty(self.json)[f'predictions.0.detection_classes.{n}']
 
     @property
     def pin_num(self):
