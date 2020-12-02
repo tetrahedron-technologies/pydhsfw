@@ -44,24 +44,52 @@ class AutoMLPredictResponse(JsonResponseMessage):
 
     def __init__(self, response):
         super().__init__(response)
+        self._pin_num = None
+        self._loop_num = None
+        # could we assign values to these two variables during __init__ ?
+        # if these are "None" when any properties are accessed then we will get an error.
 
     def get_score(self, n: int) -> float:
         """Returns the AutoML inference score for the Nth object in a sorted results list"""
         # _logger.info(f'AutoMLPredictResponse function called with {n}')
         return dotty(self.json)[f'predictions.0.detection_scores.{n}']
 
+    def get_detection_class_as_text(self, n: int) -> str:
+        """Returns the AutoML classification (as text) for the Nth object in a sorted results list"""
+        return dotty(self.json)[f'predictions.0.detection_classes_as_text.{n}']
+
+    def get_detection_class_as_int(self, n: int) -> str:
+        """Returns the AutoML classification (as int) for the Nth object in a sorted results list"""
+        return dotty(self.json)[f'predictions.0.detection_classes.{n}']
+
+    @property
+    def pin_num(self):
+        return self._pin_num
+
+    @pin_num.setter
+    def pin_num(self, n: int):
+        self._pin_num = n
+
+    @property
+    def loop_num(self):
+        return self._loop_num
+
+    @loop_num.setter
+    def loop_num(self, n: int):
+        self._loop_num = n
+
     @property
     def image_key(self):
         return dotty(self.json)['predictions.0.key']
 
     @property
-    def top_score(self):
+    def loop_top_score(self):
         # might want to do some sort of filtering here?
         # only accept if score if better than 90% or something?
-        return dotty(self.json)['predictions.0.detection_scores.0']
+        return dotty(self.json)[f'predictions.0.detection_scores.{self._loop_num}']
 
     @property
-    def top_bb(self):
+    def loop_top_bb(self):
         """
         Object bounding box returned from AutoML
         minY, minX, maxY, maxX
@@ -77,27 +105,49 @@ class AutoMLPredictResponse(JsonResponseMessage):
         (0,1) Y-axis
 
         """
-        return dotty(self.json)['predictions.0.detection_boxes.0']
+        return dotty(self.json)[f'predictions.0.detection_boxes.{self._loop_num}']
 
     @property
-    def bb_minY(self):
-        return dotty(self.json)['predictions.0.detection_boxes.0.0']
+    def loop_bb_minY(self):
+        return dotty(self.json)[f'predictions.0.detection_boxes.{self._loop_num}.0']
 
     @property
-    def bb_minX(self):
-        return dotty(self.json)['predictions.0.detection_boxes.0.1']
+    def loop_bb_minX(self):
+        return dotty(self.json)[f'predictions.0.detection_boxes.{self._loop_num}.1']
 
     @property
-    def bb_maxY(self):
-        return dotty(self.json)['predictions.0.detection_boxes.0.2']
+    def loop_bb_maxY(self):
+        return dotty(self.json)[f'predictions.0.detection_boxes.{self._loop_num}.2']
 
     @property
-    def bb_maxX(self):
-        return dotty(self.json)['predictions.0.detection_boxes.0.3']
+    def loop_bb_maxX(self):
+        return dotty(self.json)[f'predictions.0.detection_boxes.{self._loop_num}.3']
 
     @property
-    def top_classification(self):
-        return dotty(self.json)['predictions.0.detection_classes_as_text.0']
+    def pin_bb_minY(self):
+        return dotty(self.json)[f'predictions.0.detection_boxes.{self._pin_num}.0']
+
+    @property
+    def pin_bb_minX(self):
+        return dotty(self.json)[f'predictions.0.detection_boxes.{self._pin_num}.1']
+
+    @property
+    def pin_bb_maxY(self):
+        return dotty(self.json)[f'predictions.0.detection_boxes.{self._pin_num}.2']
+
+    @property
+    def pin_bb_maxX(self):
+        return dotty(self.json)[f'predictions.0.detection_boxes.{self._pin_num}.3']
+
+    @property
+    def loop_top_classification(self):
+        return dotty(self.json)[
+            f'predictions.0.detection_classes_as_text.{self._loop_num}'
+        ]
+
+    @property
+    def pin_base_x(self):
+        return dotty(self.json)[f'predictions.0.detection_boxes.{self._pin_num}.3']
 
 
 class AutoMLMessageFactory(MessageFactory):
